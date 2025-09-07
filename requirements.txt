@@ -1,0 +1,16 @@
+# Dependências para o sistema papprefeito - Consulta de Dados
+
+# Interface web
+streamlit
+
+# Manipulação de dados
+pandas>=2.0.0
+
+# Requisições HTTP
+requests>=2.31.0
+
+# Biblioteca para códigos IBGE e UF
+pyUFbr
+
+# Adaptadores HTTP com retry
+urllib3>=2.0.0
