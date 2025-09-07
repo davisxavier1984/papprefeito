@@ -284,13 +284,30 @@ def criar_grafico_piramide_mensal(dados):
     if valor_atual == 0:
         return None
     
-    # Calcular cenários
-    percentual_variacao = 0.25
-    valor_otimo = valor_atual * (1 + percentual_variacao)
-    valor_regular = valor_atual * (1 - percentual_variacao)
+    # Calcular cenários usando valores reais da tabela de classificação
+    from utils import criar_tabela_total_por_classificacao
+    import pandas as pd
     
-    ganho_mensal = valor_otimo - valor_atual
-    perda_mensal = valor_atual - valor_regular
+    # Obter valores reais de cada classificação
+    tabela_classificacao = criar_tabela_total_por_classificacao(dados)
+    
+    # Extrair valores monetários (remover formatação)
+    valor_otimo_str = tabela_classificacao[tabela_classificacao['Classificação'] == 'Ótimo']['Valor Total'].iloc[0]
+    valor_bom_str = tabela_classificacao[tabela_classificacao['Classificação'] == 'Bom']['Valor Total'].iloc[0]
+    valor_regular_str = tabela_classificacao[tabela_classificacao['Classificação'] == 'Regular']['Valor Total'].iloc[0]
+    
+    # Converter strings formatadas para float
+    from utils import currency_to_float
+    valor_otimo = currency_to_float(valor_otimo_str)
+    valor_bom = currency_to_float(valor_bom_str)  # valor atual = classificação "Bom"
+    valor_regular = currency_to_float(valor_regular_str)
+    
+    # Recalcular valor_atual para ser coerente com "Bom"
+    valor_atual = valor_bom
+    
+    # Calcular ganhos e perdas totais baseados nas diferenças reais
+    ganho_total = valor_otimo - valor_bom
+    perda_total = valor_bom - valor_regular
     
     # Preparar dados mensais
     from datetime import datetime
@@ -303,8 +320,9 @@ def criar_grafico_piramide_mensal(dados):
         mes_index = (mes_atual + i) % 12
         meses.append(meses_nomes[mes_index])
     
-    ganhos_acumulados = [ganho_mensal * (i+1) for i in range(12)]
-    perdas_acumuladas = [-perda_mensal * (i+1) for i in range(12)]
+    # Acumulação mensal: cada mês acumula a diferença total
+    ganhos_acumulados = [ganho_total * (i+1) for i in range(12)]
+    perdas_acumuladas = [-perda_total * (i+1) for i in range(12)]
     
     # Criar figura otimizada
     fig = go.Figure()
@@ -353,9 +371,9 @@ def criar_grafico_piramide_mensal(dados):
         textfont=dict(size=10, color=CORES_PADRAO['negativo'])
     ))
     
-    # Calcular valores acumulados totais (soma dos 12 meses)
-    total_ganhos = sum(ganhos_acumulados)  # Soma dos 12 meses
-    total_perdas = sum([abs(p) for p in perdas_acumuladas])  # Soma dos 12 meses
+    # Valores totais são os valores do último mês (dezembro)
+    total_ganhos = ganhos_acumulados[-1]  # Último valor da lista de ganhos
+    total_perdas = abs(perdas_acumuladas[-1])  # Último valor absoluto da lista de perdas
     
     # Calcular posições dinâmicas para os painéis
     max_ganho = max(ganhos_acumulados)
