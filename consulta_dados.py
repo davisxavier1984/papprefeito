@@ -353,9 +353,9 @@ def criar_grafico_piramide_mensal(dados):
         textfont=dict(size=10, color=CORES_PADRAO['negativo'])
     ))
     
-    # Calcular valores acumulados totais (final de dezembro)
-    total_ganhos = ganhos_acumulados[-1]  # Último valor da lista
-    total_perdas = abs(perdas_acumuladas[-1])  # Último valor absoluto da lista
+    # Calcular valores acumulados totais (soma dos 12 meses)
+    total_ganhos = sum(ganhos_acumulados)  # Soma dos 12 meses
+    total_perdas = sum([abs(p) for p in perdas_acumuladas])  # Soma dos 12 meses
     
     # Calcular posições dinâmicas para os painéis
     max_ganho = max(ganhos_acumulados)
