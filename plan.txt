@@ -1,0 +1,30 @@
+│ │ Plano: Adicionar Painéis de Destaque no Gráfico de Projeção                                                                                        │ │
+│ │                                                                                                                                                    │ │
+│ │ Objetivo: Adicionar dois painéis em destaque sobre o gráfico de projeção mensal, mostrando os valores acumulados totais - um sobre a área positiva │ │
+│ │  (ganhos) e outro sobre a área negativa (perdas).                                                                                                  │ │
+│ │                                                                                                                                                    │ │
+│ │ Modificações Planejadas:                                                                                                                           │ │
+│ │                                                                                                                                                    │ │
+│ │ 1. Modificar a função criar_grafico_piramide_mensal (consulta_dados.py:271-389)                                                                    │ │
+│ │   - Adicionar cálculos dos valores acumulados totais (final de dezembro)                                                                           │ │
+│ │   - Implementar dois painéis usando fig.add_annotation() do Plotly                                                                                 │ │
+│ │   - Posicionar os painéis sobre as respectivas áreas do gráfico                                                                                    │ │
+│ │ 2. Detalhes dos Painéis:                                                                                                                           │ │
+│ │   - Painel Superior (Ganhos):                                                                                                                      │ │
+│ │       - Valor total acumulado de ganhos (último valor da lista ganhos_acumulados)                                                                  │ │
+│ │     - Cor de fundo: verde (CORES_PADRAO['positivo'])                                                                                               │ │
+│ │     - Posição: área superior do gráfico                                                                                                            │ │
+│ │   - Painel Inferior (Perdas):                                                                                                                      │ │
+│ │       - Valor total acumulado de perdas (último valor absoluto da lista perdas_acumuladas)                                                         │ │
+│ │     - Cor de fundo: vermelha (CORES_PADRAO['negativo'])                                                                                            │ │
+│ │     - Posição: área inferior do gráfico                                                                                                            │ │
+│ │ 3. Implementação Técnica:                                                                                                                          │ │
+│ │   - Usar fig.add_annotation() com bgcolor, bordercolor e font                                                                                      │ │
+│ │   - Calcular posições dinâmicas baseadas nos valores máximo/mínimo                                                                                 │ │
+│ │   - Manter formatação monetária com format_currency()                                                                                              │ │
+│ │   - Preservar responsividade e tema visual existente                                                                                               │ │
+│ │ 4. Resultado Esperado:                                                                                                                             │ │
+│ │   - Dois painéis destacados e visualmente atrativos                                                                                                │ │
+│ │   - Informação clara dos valores acumulados totais                                                                                                 │ │
+│ │   - Integração harmoniosa com o design existente                                                                                                   │ │
+│ │   - Funcionalidade mantida em todos os dispositivos   
