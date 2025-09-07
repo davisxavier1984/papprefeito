@@ -353,6 +353,46 @@ def criar_grafico_piramide_mensal(dados):
         textfont=dict(size=10, color=CORES_PADRAO['negativo'])
     ))
     
+    # Calcular valores acumulados totais (final de dezembro)
+    total_ganhos = ganhos_acumulados[-1]  # Último valor da lista
+    total_perdas = abs(perdas_acumuladas[-1])  # Último valor absoluto da lista
+    
+    # Calcular posições dinâmicas para os painéis
+    max_ganho = max(ganhos_acumulados)
+    min_perda = min(perdas_acumuladas)
+    
+    # Adicionar painel superior (Ganhos)
+    fig.add_annotation(
+        text=f"<b>Total de Ganhos</b><br>{format_currency(total_ganhos)}",
+        x=5.5,  # Centro horizontal do gráfico
+        y=max_ganho * 0.8,  # 80% da altura máxima dos ganhos
+        showarrow=False,
+        bgcolor=CORES_PADRAO['positivo'],
+        bordercolor="rgba(255,255,255,0.8)",
+        borderwidth=2,
+        font=dict(size=14, color="white", family="Arial"),
+        align="center",
+        width=200,
+        height=60,
+        opacity=0.9
+    )
+    
+    # Adicionar painel inferior (Perdas)
+    fig.add_annotation(
+        text=f"<b>Total de Perdas</b><br>{format_currency(total_perdas)}",
+        x=5.5,  # Centro horizontal do gráfico
+        y=min_perda * 0.8,  # 80% da altura mínima das perdas
+        showarrow=False,
+        bgcolor=CORES_PADRAO['negativo'],
+        bordercolor="rgba(255,255,255,0.8)",
+        borderwidth=2,
+        font=dict(size=14, color="white", family="Arial"),
+        align="center",
+        width=200,
+        height=60,
+        opacity=0.9
+    )
+    
     # Layout otimizado
     municipio_nome = st.session_state.get('municipio_selecionado', '')
     uf_nome = st.session_state.get('uf_selecionada', '')
