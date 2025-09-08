@@ -60,6 +60,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+# Note: docs/ directory is NOT ignored to allow project documentation
 
 # Jupyter Notebook
 .ipynb_checkpoints
