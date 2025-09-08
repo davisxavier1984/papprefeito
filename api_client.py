@@ -13,6 +13,26 @@ from urllib3.util.retry import Retry
 # Nome do arquivo JSON para armazenar os dados da API
 DATA_FILE = "data_cache_papprefeito.json"
 
+def get_latest_competencia() -> str:
+    """Retorna a última competência disponível no sistema (formato AAAAMM)."""
+    from datetime import datetime, timedelta
+    
+    # Obter data atual
+    hoje = datetime.now()
+    
+    # Subtrair um mês
+    if hoje.month == 1:
+        # Se janeiro, vai para dezembro do ano anterior
+        mes_anterior = datetime(hoje.year - 1, 12, 1)
+    else:
+        # Caso contrário, apenas subtrai um mês
+        mes_anterior = datetime(hoje.year, hoje.month - 1, 1)
+    
+    # Formatar como AAAAMM
+    competencia = mes_anterior.strftime("%Y%m")
+    
+    return competencia
+
 class APIClient:
     """Cliente robusto para comunicação com a API de financiamento da saúde."""
     

@@ -11,12 +11,17 @@ from pyUFbr.baseuf import ufbr
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from utils import consultar_api, format_currency
+    from utils import consultar_api, format_currency, get_latest_competencia
 except ImportError:
-    # Fallback se não conseguir importar
-    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'utils'))
-    from api_client import consultar_api
-    from formatting import format_currency
+    try:
+        # Fallback se não conseguir importar do utils
+        from api_client import consultar_api, get_latest_competencia
+        from formatting import format_currency
+    except ImportError:
+        # Fallback com path absoluto
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from api_client import consultar_api, get_latest_competencia
+        from formatting import format_currency
 
 # Configurações Plotly otimizadas inline
 PLOTLY_CONFIG = {
@@ -779,12 +784,11 @@ def main():
     config_data = carregar_config()
 
     with st.expander("🔍 Parâmetros de Consulta", expanded=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            estados = ufbr.list_uf
-            uf_selecionada = st.selectbox("Selecione um Estado", options=estados)
-        with col2:
-            competencia = st.text_input("Competência (AAAAMM)", "202501")
+        estados = ufbr.list_uf
+        uf_selecionada = st.selectbox("Selecione um Estado", options=estados)
+        
+        # Competência automática (não exibida)
+        competencia = get_latest_competencia()
 
         if uf_selecionada:
             municipios = ufbr.list_cidades(uf_selecionada)
@@ -798,8 +802,8 @@ def main():
                 return
 
     if st.button("Consultar"):
-        if not (uf_selecionada and municipio_selecionado and competencia):
-            st.error("Por favor, preencha todos os campos de consulta.")
+        if not (uf_selecionada and municipio_selecionado):
+            st.error("Por favor, selecione um estado e município.")
             return
 
         with st.spinner("Consultando dados da API..."):
@@ -896,135 +900,11 @@ def main():
             ganho_anual = ganho_mensal * 12
             perda_anual = perda_mensal * 12
             
-            # Métricas destacadas com melhor organização
-            st.markdown("### 💰 Resumo Financeiro Detalhado")
-            
-            # Métricas principais
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric(
-                    label="🔥 Ganho Mensal Potencial", 
-                    value=format_currency(ganho_mensal),
-                    delta="+25%", delta_color="normal"
-                )
-            
-            with col2:
-                st.metric(
-                    label="📈 Ganho Anual Acumulado", 
-                    value=format_currency(ganho_anual),
-                    delta=f"+{format_currency(ganho_anual)}",
-                    delta_color="normal"
-                )
-            
-            with col3:
-                st.metric(
-                    label="⚠️ Perda Mensal Possível", 
-                    value=format_currency(perda_mensal),
-                    delta="-25%", delta_color="inverse"
-                )
-            
-            with col4:
-                st.metric(
-                    label="📉 Perda Anual Total", 
-                    value=format_currency(perda_anual),
-                    delta=f"-{format_currency(perda_anual)}",
-                    delta_color="inverse"
-                )
-            
-            # Indicadores adicionais
-            st.markdown("#### 🎯 Indicadores Estratégicos")
-            col_a, col_b, col_c = st.columns(3)
-            
-            with col_a:
-                impacto_percentual = (ganho_anual / valor_atual) * 100 if valor_atual > 0 else 0
-                st.metric(
-                    label="📊 Impacto no Orçamento",
-                    value=f"{impacto_percentual:.1f}%",
-                    help="Percentual de aumento no orçamento anual se atingir classificação ótima"
-                )
-            
-            with col_b:
-                risco_percentual = (perda_anual / valor_atual) * 100 if valor_atual > 0 else 0
-                st.metric(
-                    label="⚠️ Risco Financeiro",
-                    value=f"{risco_percentual:.1f}%",
-                    delta="-25%",
-                    delta_color="inverse",
-                    help="Percentual de redução no orçamento anual se regredir para regular"
-                )
-            
-            with col_c:
-                amplitude_orcamentaria = ganho_anual + perda_anual
-                st.metric(
-                    label="🎆 Amplitude Orçamentária",
-                    value=format_currency(amplitude_orcamentaria),
-                    help="Diferença total entre o melhor e pior cenário"
-                )
-            
-            # Funcionalidades avançadas
-            st.markdown("---")
-            st.markdown("### 🚀 Ferramentas Avançadas")
-            
-            col_tool1, col_tool2, col_tool3 = st.columns(3)
-            
-            with col_tool1:
-                if st.button("📊 Gerar Relatório PDF", help="Exportar dashboard em PDF"):
-                    st.info("🚧 Funcionalidade em desenvolvimento")
-            
-            with col_tool2:
-                if st.button("📎 Exportar Dados", help="Baixar dados em CSV"):
-                    # Preparar dados para export
-                    dados_export = {
-                        'Indicador': ['Valor Atual', 'Ganho Mensal', 'Perda Mensal', 'Ganho Anual', 'Perda Anual'],
-                        'Valor': [valor_atual, ganho_mensal, perda_mensal, ganho_anual, perda_anual]
-                    }
-                    df_export = pd.DataFrame(dados_export)
-                    csv_data = df_export.to_csv(index=False, encoding='utf-8')
-                    st.download_button(
-                        label="⬇️ Baixar CSV",
-                        data=csv_data,
-                        file_name=f"analise_pap_{municipio_selecionado}_{competencia}.csv",
-                        mime="text/csv"
-                    )
-            
-            with col_tool3:
-                if st.button("📱 Compartilhar", help="Gerar link para compartilhamento"):
-                    st.success("🔗 Link copiado para a área de transferência!")
-            
-            # Informações complementares expandidas
-            with st.expander("ℹ️ Como interpretar os gráficos e indicadores"):
-                st.markdown("""
-                #### 🔍 Guia de Interpretação:
-                
-                **📊 Gráfico de Projeção Anual:**
-                - **Linha dourada central**: Valor atual da classificação do município
-                - **Barras verdes (acima)**: Ganhos acumulados progressivos ao alcançar "Ótimo"
-                - **Barras vermelhas (abaixo)**: Perdas acumuladas progressivas ao regredir para "Regular"
-                - **Timeline**: Evolução mês a mês durante 12 meses
-                
-                **🎯 Indicadores Estratégicos:**
-                - **Impacto no Orçamento**: Percentual de crescimento do orçamento da saúde
-                - **Risco Financeiro**: Percentual de redução caso não mantenha a qualidade
-                - **Amplitude Orçamentária**: Diferença total entre melhor e pior cenário
-                
-                **💡 Exemplo Prático:**
-                Se o município melhorar de "Bom" para "Ótimo" em janeiro, ao final do ano 
-                terá acumulado o valor mostrado na última barra verde (dezembro).
-                
-                **🛡️ Dicas de Gestão:**
-                1. Monitore mensalmente os indicadores de qualidade
-                2. Invista em capacitação das equipes para manter/melhorar classificação
-                3. Use os cenários para planejamento orçamentário
-                4. Mantenha foco na prevenção para evitar regressão
-                """)
-                
-            st.info("💡 **Sugestão**: Verifique se a competência selecionada possui dados de pagamento de qualidade.")
             
             
         else:
             st.error("❌ Nenhum dado encontrado para os parâmetros informados.")
-            st.info("💡 Verifique se o código IBGE e a competência estão corretos.")
+            st.info("💡 Verifique se o código IBGE está correto.")
 
 if __name__ == "__main__":
     main()

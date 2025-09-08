@@ -16,6 +16,7 @@ try:
     from .api_client import (
         consultar_api,
         load_data_from_json,
+        get_latest_competencia,
         DATA_FILE
     )
 except ImportError:
@@ -30,6 +31,7 @@ except ImportError:
     from api_client import (
         consultar_api,
         load_data_from_json,
+        get_latest_competencia,
         DATA_FILE
     )
 
@@ -46,6 +48,7 @@ __all__ = [
     # Funções de API
     "consultar_api",
     "load_data_from_json",
+    "get_latest_competencia",
     "DATA_FILE",
     
     # Funções de vínculo e acompanhamento
