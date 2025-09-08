@@ -14,3 +14,13 @@ pyUFbr
 
 # Adaptadores HTTP com retry
 urllib3>=2.0.0
+
+# Geração de PDFs
+reportlab>=4.0.0
+
+# Manipulação de imagens
+Pillow>=10.0.0
+
+# Visualizações gráficas
+plotly>=5.0.0
+matplotlib>=3.5.0

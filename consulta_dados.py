@@ -23,6 +23,14 @@ except ImportError:
         from api_client import consultar_api, get_latest_competencia
         from formatting import format_currency
 
+# Importar gerador de PDF com tratamento de erro
+try:
+    from pdf_generator import PDFReportGenerator
+    PDF_AVAILABLE = True
+except ImportError as e:
+    PDF_AVAILABLE = False
+    PDF_ERROR = f"Erro ao importar gerador PDF: {e}. Instale as dependências: pip install reportlab Pillow"
+
 # Configurações Plotly otimizadas inline
 PLOTLY_CONFIG = {
     'displayModeBar': True,
@@ -902,9 +910,59 @@ def main():
             
             
             
+            
         else:
             st.error("❌ Nenhum dado encontrado para os parâmetros informados.")
             st.info("💡 Verifique se o código IBGE está correto.")
+
+    # Seção de geração de relatório PDF - FORA do bloco condicional para evitar loop
+    if 'dados' in st.session_state and 'municipio_selecionado' in st.session_state:
+        st.markdown("---")
+        st.header("📄 Relatório PDF Profissional")
+        
+        if not PDF_AVAILABLE:
+            st.error(f"❌ {PDF_ERROR}")
+            st.info("💡 Execute: pip install reportlab Pillow")
+        else:
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("🎯 Gerar Relatório PDF", type="primary", use_container_width=True):
+                    try:
+                        with st.spinner("Gerando relatório PDF..."):
+                            # Usar dados do session_state
+                            dados_sessao = st.session_state['dados']
+                            municipio_sessao = st.session_state['municipio_selecionado']
+                            
+                            # Criar gerador e gerar PDF
+                            gerador = PDFReportGenerator()
+                            pdf_bytes = gerador.gerar_relatorio_pdf(municipio_sessao, dados_sessao)
+                            nome_arquivo = gerador.criar_nome_arquivo(municipio_sessao)
+                            
+                            # Disponibilizar download
+                            st.download_button(
+                                label="⬇️ Baixar Relatório PDF",
+                                data=pdf_bytes,
+                                file_name=nome_arquivo,
+                                mime="application/pdf",
+                                type="primary",
+                                use_container_width=True
+                            )
+                            
+                            st.success(f"✅ Relatório gerado com sucesso!")
+                            st.info(f"📊 Arquivo: {nome_arquivo}")
+                            
+                    except Exception as e:
+                        st.error(f"❌ Erro ao gerar relatório: {str(e)}")
+                        st.info("💡 Verifique se todas as dependências estão instaladas: pip install reportlab Pillow")
+            
+            st.markdown("""
+            **📋 O relatório PDF inclui:**
+            - ✅ Análise do cenário financeiro atual
+            - ✅ Tabela completa de cenários (Ótimo, Bom, Suficiente, Regular)
+            - ✅ Projeções anuais de ganhos e perdas
+            - ✅ Layout profissional com logo da Mais Gestor
+            - ✅ Formato ideal para apresentações e tomada de decisões
+            """)
 
 if __name__ == "__main__":
     main()
