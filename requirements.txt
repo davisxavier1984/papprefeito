@@ -24,3 +24,6 @@ Pillow>=10.0.0
 # Visualizações gráficas
 plotly>=5.0.0
 matplotlib>=3.5.0
+
+# Exportação de imagens estáticas do Plotly
+kaleido>=0.2.1

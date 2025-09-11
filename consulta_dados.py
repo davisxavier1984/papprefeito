@@ -932,10 +932,11 @@ def main():
                             # Usar dados do session_state
                             dados_sessao = st.session_state['dados']
                             municipio_sessao = st.session_state['municipio_selecionado']
+                            uf_sessao = st.session_state.get('uf_selecionada', 'BR')
                             
                             # Criar gerador e gerar PDF
                             gerador = PDFReportGenerator()
-                            pdf_bytes = gerador.gerar_relatorio_pdf(municipio_sessao, dados_sessao)
+                            pdf_bytes = gerador.gerar_relatorio_pdf(municipio_sessao, uf_sessao, dados_sessao)
                             nome_arquivo = gerador.criar_nome_arquivo(municipio_sessao)
                             
                             # Disponibilizar download
