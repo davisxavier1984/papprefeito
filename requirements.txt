@@ -35,5 +35,5 @@ seaborn>=0.12.0
 # Utilitários de data/hora
 python-dateutil>=2.8.2
 
-# I/O e buffers
-io-base>=0.1.0
+# Manipulação de tipos para Python
+typing-extensions>=4.5.0
