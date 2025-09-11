@@ -362,7 +362,7 @@ class PDFReportGenerator:
         
         try:
             # Importar funções de gráficos existentes
-            from consulta_dados import (
+            from app import (
                 criar_grafico_piramide_mensal, 
                 criar_grafico_barras_horizontais,
                 criar_grafico_rosquinha
@@ -651,7 +651,7 @@ class PDFReportGenerator:
         
         try:
             # Capturar apenas o gráfico de pirâmide (projeção mensal acumulada)
-            from consulta_dados import criar_grafico_piramide_mensal
+            from app import criar_grafico_piramide_mensal
             
             # Adicionar descrição
             elementos.append(Paragraph(
