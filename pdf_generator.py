@@ -344,6 +344,346 @@ class PDFReportGenerator:
         
         return elementos
     
+    def _capturar_graficos_plotly(self, dados: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Captura os gráficos Plotly já existentes da interface usando método alternativo.
+        
+        Args:
+            dados: Dados da API contendo informações do município
+            
+        Returns:
+            Dict com bytes das imagens dos gráficos ou None se erro
+        """
+        graficos = {
+            'piramide': None,
+            'barras': None,
+            'rosquinha': None
+        }
+        
+        try:
+            # Importar funções de gráficos existentes
+            from consulta_dados import (
+                criar_grafico_piramide_mensal, 
+                criar_grafico_barras_horizontais,
+                criar_grafico_rosquinha
+            )
+            
+            # Tentar método alternativo sem kaleido
+            import plotly.io as pio
+            
+            # Configurar backend para não precisar de Chrome
+            try:
+                pio.kaleido.scope.chromium.start()
+                use_kaleido = True
+            except:
+                use_kaleido = False
+                print("Aviso: Usando método alternativo para gráficos (sem Chrome)")
+            
+            # Capturar gráfico de pirâmide (projeção anual)
+            try:
+                fig_piramide = criar_grafico_piramide_mensal(dados)
+                if fig_piramide and use_kaleido:
+                    try:
+                        graficos['piramide'] = pio.to_image(fig_piramide, format="png", width=800, height=600)
+                    except Exception:
+                        pass  # Fallback gracefully
+            except Exception as e:
+                print(f"Aviso: Erro ao capturar gráfico pirâmide: {e}")
+            
+            # Capturar gráfico de barras horizontais  
+            try:
+                fig_barras = criar_grafico_barras_horizontais(dados)
+                if fig_barras and use_kaleido:
+                    try:
+                        graficos['barras'] = pio.to_image(fig_barras, format="png", width=800, height=400)
+                    except Exception:
+                        pass  # Fallback gracefully
+            except Exception as e:
+                print(f"Aviso: Erro ao capturar gráfico barras: {e}")
+            
+            # Capturar gráfico de rosquinha
+            try:
+                fig_rosquinha = criar_grafico_rosquinha(dados)
+                if fig_rosquinha and use_kaleido:
+                    try:
+                        graficos['rosquinha'] = pio.to_image(fig_rosquinha, format="png", width=600, height=500)
+                    except Exception:
+                        pass  # Fallback gracefully
+            except Exception as e:
+                print(f"Aviso: Erro ao capturar gráfico rosquinha: {e}")
+                
+        except ImportError as e:
+            print(f"Aviso: Não foi possível importar funções de gráfico: {e}")
+        except Exception as e:
+            print(f"Aviso: Erro geral ao capturar gráficos: {e}")
+            
+        # Se não conseguiu capturar Plotly, criar gráficos matplotlib como fallback
+        if not any(graficos.values()):
+            graficos = self._criar_graficos_matplotlib(dados)
+            
+        return graficos
+    
+    def _criar_graficos_matplotlib(self, dados: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Cria gráficos matplotlib simples como fallback quando Plotly não funciona.
+        
+        Args:
+            dados: Dados da API contendo informações do município
+            
+        Returns:
+            Dict com bytes das imagens dos gráficos matplotlib
+        """
+        graficos = {
+            'piramide': None,
+            'barras': None,
+            'rosquinha': None
+        }
+        
+        try:
+            import matplotlib
+            matplotlib.use('Agg')  # Backend não-interativo
+            import matplotlib.pyplot as plt
+            import numpy as np
+            from utils import criar_tabela_total_por_classificacao, currency_to_float
+            
+            # Configurar estilo matplotlib
+            plt.style.use('default')
+            
+            # Obter dados processados
+            tabela_classificacao = criar_tabela_total_por_classificacao(dados)
+            
+            # Gráfico 1: Projeção Anual (Barras)
+            try:
+                fig, ax = plt.subplots(figsize=(10, 6))
+                
+                # Extrair valores
+                valor_otimo = currency_to_float(tabela_classificacao[tabela_classificacao['Classificação'] == 'Ótimo']['Valor Total'].iloc[0])
+                valor_bom = currency_to_float(tabela_classificacao[tabela_classificacao['Classificação'] == 'Bom']['Valor Total'].iloc[0])
+                valor_regular = currency_to_float(tabela_classificacao[tabela_classificacao['Classificação'] == 'Regular']['Valor Total'].iloc[0])
+                
+                # Calcular projeção anual
+                classificacoes = ['Regular', 'Bom', 'Ótimo']
+                valores_anuais = [valor_regular * 12, valor_bom * 12, valor_otimo * 12]
+                cores = ['#E74C3C', '#F39C12', '#27AE60']
+                
+                bars = ax.bar(classificacoes, valores_anuais, color=cores, alpha=0.8)
+                ax.set_title('Projeção Anual por Classificação', fontsize=14, fontweight='bold')
+                ax.set_ylabel('Valor Anual (R$)', fontsize=12)
+                
+                # Adicionar valores nas barras
+                for bar, valor in zip(bars, valores_anuais):
+                    height = bar.get_height()
+                    ax.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
+                           f'R$ {valor:,.0f}', ha='center', va='bottom', fontweight='bold')
+                
+                plt.tight_layout()
+                
+                # Salvar em bytes
+                buffer = io.BytesIO()
+                plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+                graficos['piramide'] = buffer.getvalue()
+                plt.close()
+                
+            except Exception as e:
+                print(f"Erro ao criar gráfico matplotlib pirâmide: {e}")
+            
+            # Gráfico 2: Barras por Equipe
+            try:
+                if 'pagamentos' in dados and dados['pagamentos']:
+                    pagamentos = dados['pagamentos'][0]
+                    
+                    fig, ax = plt.subplots(figsize=(10, 5))
+                    
+                    # Extrair dados por equipe
+                    equipes = []
+                    valores = []
+                    
+                    if pagamentos.get('vlQualidadeEsf', 0) > 0:
+                        equipes.append('eSF')
+                        valores.append(pagamentos['vlQualidadeEsf'])
+                    
+                    if pagamentos.get('vlPagamentoEmultiQualidade', 0) > 0:
+                        equipes.append('eMulti')
+                        valores.append(pagamentos['vlPagamentoEmultiQualidade'])
+                    
+                    if pagamentos.get('vlPagamentoEsb40hQualidade', 0) > 0:
+                        equipes.append('eSB')
+                        valores.append(pagamentos['vlPagamentoEsb40hQualidade'])
+                    
+                    if valores:
+                        cores_equipe = ['#1B4B73', '#2E86C1', '#27AE60'][:len(valores)]
+                        bars = ax.barh(equipes, valores, color=cores_equipe, alpha=0.8)
+                        
+                        ax.set_title('Valores por Tipo de Equipe', fontsize=14, fontweight='bold')
+                        ax.set_xlabel('Valor Mensal (R$)', fontsize=12)
+                        
+                        # Adicionar valores nas barras
+                        for bar, valor in zip(bars, valores):
+                            width = bar.get_width()
+                            ax.text(width + width*0.01, bar.get_y() + bar.get_height()/2.,
+                                   f'R$ {valor:,.0f}', ha='left', va='center', fontweight='bold')
+                        
+                        plt.tight_layout()
+                        
+                        # Salvar em bytes
+                        buffer = io.BytesIO()
+                        plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+                        graficos['barras'] = buffer.getvalue()
+                        plt.close()
+                        
+            except Exception as e:
+                print(f"Erro ao criar gráfico matplotlib barras: {e}")
+            
+        except ImportError as e:
+            print(f"Erro: matplotlib não disponível: {e}")
+        except Exception as e:
+            print(f"Erro geral ao criar gráficos matplotlib: {e}")
+            
+        return graficos
+    
+    def _criar_grafico_projecao_matplotlib(self, dados: Dict[str, Any]) -> bytes:
+        """
+        Cria o gráfico de projeção mensal usando matplotlib como fallback.
+        
+        Args:
+            dados: Dados da API contendo informações do município
+            
+        Returns:
+            bytes da imagem PNG ou None se erro
+        """
+        try:
+            import matplotlib
+            matplotlib.use('Agg')  # Backend não-interativo
+            import matplotlib.pyplot as plt
+            import numpy as np
+            from utils import criar_tabela_total_por_classificacao, currency_to_float
+            from datetime import datetime
+            
+            # Obter dados processados
+            tabela_classificacao = criar_tabela_total_por_classificacao(dados)
+            
+            # Extrair valores
+            valor_otimo = currency_to_float(tabela_classificacao[tabela_classificacao['Classificação'] == 'Ótimo']['Valor Total'].iloc[0])
+            valor_bom = currency_to_float(tabela_classificacao[tabela_classificacao['Classificação'] == 'Bom']['Valor Total'].iloc[0])
+            valor_regular = currency_to_float(tabela_classificacao[tabela_classificacao['Classificação'] == 'Regular']['Valor Total'].iloc[0])
+            
+            # Calcular ganhos e perdas mensais
+            ganho_mensal = valor_otimo - valor_bom
+            perda_mensal = valor_bom - valor_regular
+            
+            # Preparar dados mensais (acumulado)
+            meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+            
+            ganhos_acumulados = [ganho_mensal * (i+1) for i in range(12)]
+            perdas_acumuladas = [-perda_mensal * (i+1) for i in range(12)]
+            
+            # Criar figura
+            fig, ax = plt.subplots(figsize=(12, 8))
+            
+            x = np.arange(len(meses))
+            
+            # Barras de ganho (verde)
+            bars_ganho = ax.bar(x, ganhos_acumulados, color='#27AE60', alpha=0.8, 
+                               label='Ganhos Acumulados', width=0.8)
+            
+            # Barras de perda (vermelho)
+            bars_perda = ax.bar(x, perdas_acumuladas, color='#E74C3C', alpha=0.8, 
+                               label='Perdas Acumuladas', width=0.8)
+            
+            # Linha base (valor atual)
+            ax.axhline(y=0, color='#F39C12', linestyle='--', linewidth=2, 
+                      label='Valor Atual', alpha=0.8)
+            
+            # Configurar eixos
+            ax.set_xlabel('Meses do Ano', fontsize=12, fontweight='bold')
+            ax.set_ylabel('Valor Acumulado (R$)', fontsize=12, fontweight='bold')
+            ax.set_title('Projeção Anual de Ganhos e Perdas', fontsize=14, fontweight='bold')
+            ax.set_xticks(x)
+            ax.set_xticklabels(meses)
+            
+            # Formatar eixo Y com valores monetários
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'R$ {x:,.0f}'))
+            
+            # Adicionar valores nas barras finais (dezembro)
+            if ganhos_acumulados[-1] > 0:
+                ax.text(11, ganhos_acumulados[-1] + ganhos_acumulados[-1]*0.05, 
+                       f'R$ {ganhos_acumulados[-1]:,.0f}', 
+                       ha='center', va='bottom', fontweight='bold', color='#27AE60')
+            
+            if perdas_acumuladas[-1] < 0:
+                ax.text(11, perdas_acumuladas[-1] - abs(perdas_acumuladas[-1])*0.05, 
+                       f'R$ {abs(perdas_acumuladas[-1]):,.0f}', 
+                       ha='center', va='top', fontweight='bold', color='#E74C3C')
+            
+            # Legenda e grid
+            ax.legend(loc='upper left', frameon=True, fancybox=True, shadow=True)
+            ax.grid(True, alpha=0.3)
+            
+            plt.tight_layout()
+            
+            # Salvar em bytes
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight', 
+                       facecolor='white', edgecolor='none')
+            plt.close()
+            
+            return buffer.getvalue()
+            
+        except Exception as e:
+            print(f"Erro ao criar gráfico matplotlib de projeção: {e}")
+            return None
+    
+    def _criar_secao_graficos(self, dados: Dict[str, Any]) -> list:
+        """
+        Cria a seção com apenas o gráfico de projeção mensal acumulada.
+        
+        Args:
+            dados: Dados da API contendo informações do município
+            
+        Returns:
+            Lista de elementos da seção
+        """
+        elementos = []
+        
+        # Título da seção
+        elementos.append(Paragraph("Projeção Financeira", self.estilos['subtitulo']))
+        
+        try:
+            # Capturar apenas o gráfico de pirâmide (projeção mensal acumulada)
+            from consulta_dados import criar_grafico_piramide_mensal
+            
+            # Adicionar descrição
+            elementos.append(Paragraph(
+                "Projeção mensal acumulada de ganhos e perdas baseada na classificação atual", 
+                self.estilos['normal']
+            ))
+            elementos.append(Spacer(1, 0.3*cm))
+            
+            # Usar matplotlib diretamente (mais confiável)
+            grafico_matplotlib = self._criar_grafico_projecao_matplotlib(dados)
+            if grafico_matplotlib:
+                img_buffer = io.BytesIO(grafico_matplotlib)
+                img_matplotlib = Image(img_buffer, width=15*cm, height=11.25*cm)
+                elementos.append(img_matplotlib)
+                elementos.append(Spacer(1, 0.5*cm))
+            else:
+                elementos.append(Paragraph(
+                    "Dados insuficientes para gerar projeção financeira.",
+                    self.estilos['normal']
+                ))
+                elementos.append(Spacer(1, 0.5*cm))
+                
+        except Exception as e:
+            print(f"Erro ao criar gráfico de projeção: {e}")
+            elementos.append(Paragraph(
+                "Erro ao gerar projeção financeira.",
+                self.estilos['normal']
+            ))
+            elementos.append(Spacer(1, 0.5*cm))
+        
+        return elementos
+    
     def gerar_relatorio_pdf(self, nome_municipio: str, uf: str, dados_calculados: Dict[str, Any]) -> bytes:
         """
         Gera relatório PDF simplificado.
@@ -378,6 +718,7 @@ class PDFReportGenerator:
             elementos.extend(self._criar_cenario_atual(dados_calculados))
             elementos.extend(self._criar_tabela_cenarios(dados_calculados))
             elementos.extend(self._criar_projecoes(dados_calculados))
+            elementos.extend(self._criar_secao_graficos(dados_calculados))
             elementos.extend(self._criar_consideracoes())
             elementos.extend(self._criar_assinatura())
             

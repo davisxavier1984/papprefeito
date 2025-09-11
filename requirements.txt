@@ -1,10 +1,11 @@
 # Dependências para o sistema papprefeito - Consulta de Dados
 
 # Interface web
-streamlit
+streamlit>=1.28.0
 
 # Manipulação de dados
 pandas>=2.0.0
+numpy>=1.24.0
 
 # Requisições HTTP
 requests>=2.31.0
@@ -22,8 +23,17 @@ reportlab>=4.0.0
 Pillow>=10.0.0
 
 # Visualizações gráficas
-plotly>=5.0.0
-matplotlib>=3.5.0
+plotly>=5.17.0
+matplotlib>=3.7.0
 
-# Exportação de imagens estáticas do Plotly
-kaleido>=0.2.1
+# Exportação de imagens estáticas do Plotly (com Chrome integrado)
+kaleido>=1.1.0
+
+# Dependências adicionais para matplotlib e gráficos
+seaborn>=0.12.0
+
+# Utilitários de data/hora
+python-dateutil>=2.8.2
+
+# I/O e buffers
+io-base>=0.1.0
