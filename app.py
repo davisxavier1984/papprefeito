@@ -6,6 +6,26 @@ import os
 import sys
 import plotly.graph_objects as go
 from pyUFbr.baseuf import ufbr
+from datetime import datetime
+import io
+
+# Imports para geração de PDF
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm, inch
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    import plotly.io as pio
+    import matplotlib
+    matplotlib.use('Agg')  # Backend sem GUI para ambientes de produção
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+    from matplotlib.ticker import FuncFormatter
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
 
 # Adicionar diretório pai ao path para importar utils
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,13 +43,6 @@ except ImportError:
         from api_client import consultar_api, get_latest_competencia
         from formatting import format_currency
 
-# Importar gerador de PDF com tratamento de erro
-try:
-    from pdf_generator import PDFReportGenerator
-    PDF_AVAILABLE = True
-except ImportError as e:
-    PDF_AVAILABLE = False
-    PDF_ERROR = f"Erro ao importar gerador PDF: {e}. Instale as dependências: pip install reportlab Pillow"
 
 # Configurações Plotly otimizadas inline
 PLOTLY_CONFIG = {
@@ -67,903 +80,622 @@ def carregar_config():
         st.error("Erro ao decodificar arquivo config.json")
         return None
 
-def exibir_tabela_quality_values(quality_values):
-    """Exibe uma tabela com os valores de qualidade das equipes"""
-    st.subheader("📊 Valores de Qualidade por Tipo de Equipe")
-    
-    if not quality_values:
-        st.warning("Dados de qualidade não disponíveis")
-        return
-    
-    # Criar dados para a tabela
-    dados_tabela = []
-    for equipe, valores in quality_values.items():
-        linha = {
-            "Tipo de Equipe": equipe,
-            "Ótimo": format_currency(valores.get("Ótimo", 0)),
-            "Bom": format_currency(valores.get("Bom", 0)),
-            "Suficiente": format_currency(valores.get("Suficiente", 0)),
-            "Regular": format_currency(valores.get("Regular", 0))
-        }
-        dados_tabela.append(linha)
-    
-    # Criar DataFrame
-    df_quality = pd.DataFrame(dados_tabela)
-    
-    # Exibir tabela
-    st.dataframe(df_quality, use_container_width=True)
-    
-    # Informação adicional
-    st.info(f"📋 Total de tipos de equipes com valores de qualidade: {len(dados_tabela)}")
 
-def calcular_valores_municipio(quality_values, classificacao_municipio, municipio_nome, uf_nome):
-    """Calcula e exibe valores específicos para o município baseado na classificação de qualidade"""
-    st.subheader(f"💰 Valores de Qualidade para {municipio_nome} - {uf_nome}")
-    
-    if not quality_values or not classificacao_municipio:
-        st.warning("Dados insuficientes para calcular valores específicos do município")
-        return
-    
-    # Normalizar classificação (caso venha da API com variações)
-    classificacao_normalizada = classificacao_municipio.strip().title()
-    
-    # Verificar se a classificação existe
-    classificacoes_validas = ["Ótimo", "Bom", "Suficiente", "Regular"]
-    if classificacao_normalizada not in classificacoes_validas:
-        st.warning(f"Classificação '{classificacao_municipio}' não reconhecida. Usando 'Bom' como padrão.")
-        classificacao_normalizada = "Bom"
-    
-    # Exibir classificação atual
-    st.info(f"🎯 **Classificação atual**: {classificacao_normalizada}")
-    
-    # Criar tabela com valores específicos para a classificação
-    dados_municipio = []
-    valor_total = 0
-    
-    for equipe, valores in quality_values.items():
-        if classificacao_normalizada in valores:
-            valor_especifico = valores[classificacao_normalizada]
-            valor_total += valor_especifico
-            
-            linha = {
-            "Tipo de Equipe": equipe,
-            f"Valor ({classificacao_normalizada})": format_currency(valor_especifico)
-            }
-            dados_municipio.append(linha)
-    
-    if dados_municipio:
-        # Exibir tabela principal
-        df_municipio = pd.DataFrame(dados_municipio)
-        st.dataframe(df_municipio, use_container_width=True)
-        
-        # Exibir métricas importantes
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("💵 Valor Total", format_currency(valor_total))
-        with col2:
-            st.metric("📊 Tipos de Equipes", len(dados_municipio))
-        with col3:
-            st.metric("⭐ Classificação", classificacao_normalizada)
-        
-        # Comparação com outras classificações
-        if st.expander("📈 Comparação com Outras Classificações"):
-            comparacao_dados = []
-            for classificacao in classificacoes_validas:
-                total_classificacao = 0
-                for valores in quality_values.values():
-                    if classificacao in valores:
-                        total_classificacao += valores[classificacao]
-                
-                comparacao_dados.append({
-                    "Classificação": classificacao,
-                    "Valor Total": format_currency(total_classificacao),
-                    "Diferença para Atual": format_currency(total_classificacao - valor_total) if classificacao != classificacao_normalizada else "Atual"
-                })
-            
-            df_comparacao = pd.DataFrame(comparacao_dados)
-            st.dataframe(df_comparacao, use_container_width=True)
-    else:
-        st.warning("Nenhum valor encontrado para a classificação atual")
 
-def exibir_valores_reais_municipio(dados):
-    """Exibe uma tabela com os valores reais de qualidade das equipes do município"""
-    st.subheader("💰 Valores Reais de Qualidade por Equipe")
-    
-    if not dados or 'pagamentos' not in dados:
-        st.warning("Dados de pagamentos não disponíveis")
-        return
-    
-    pagamentos = dados['pagamentos'][0]  # Primeiro registro de pagamentos
-    
-    # Extrair dados das equipes
-    equipes_dados = []
-    valor_total_geral = 0
-    
-    # eSF - Equipes de Saúde da Família
-    qt_esf = pagamentos.get('qtEsfHomologado', 0)
-    vl_qualidade_esf = pagamentos.get('vlQualidadeEsf', 0)
-    if qt_esf > 0:
-        vl_unit_esf = vl_qualidade_esf / qt_esf
-        equipes_dados.append({
-            "Tipo de Equipe": "eSF - Equipes de Saúde da Família",
-            "Quantidade": qt_esf,
-            "Valor Qualidade/Equipe": format_currency(vl_unit_esf),
-            "Valor Total Qualidade": format_currency(vl_qualidade_esf)
-        })
-        valor_total_geral += vl_qualidade_esf
-    
-    # eMulti - Equipes Multiprofissionais
-    qt_emulti = pagamentos.get('qtEmultiPagas', 0)
-    vl_qualidade_emulti = pagamentos.get('vlPagamentoEmultiQualidade', 0)
-    if qt_emulti > 0:
-        vl_unit_emulti = vl_qualidade_emulti / qt_emulti
-        equipes_dados.append({
-            "Tipo de Equipe": "eMulti - Equipes Multiprofissionais",
-            "Quantidade": qt_emulti,
-            "Valor Qualidade/Equipe": format_currency(vl_unit_emulti),
-            "Valor Total Qualidade": format_currency(vl_qualidade_emulti)
-        })
-        valor_total_geral += vl_qualidade_emulti
-    
-    # eSB - Saúde Bucal
-    qt_esb = pagamentos.get('qtSbPagamentoModalidadeI', 0)
-    vl_qualidade_esb = pagamentos.get('vlPagamentoEsb40hQualidade', 0)
-    if qt_esb > 0:
-        vl_unit_esb = vl_qualidade_esb / qt_esb
-        equipes_dados.append({
-            "Tipo de Equipe": "eSB - Saúde Bucal",
-            "Quantidade": qt_esb,
-            "Valor Qualidade/Equipe": format_currency(vl_unit_esb),
-            "Valor Total Qualidade": format_currency(vl_qualidade_esb)
-        })
-        valor_total_geral += vl_qualidade_esb
-    
-    # ACS - Agentes Comunitários de Saúde (se tiver componente qualidade separado)
-    qt_acs = pagamentos.get('qtAcsDiretoPgto', 0)
-    vl_total_acs = pagamentos.get('vlTotalAcsDireto', 0)
-    if qt_acs > 0 and vl_total_acs > 0:
-        equipes_dados.append({
-            "Tipo de Equipe": "ACS - Agentes Comunitários de Saúde",
-            "Quantidade": qt_acs,
-            "Valor Qualidade/Equipe": format_currency(vl_total_acs / qt_acs),
-            "Valor Total Qualidade": format_currency(vl_total_acs)
-        })
-        # Note: ACS não tem componente qualidade separado, então não adiciona ao total geral de qualidade
-    
-    if equipes_dados:
-        # Criar DataFrame
-        df_equipes = pd.DataFrame(equipes_dados)
-        
-        # Exibir tabela
-        st.dataframe(df_equipes, use_container_width=True)
-        
-        # Exibir métricas importantes
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("💵 Total Geral Qualidade", format_currency(valor_total_geral))
-        with col2:
-            st.metric("📊 Tipos de Equipes", len([eq for eq in equipes_dados if "ACS" not in eq["Tipo de Equipe"]]))
-        with col3:
-            # Encontrar maior valor individual por equipe (excluindo ACS)
-            valores_individuais = []
-            for eq in equipes_dados:
-                if "ACS" not in eq["Tipo de Equipe"]:
-                    # Extrair valor numérico da string formatada
-                    valor_str = eq["Valor Qualidade/Equipe"].replace("R$", "").replace(".", "").replace(",", ".").strip()
-                    try:
-                        valores_individuais.append(float(valor_str))
-                    except:
-                        pass
-            
-            if valores_individuais:
-                maior_valor = max(valores_individuais)
-                st.metric("⭐ Maior Valor/Equipe", format_currency(maior_valor))
-        
-        # Informação adicional
-        st.info(f"📋 Valores extraídos dos dados reais do município para a competência {pagamentos.get('nuParcela', 'N/A')}")
-        
-        # Detalhes adicionais em expander
-        if st.expander("📈 Detalhes das Classificações"):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write("**Classificações do Município:**")
-                st.write(f"• IED: {pagamentos.get('dsFaixaIndiceEquidadeEsfEap', 'N/A')}")
-                st.write(f"• Qualidade eSF/eAP: {pagamentos.get('dsClassificacaoQualidadeEsfEap', 'N/A')}")
-                st.write(f"• Vínculo eSF/eAP: {pagamentos.get('dsClassificacaoVinculoEsfEap', 'N/A')}")
-                st.write(f"• Qualidade eMulti: {pagamentos.get('dsClassificacaoQualidadeEmulti', 'N/A')}")
-            
-            with col2:
-                st.write("**Informações Complementares:**")
-                st.write(f"• População IBGE: {pagamentos.get('qtPopulacao', 'N/A'):,}")
-                st.write(f"• Ano Ref. População: {pagamentos.get('nuAnoRefPopulacaoIbge', 'N/A')}")
-                st.write(f"• Teto eSF: {pagamentos.get('qtTetoEsf', 'N/A')}")
-                st.write(f"• Teto eMulti: {pagamentos.get('qtTetoEmultiAmpliada', 'N/A')}")
-    else:
-        st.warning("Nenhum dado de equipe encontrado para cálculo dos valores")
 
-def criar_grafico_piramide_mensal(dados):
-    """Cria o gráfico de pirâmide deitado com projeções mensais de ganho e perda (OTIMIZADO)"""
-    if not dados or 'pagamentos' not in dados:
-        return None
-    
-    pagamentos = dados['pagamentos'][0]
-    
-    # Extrair valor atual
-    valor_atual = 0
-    valor_atual += pagamentos.get('vlQualidadeEsf', 0)
-    valor_atual += pagamentos.get('vlPagamentoEmultiQualidade', 0) 
-    valor_atual += pagamentos.get('vlPagamentoEsb40hQualidade', 0)
-    
-    if valor_atual == 0:
-        return None
-    
-    # Calcular cenários usando valores reais da tabela de classificação
-    from utils import criar_tabela_total_por_classificacao
-    import pandas as pd
-    
-    # Obter valores reais de cada classificação
-    tabela_classificacao = criar_tabela_total_por_classificacao(dados)
-    
-    # Extrair valores monetários (remover formatação)
-    valor_otimo_str = tabela_classificacao[tabela_classificacao['Classificação'] == 'Ótimo']['Valor Total'].iloc[0]
-    valor_bom_str = tabela_classificacao[tabela_classificacao['Classificação'] == 'Bom']['Valor Total'].iloc[0]
-    valor_regular_str = tabela_classificacao[tabela_classificacao['Classificação'] == 'Regular']['Valor Total'].iloc[0]
-    
-    # Converter strings formatadas para float
-    from utils import currency_to_float
-    valor_otimo = currency_to_float(valor_otimo_str)
-    valor_bom = currency_to_float(valor_bom_str)  # valor atual = classificação "Bom"
-    valor_regular = currency_to_float(valor_regular_str)
-    
-    # Recalcular valor_atual para ser coerente com "Bom"
-    valor_atual = valor_bom
-    
-    # Calcular ganhos e perdas totais baseados nas diferenças reais
-    ganho_total = valor_otimo - valor_bom
-    perda_total = valor_bom - valor_regular
-    
-    # Preparar dados mensais
-    from datetime import datetime
-    meses_nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
-               'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-    
-    mes_atual = datetime.now().month - 1
-    meses = []
-    for i in range(12):
-        mes_index = (mes_atual + i) % 12
-        meses.append(meses_nomes[mes_index])
-    
-    # Acumulação mensal: cada mês acumula a diferença total
-    ganhos_acumulados = [ganho_total * (i+1) for i in range(12)]
-    perdas_acumuladas = [-perda_total * (i+1) for i in range(12)]
-    
-    # Criar figura otimizada
-    fig = go.Figure()
-    
-    # Linha base
-    fig.add_hline(
-        y=0, 
-        line_dash="dash", 
-        line_color=CORES_PADRAO['neutro'], 
-        line_width=3,
-        annotation_text="Valor Atual",
-        annotation_position="top right"
-    )
-    
-    # Barras de ganho
-    fig.add_trace(go.Bar(
-        name='Ganhos Acumulados',
-        x=meses,
-        y=ganhos_acumulados,
-        marker_color=CORES_PADRAO['positivo'],
-        marker=dict(
-            cornerradius=6,
-            line=dict(width=0.8, color='rgba(0,0,0,0.2)')
-        ),
-        hovertemplate='<b>%{x}</b><br>Ganho: %{customdata}<br><extra></extra>',
-        customdata=[format_currency(g) for g in ganhos_acumulados],
-        text=[f'+{format_currency(g)}' for g in ganhos_acumulados],
-        textposition='outside',
-        textfont=dict(size=10, color=CORES_PADRAO['positivo'])
-    ))
-    
-    # Barras de perda
-    fig.add_trace(go.Bar(
-        name='Perdas Acumuladas',
-        x=meses,
-        y=perdas_acumuladas,
-        marker_color=CORES_PADRAO['negativo'],
-        marker=dict(
-            cornerradius=6,
-            line=dict(width=0.8, color='rgba(0,0,0,0.2)')
-        ),
-        hovertemplate='<b>%{x}</b><br>Perda: %{customdata}<br><extra></extra>',
-        customdata=[format_currency(abs(p)) for p in perdas_acumuladas],
-        text=[f'-{format_currency(abs(p))}' for p in perdas_acumuladas],
-        textposition='outside',
-        textfont=dict(size=10, color=CORES_PADRAO['negativo'])
-    ))
-    
-    # Valores totais são os valores do último mês (dezembro)
-    total_ganhos = ganhos_acumulados[-1]  # Último valor da lista de ganhos
-    total_perdas = abs(perdas_acumuladas[-1])  # Último valor absoluto da lista de perdas
-    
-    # Calcular posições dinâmicas para os painéis
-    max_ganho = max(ganhos_acumulados)
-    min_perda = min(perdas_acumuladas)
-    
-    # Adicionar painel superior (Ganhos)
-    fig.add_annotation(
-        text=f"<b>Total de Ganhos</b><br>{format_currency(total_ganhos)}",
-        x=5.5,  # Centro horizontal do gráfico
-        y=max_ganho * 0.8,  # 80% da altura máxima dos ganhos
-        showarrow=False,
-        bgcolor=CORES_PADRAO['positivo'],
-        bordercolor="rgba(255,255,255,0.8)",
-        borderwidth=2,
-        font=dict(size=14, color="white", family="Arial"),
-        align="center",
-        width=200,
-        height=60,
-        opacity=0.9
-    )
-    
-    # Adicionar painel inferior (Perdas)
-    fig.add_annotation(
-        text=f"<b>Total de Perdas</b><br>{format_currency(total_perdas)}",
-        x=5.5,  # Centro horizontal do gráfico
-        y=min_perda * 0.8,  # 80% da altura mínima das perdas
-        showarrow=False,
-        bgcolor=CORES_PADRAO['negativo'],
-        bordercolor="rgba(255,255,255,0.8)",
-        borderwidth=2,
-        font=dict(size=14, color="white", family="Arial"),
-        align="center",
-        width=200,
-        height=60,
-        opacity=0.9
-    )
-    
-    # Layout otimizado
-    municipio_nome = st.session_state.get('municipio_selecionado', '')
-    uf_nome = st.session_state.get('uf_selecionada', '')
-    
-    fig.update_layout(
-        title=f"Projeção Anual de Ganhos e Perdas - {municipio_nome}, {uf_nome}",
-        barmode='relative',
-        height=650,
-        template='plotly_white',
-        margin=dict(r=60, l=60, t=80, b=60),
-        xaxis=dict(
-            title=dict(text="Meses do Ano", font=dict(size=14, color='#2C3E50')),
-            tickfont=dict(size=12, color='#2C3E50')
-        ),
-        yaxis=dict(
-            title=dict(text="Valor Acumulado (R$)", font=dict(size=14, color='#2C3E50')),
-            tickfont=dict(size=12, color='#2C3E50'),
-            tickformat=',.0f',
-            tickprefix='R$ '
-        ),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=12, color='#2C3E50')
-        ),
-        font=dict(family='Arial, sans-serif'),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
-    )
-    
-    return fig
 
-def criar_grafico_barras_horizontais(dados):
-    """Cria gráfico de barras horizontais para valores por equipe"""
-    if not dados or 'pagamentos' not in dados:
-        return None
-        
-    pagamentos = dados['pagamentos'][0]
-    
-    # Extrair dados das equipes
-    equipes_dados = []
-    
-    # eSF
-    vl_qualidade_esf = pagamentos.get('vlQualidadeEsf', 0)
-    if vl_qualidade_esf > 0:
-        equipes_dados.append({
-            'tipo': 'eSF - Saúde da Família',
-            'valor': vl_qualidade_esf,
-            'quantidade': pagamentos.get('qtEsfHomologado', 0)
-        })
-    
-    # eMulti
-    vl_qualidade_emulti = pagamentos.get('vlPagamentoEmultiQualidade', 0)
-    if vl_qualidade_emulti > 0:
-        equipes_dados.append({
-            'tipo': 'eMulti - Multiprofissionais',
-            'valor': vl_qualidade_emulti,
-            'quantidade': pagamentos.get('qtEmultiPagas', 0)
-        })
-    
-    # eSB
-    vl_qualidade_esb = pagamentos.get('vlPagamentoEsb40hQualidade', 0)
-    if vl_qualidade_esb > 0:
-        equipes_dados.append({
-            'tipo': 'eSB - Saúde Bucal',
-            'valor': vl_qualidade_esb,
-            'quantidade': pagamentos.get('qtSbPagamentoModalidadeI', 0)
-        })
-    
-    if not equipes_dados:
-        return None
-    
-    # Criar figura horizontal
-    fig = go.Figure()
-    
-    tipos = [eq['tipo'] for eq in equipes_dados]
-    valores = [eq['valor'] for eq in equipes_dados]
-    quantidades = [eq['quantidade'] for eq in equipes_dados]
-    cores = [CORES_PADRAO['positivo'], CORES_PADRAO['destaque'], CORES_PADRAO['info']]
-    
-    fig.add_trace(go.Bar(
-        x=valores,
-        y=tipos,
-        orientation='h',
-        marker=dict(
-            color=cores[:len(valores)],
-            cornerradius=8,
-            line=dict(width=1, color='rgba(0,0,0,0.2)')
-        ),
-        text=[format_currency(v) for v in valores],
-        textposition='outside',
-        textfont=dict(size=12, color='#2C3E50'),
-        hovertemplate='<b>%{y}</b><br>Valor: %{text}<br>Equipes: %{customdata}<extra></extra>',
-        customdata=quantidades
-    ))
-    
-    municipio_nome = st.session_state.get('municipio_selecionado', '')
-    uf_nome = st.session_state.get('uf_selecionada', '')
-    
-    fig.update_layout(
-        title=f"Valores de Qualidade por Tipo de Equipe - {municipio_nome}, {uf_nome}",
-        xaxis_title="Valor Total (R$)",
-        yaxis_title="",
-        height=400,
-        template='plotly_white',
-        margin=dict(r=60, l=200, t=80, b=60),
-        showlegend=False,
-        font=dict(family='Arial, sans-serif'),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        xaxis=dict(
-            tickformat=',.0f',
-            tickprefix='R$ '
-        )
-    )
-    
-    return fig
 
-def criar_grafico_rosquinha(dados):
-    """Cria gráfico de rosquinha para mostrar distribuição de valores"""
-    if not dados or 'pagamentos' not in dados:
-        return None
-        
-    pagamentos = dados['pagamentos'][0]
-    
-    # Extrair valores por tipo
-    valores = []
-    labels = []
-    cores = []
-    
-    vl_esf = pagamentos.get('vlQualidadeEsf', 0)
-    if vl_esf > 0:
-        valores.append(vl_esf)
-        labels.append('eSF')
-        cores.append(CORES_PADRAO['positivo'])
-    
-    vl_emulti = pagamentos.get('vlPagamentoEmultiQualidade', 0)
-    if vl_emulti > 0:
-        valores.append(vl_emulti)
-        labels.append('eMulti')
-        cores.append(CORES_PADRAO['destaque'])
-    
-    vl_esb = pagamentos.get('vlPagamentoEsb40hQualidade', 0)
-    if vl_esb > 0:
-        valores.append(vl_esb)
-        labels.append('eSB')
-        cores.append(CORES_PADRAO['info'])
-    
-    if not valores:
-        return None
-    
-    municipio_nome = st.session_state.get('municipio_selecionado', '')
-    uf_nome = st.session_state.get('uf_selecionada', '')
-    
-    fig = go.Figure(data=[go.Pie(
-        labels=labels,
-        values=valores,
-        hole=0.4,
-        marker=dict(colors=cores, line=dict(color='#FFFFFF', width=2)),
-        textinfo='label+percent+value',
-        textfont=dict(size=12),
-        hovertemplate='<b>%{label}</b><br>Valor: %{text}<br>Percentual: %{percent}<extra></extra>',
-        text=[format_currency(v) for v in valores]
-    )])
-    
-    fig.update_layout(
-        title=f"Distribuição de Valores por Tipo de Equipe - {municipio_nome}, {uf_nome}",
-        height=500,
-        template='plotly_white',
-        showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-        font=dict(family='Arial, sans-serif'),
-        paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(r=60, l=60, t=80, b=100)
-    )
-    
-    return fig
 
-def criar_grafico_decisao_estrategica(dados):
-    """Cria o gráfico de decisão estratégica para impressão baseado nos dados reais do município (OTIMIZADO)"""
-    if not dados or 'pagamentos' not in dados:
-        return None
-    
-    pagamentos = dados['pagamentos'][0]
-    
-    # Extrair valor atual real do município
-    valor_atual = 0
-    valor_atual += pagamentos.get('vlQualidadeEsf', 0)
-    valor_atual += pagamentos.get('vlPagamentoEmultiQualidade', 0) 
-    valor_atual += pagamentos.get('vlPagamentoEsb40hQualidade', 0)
-    
-    if valor_atual == 0:
-        return None
-    
-    # Extrair classificação atual
-    classificacao_atual = pagamentos.get('dsClassificacaoQualidadeEsfEap', 'Bom')
-    if not classificacao_atual:
-        classificacao_atual = 'Bom'
-    
-    # Calcular cenários otimizados
-    percentual_variacao = 0.25
-    valor_otimo = valor_atual * (1 + percentual_variacao)
-    valor_regular = valor_atual * (1 - percentual_variacao)
-    
-    mapeamento_y = {'Regular': 1, 'Atual': 2, 'Ótimo': 3}
-    
-    # Criar figura otimizada
-    fig = criar_figura_otimizada(altura=600)
-    
-    # Linhas de cenário
-    fig.add_trace(go.Scatter(
-        x=['Situação Atual', 'Projeção 2026'],
-        y=[mapeamento_y['Atual'], mapeamento_y['Ótimo']],
-        mode='lines',
-        line=dict(color=CORES_PADRAO['positivo'], width=5),
-        showlegend=False
-    ))
-    
-    fig.add_trace(go.Scatter(
-        x=['Situação Atual', 'Projeção 2026'],
-        y=[mapeamento_y['Atual'], mapeamento_y['Regular']],
-        mode='lines',
-        line=dict(color=CORES_PADRAO['negativo'], width=5),
-        showlegend=False
-    ))
-    
-    # Pontos de situação
-    fig.add_trace(go.Scatter(
-        x=['Situação Atual'],
-        y=[mapeamento_y['Atual']],
-        mode='markers',
-        marker=dict(size=30, color=CORES_PADRAO['neutro'], 
-               line=dict(color='black', width=3)),
-        showlegend=False
-    ))
-    
-    fig.add_trace(go.Scatter(
-        x=['Projeção 2026', 'Projeção 2026'],
-        y=[mapeamento_y['Ótimo'], mapeamento_y['Regular']],
-        mode='markers',
-        marker=dict(size=25, 
-               color=[CORES_PADRAO['positivo'], CORES_PADRAO['negativo']],
-               line=dict(color='black', width=2)),
-        showlegend=False
-    ))
-    
-    # Anotações melhoradas
-    ganho = valor_otimo - valor_atual
-    perda = valor_atual - valor_regular
-    
-    fig.add_annotation(
-        x='Situação Atual', y=mapeamento_y['Atual'] + 0.15,
-        text=f"<b>{classificacao_atual}</b><br>{format_currency(valor_atual)}",
-        showarrow=False,
-        font=dict(size=16, color='black'),
-        bgcolor='rgba(255,255,255,0.9)', bordercolor='black', borderwidth=2
-    )
-    
-    fig.add_annotation(
-        x='Projeção 2026', y=mapeamento_y['Ótimo'],
-        text=f"<b>Cenário Ótimo</b><br>{format_currency(valor_otimo)}<br><span style='color:white'>+{format_currency(ganho)} (+25%)</span>",
-        showarrow=False,
-        font=dict(size=14, color='white'),
-        bgcolor=CORES_PADRAO['positivo'], borderwidth=1, xshift=120
-    )
-    
-    fig.add_annotation(
-        x='Projeção 2026', y=mapeamento_y['Regular'],
-        text=f"<b>Cenário Regular</b><br>{format_currency(valor_regular)}<br><span style='color:white'>-{format_currency(perda)} (-25%)</span>",
-        showarrow=False,
-        font=dict(size=14, color='white'),
-        bgcolor=CORES_PADRAO['negativo'], borderwidth=1, xshift=120
-    )
-    
-    # Layout otimizado
-    fig.update_layout(
-        title="Encruzilhada Financeira: O Futuro do Município em 2026",
-        showlegend=False,
-        margin=dict(r=280, l=50, t=80, b=50),
-        xaxis=dict(
-            tickmode='array',
-            tickvals=['Situação Atual', 'Projeção 2026'],
-            ticktext=['<b>Situação Atual</b>', '<b>Projeção 2026</b>'],
-            showline=False
-        ),
-        yaxis=dict(
-            tickmode='array',
-            tickvals=[1, 2, 3],
-            ticktext=['<b>Regular (-25%)</b>', f'<b>{classificacao_atual} (Atual)</b>', '<b>Ótimo (+25%)</b>'],
-            range=[0.5, 3.5], showline=False
-        )
-    )
-    
-    # Aplicar tema do município
-    municipio_nome = st.session_state.get('municipio_selecionado', '')
-    uf_nome = st.session_state.get('uf_selecionada', '')
-    aplicar_tema_municipio(fig, municipio_nome, uf_nome)
-    
-    return fig
 
-def exibir_tabelas(titulo, dados, colunas):
-    """Exibe uma tabela formatada com os dados."""
-    st.subheader(titulo)
-    
-    if dados:
-        # Filtrar apenas as colunas que existem nos dados
-        colunas_existentes = []
-        for coluna in colunas:
-            if any(coluna in item for item in dados):
-                colunas_existentes.append(coluna)
-        
-        # Criar DataFrame
-        df_dados = []
-        for item in dados:
-            linha = {}
-            for coluna in colunas_existentes:
-                valor = item.get(coluna, "")
-                # Formatar valores monetários
-                if coluna.startswith('vl') and isinstance(valor, (int, float)) and valor != 0:
-                    linha[coluna] = format_currency(valor)
-                else:
-                    linha[coluna] = valor
-            df_dados.append(linha)
-        
-        df = pd.DataFrame(df_dados)
-        
-        # Mapear nomes das colunas para português
-        mapeamento_colunas = {
-            "sgUf": "UF",
-            "coMunicipioIbge": "Código IBGE",
-            "noMunicipio": "Município",
-            "nuCompCnes": "Competência CNES",
-            "nuParcela": "Parcela",
-            "dsPlanoOrcamentario": "Plano Orçamentário",
-            "dsEsferaAdministrativa": "Esfera Administrativa",
-            "vlIntegral": "Valor Integral",
-            "vlAjuste": "Valor Ajuste",
-            "vlDesconto": "Valor Desconto",
-            "vlEfetivoRepasse": "Valor Efetivo Repasse",
-            "vlImplantacao": "Valor Implantação",
-            "vlAjusteImplantacao": "Ajuste Implantação",
-            "vlDescontoImplantacao": "Desconto Implantação",
-            "vlTotalImplantacao": "Total Implantação"
-        }
-        
-        # Renomear colunas
-        df = df.rename(columns=mapeamento_colunas)
-        
-        # Exibir DataFrame
-        st.dataframe(df, use_container_width=True)
-        
-        # Mostrar resumo
-        st.info(f"📊 Total de registros: {len(df)}")
-    else:
-        st.warning("Nenhum dado encontrado.")
 
 def main():
-    st.set_page_config(page_title="Sistema de Monitoramento - Saúde")
-    st.title("📊 Sistema de Monitoramento de Financiamento da Saúde")
-    st.header("🔍 Consulta de Dados Municipais")
-    
-    # Carregar configurações
-    config_data = carregar_config()
+    st.set_page_config(page_title="Mais Gestor - Landing Page", layout="wide")
 
-    with st.expander("🔍 Parâmetros de Consulta", expanded=True):
-        estados = ufbr.list_uf
-        uf_selecionada = st.selectbox("Selecione um Estado", options=estados)
-        
-        # Competência automática (não exibida)
-        competencia = get_latest_competencia()
+    # Logo centralizada
+    col_logo1, col_logo2, col_logo3 = st.columns([1, 2, 1])
+    with col_logo2:
+        st.image("logo_colorida_mg.png", width=400)
 
-        if uf_selecionada:
-            municipios = ufbr.list_cidades(uf_selecionada)
-            municipio_selecionado = st.selectbox("Selecione um Município", options=municipios)
+    # Container principal para seleções
+    with st.container(border=True):
+        st.markdown("### 📍 Seleção de Município")
 
-            try:
-                codigo_ibge = ufbr.get_cidade(municipio_selecionado).codigo
-                codigo_ibge = str(int(float(codigo_ibge)))[:-1]
-            except AttributeError:
-                st.error("Erro ao obter código IBGE do município")
-                return
+        # Layout de colunas otimizado
+        col1, col2 = st.columns(2, gap="medium")
 
-    if st.button("Consultar"):
-        if not (uf_selecionada and municipio_selecionado):
-            st.error("Por favor, selecione um estado e município.")
-            return
+        with col1:
+            estados = ufbr.list_uf
+            uf_selecionada = st.selectbox(
+                "🗺️ Estado",
+                options=estados,
+                help="Escolha o estado para consultar dados municipais",
+                placeholder="Selecione um estado..."
+            )
 
-        with st.spinner("Consultando dados da API..."):
+        with col2:
+            municipio_selecionado = None
+            if uf_selecionada:
+                municipios = ufbr.list_cidades(uf_selecionada)
+                municipio_selecionado = st.selectbox(
+                    "🏛️ Município",
+                    options=municipios,
+                    help="Escolha o município para análise financeira",
+                    placeholder="Selecione um município..."
+                )
+            else:
+                st.selectbox(
+                    "🏛️ Município",
+                    options=[],
+                    help="Primeiro selecione um estado",
+                    placeholder="Primeiro selecione um estado...",
+                    disabled=True
+                )
+
+        # Informações do município (se disponível)
+        if uf_selecionada and municipio_selecionado:
+            st.markdown("---")
+            col3, col4 = st.columns(2, gap="medium")
+
+            with col3:
+                estrato_placeholder = st.empty()
+                estrato_placeholder.text_input(
+                    "📊 Estrato",
+                    value="-",
+                    disabled=True,
+                    key="estrato_default",
+                    help="Classificação do município por índice de equidade"
+                )
+
+            with col4:
+                populacao_placeholder = st.empty()
+                populacao_placeholder.text_input(
+                    "👥 População",
+                    value="-",
+                    disabled=True,
+                    key="populacao_default",
+                    help="População total do município"
+                )
+
+    # Competência automática (não exibida)
+    competencia = get_latest_competencia()
+
+    # Consultar dados quando município for selecionado
+    if uf_selecionada and municipio_selecionado:
+        try:
+            codigo_ibge = ufbr.get_cidade(municipio_selecionado).codigo
+            codigo_ibge = str(int(float(codigo_ibge)))[:-1]
+
+            # Consultar API automaticamente
             dados = consultar_api(codigo_ibge, competencia)
 
-        if dados:
-            # Salvar dados na sessão
-            st.session_state['dados'] = dados
-            st.session_state['municipio_selecionado'] = municipio_selecionado
-            st.session_state['uf_selecionada'] = uf_selecionada
-            st.session_state['competencia'] = competencia
-            
-            # Extrair e salvar população dos dados
-            try:
-                if "pagamentos" in dados and dados["pagamentos"]:
-                    populacao = dados['pagamentos'][0].get('qtPopulacao', 0)
-                    if populacao > 0:
-                        st.session_state['populacao'] = populacao
-            except (KeyError, IndexError, TypeError):
-                pass
-            
-            st.success(f"✅ Dados carregados com sucesso para {municipio_selecionado} - {uf_selecionada}!")
+            if dados:
+                # Salvar dados na sessão
+                st.session_state['dados'] = dados
+                st.session_state['municipio_selecionado'] = municipio_selecionado
+                st.session_state['uf_selecionada'] = uf_selecionada
 
-            # Exibir dados
-            resumos = dados.get('resumosPlanosOrcamentarios', [])
-            pagamentos = dados.get('pagamentos', [])
+                # Atualizar estrato e população
+                pagamentos = dados['pagamentos'][0]
+                estrato_valor = pagamentos.get('dsFaixaIndiceEquidadeEsfEap', 'N/A')
+                populacao_valor = f"{pagamentos.get('qtPopulacao', 0):,}".replace(',', '.')
 
-            # Colunas para resumos orçamentários
-            colunas_resumos = [
-                "sgUf", "coMunicipioIbge", "noMunicipio", "nuCompCnes", "nuParcela",
-            "dsPlanoOrcamentario", "dsEsferaAdministrativa", "vlIntegral", "vlAjuste",
-            "vlDesconto", "vlEfetivoRepasse", "vlImplantacao", "vlAjusteImplantacao",
-            "vlDescontoImplantacao", "vlTotalImplantacao"
+                estrato_placeholder.text_input("📊 Estrato", value=estrato_valor, disabled=True, key="estrato_updated")
+                populacao_placeholder.text_input("👥 População", value=populacao_valor, disabled=True, key="populacao_updated")
+
+                # Espaçamento e separador elegante
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # Chamar função para exibir seções da landing page
+                exibir_landing_page(dados)
+
+        except AttributeError:
+            st.error("⚠️ Erro ao obter código IBGE do município. Verifique se o município foi selecionado corretamente.")
+        except Exception as e:
+            st.error(f"❌ Erro ao consultar dados da API: {e}")
+            st.info("💡 Tente selecionar outro município ou verifique sua conexão com a internet.")
+
+def exibir_landing_page(dados):
+    """Exibe apenas o botão de geração de PDF"""
+    if not dados or 'pagamentos' not in dados:
+        return
+
+    municipio = st.session_state.get('municipio_selecionado', '')
+    uf = st.session_state.get('uf_selecionada', '')
+
+    # Espaçamento
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Container destacado para o botão PDF
+    with st.container(border=True):
+        st.markdown("""
+        <div style="text-align: center; margin: 20px 0;">
+            <h3 style="color: #2C3E50; font-size: 1.5rem; margin-bottom: 10px;">
+                📄 Relatório Detalhado Completo
+            </h3>
+            <p style="color: #7F8C8D; font-size: 1rem; margin-bottom: 0;">
+                Baixe a análise completa em 4 páginas com todos os dados e gráficos
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col_pdf1, col_pdf2, col_pdf3 = st.columns([1, 2, 1])
+
+        with col_pdf2:
+            if PDF_AVAILABLE:
+                if st.button("📥 Gerar Relatório PDF", type="primary", use_container_width=True):
+                    with st.spinner('Gerando relatório PDF...'):
+                        try:
+                            pdf_bytes = gerar_relatorio_pdf(dados, municipio, uf)
+                            if pdf_bytes:
+                                st.download_button(
+                                    label="📄 Download do Relatório PDF",
+                                    data=pdf_bytes,
+                                    file_name=f"relatorio_financeiro_{municipio}_{uf}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                                    mime="application/pdf",
+                                    type="secondary",
+                                    use_container_width=True
+                                )
+                                st.success("✅ Relatório gerado com sucesso!")
+                            else:
+                                st.error("❌ Erro ao gerar relatório PDF")
+                        except Exception as e:
+                            st.error(f"❌ Erro ao gerar PDF: {str(e)}")
+            else:
+                st.warning("⚠️ Para gerar PDF, instale as dependências: `pip install reportlab kaleido`")
+                st.info("💡 O relatório PDF contém 4 páginas com análise completa dos dados financeiros")
+
+
+def gerar_grafico_para_pdf(valor_regular, valor_otimo, classificacao_atual='Regular'):
+    """Gera o gráfico comparativo usando matplotlib e retorna como bytes para o PDF"""
+    if not PDF_AVAILABLE:
+        return None
+
+    # Configurar matplotlib para não usar GUI
+    plt.ioff()
+
+    # Criar figura
+    fig, ax = plt.subplots(figsize=(6.5, 5))
+
+    # Dados para o gráfico
+    categorias = ['Regular\n(Base)', 'Ótimo\n(Potencial)']
+    valores = [valor_regular, valor_otimo]
+    cores = [CORES_PADRAO['alerta'], CORES_PADRAO['positivo']]
+
+    # Criar gráfico de barras
+    bars = ax.bar(categorias, valores, color=cores, width=0.6, edgecolor='white', linewidth=2)
+
+    # Adicionar valores nas barras
+    for i, (bar, valor) in enumerate(zip(bars, valores)):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height + valor * 0.02,
+                format_currency(valor),
+                ha='center', va='bottom', fontsize=12, fontweight='bold', color='black')
+
+    # Adicionar anotação de diferença
+    diferenca = valor_otimo - valor_regular
+    y_pos = (valor_regular + valor_otimo) / 2
+
+    # Seta e caixa de texto para diferença
+    ax.annotate(f'Diferença\n{format_currency(diferenca)}',
+                xy=(0.5, y_pos), xytext=(1.2, y_pos),
+                ha='center', va='center',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor=CORES_PADRAO['destaque'],
+                         edgecolor='white', linewidth=2),
+                arrowprops=dict(arrowstyle='->', color=CORES_PADRAO['destaque'], lw=2),
+                fontsize=10, fontweight='bold', color='white')
+
+    # Customizar eixos
+    ax.set_title('Comparação: Regular vs Ótimo - Potencial de Recursos',
+                fontsize=16, fontweight='bold', pad=20, color='#2C3E50')
+
+    ax.set_ylabel('Valor Mensal', fontsize=12, fontweight='bold', color='#2C3E50')
+
+    # Formatador para eixo Y
+    def currency_formatter(x, pos):
+        return f'R$ {x:,.0f}'.replace(',', '.')
+
+    ax.yaxis.set_major_formatter(FuncFormatter(currency_formatter))
+
+    # Configurar grid e estilo
+    ax.grid(axis='y', alpha=0.3, linestyle='--')
+    ax.set_axisbelow(True)
+
+    # Remover bordas superiores e direitas
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#cccccc')
+    ax.spines['bottom'].set_color('#cccccc')
+
+    # Ajustar margem superior para a anotação
+    ax.set_ylim(0, max(valores) * 1.15)
+    ax.set_xlim(-0.5, 1.8)
+
+    # Configurar layout
+    plt.tight_layout()
+
+    # Converter para bytes
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
+    img_buffer.seek(0)
+    img_bytes = img_buffer.getvalue()
+
+    # Fechar figura para liberar memória
+    plt.close(fig)
+
+    return img_bytes
+
+def _adicionar_timbrado_background(canvas, doc):
+    """Adiciona timbrado como fundo da página"""
+    try:
+        # Verificar se o arquivo timbrado existe
+        timbrado_path = 'timbrado.jpg'
+        if os.path.exists(timbrado_path):
+            # Desenhar timbrado cobrindo toda a página A4
+            canvas.drawImage(timbrado_path,
+                           x=0, y=0,
+                           width=A4[0], height=A4[1],
+                           preserveAspectRatio=True,
+                           anchor='c')
+    except Exception as e:
+        # Se houver erro, continuar sem timbrado
+        print(f"Aviso: Não foi possível carregar timbrado: {e}")
+
+def criar_dashboard_primeira_pagina(municipio, uf, pagamentos):
+    """Cria dashboard visual para primeira página do PDF"""
+    if not PDF_AVAILABLE:
+        return []
+
+    # Extrair dados
+    estrato_valor = pagamentos.get('dsFaixaIndiceEquidadeEsfEap', 'N/A')
+    populacao_valor = f"{pagamentos.get('qtPopulacao', 0):,}".replace(',', '.')
+    competencia = get_latest_competencia()
+
+    # Determinar cor do estrato baseada no valor
+    if 'alto' in estrato_valor.lower():
+        cor_estrato = colors.HexColor('#27AE60')  # Verde - positivo
+    elif 'médio' in estrato_valor.lower() or 'medio' in estrato_valor.lower():
+        cor_estrato = colors.HexColor('#F39C12')  # Laranja - neutro
+    elif 'baixo' in estrato_valor.lower():
+        cor_estrato = colors.HexColor('#E74C3C')  # Vermelho - negativo
+    else:
+        cor_estrato = colors.HexColor('#95A5A6')  # Cinza - neutro
+
+    # Estilo para os cards
+    card_style = ParagraphStyle(
+        'CardStyle',
+        fontSize=12,
+        textColor=colors.white,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+
+    value_style = ParagraphStyle(
+        'ValueStyle',
+        fontSize=16,
+        textColor=colors.white,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold',
+        spaceAfter=5
+    )
+
+    # Dados dos cards em formato de tabela 2x2
+    dashboard_data = [
+        [
+            # Card Município
+            [
+                Paragraph("🏛️ MUNICÍPIO", card_style),
+                Paragraph(f"{municipio}", value_style),
+                Paragraph(f"{uf}", card_style)
+            ],
+            # Card População
+            [
+                Paragraph("👥 POPULAÇÃO", card_style),
+                Paragraph(f"{populacao_valor}", value_style),
+                Paragraph("habitantes", card_style)
             ]
-
-            # Colunas para pagamentos
-            colunas_pagamentos = [
-            "sgUf", "noMunicipio", "coMunicipioIbge", "nuCompCnes", "nuParcela",
-            "dsFaixaIndiceEquidadeEsfEap", "dsClassificacaoVinculoEsfEap", 
-            "dsClassificacaoQualidadeEsfEap", "qtEsfCredenciado", "qtEsfHomologado"
+        ],
+        [
+            # Card Estrato
+            [
+                Paragraph("📊 ESTRATO", card_style),
+                Paragraph(f"{estrato_valor}", value_style),
+                Paragraph("classificação", card_style)
+            ],
+            # Card Competência
+            [
+                Paragraph("📅 COMPETÊNCIA", card_style),
+                Paragraph(f"{competencia}", value_style),
+                Paragraph("período", card_style)
             ]
+        ]
+    ]
 
-            st.subheader("📊 Valor Total por Classificação - Cenários Completos")
-            try:
-                from utils import criar_tabela_total_por_classificacao
-                
-                tabela_classificacao = criar_tabela_total_por_classificacao(dados)
-                st.dataframe(tabela_classificacao, use_container_width=True)
-                
-                        
-            except ImportError as e:
-                st.error(f"Erro ao importar função de classificação: {e}")
-            except Exception as e:
-                st.error(f"Erro ao gerar tabela por classificação: {e}")
-            
-            # Dashboard de Gráficos Otimizados
-            st.markdown("---")
-            st.header(f"📊 Dashboard Visual - {municipio_selecionado}, {uf_selecionada}")
-            
-            # Criar tabs para organizar os gráficos
-            tab1, tab2, tab3 = st.tabs(["📈 Projeção Anual", "📊 Por Equipe", "🍩 Distribuição"])
-            
-            with tab1:
-                st.write("**Projeção mensal acumulada de ganhos e perdas baseada na classificação atual**")
-                fig_piramide = criar_grafico_piramide_mensal(dados)
-                if fig_piramide:
-                    st.plotly_chart(fig_piramide, use_container_width=True, theme="streamlit", config=PLOTLY_CONFIG)
-                else:
-                    st.warning("⚠️ Não foi possível gerar o gráfico. Dados de qualidade insuficientes.")
-            
-            with tab2:
-                st.write("**Valores de qualidade por tipo de equipe**")
-                fig_horizontal = criar_grafico_barras_horizontais(dados)
-                if fig_horizontal:
-                    st.plotly_chart(fig_horizontal, use_container_width=True, theme="streamlit", config=PLOTLY_CONFIG)
-                else:
-                    st.info("🚧 Gráfico de barras horizontais em desenvolvimento")
-            
-            with tab3:
-                st.write("**Distribuição de valores entre tipos de equipe**")
-                fig_rosquinha = criar_grafico_rosquinha(dados)
-                if fig_rosquinha:
-                    st.plotly_chart(fig_rosquinha, use_container_width=True, theme="streamlit", config=PLOTLY_CONFIG)
-                else:
-                    st.info("🚧 Gráfico de distribuição em desenvolvimento")
-            
-            # Extrair valores para métricas destacadas (fora das tabs)
-            pagamentos = dados['pagamentos'][0]
-            valor_atual = pagamentos.get('vlQualidadeEsf', 0) + pagamentos.get('vlPagamentoEmultiQualidade', 0) + pagamentos.get('vlPagamentoEsb40hQualidade', 0)
-            valor_otimo = valor_atual * 1.25
-            valor_regular = valor_atual * 0.75
-            ganho_mensal = valor_otimo - valor_atual
-            perda_mensal = valor_atual - valor_regular
-            ganho_anual = ganho_mensal * 12
-            perda_anual = perda_mensal * 12
-            
-            
-            
-            
-        else:
-            st.error("❌ Nenhum dado encontrado para os parâmetros informados.")
-            st.info("💡 Verifique se o código IBGE está correto.")
+    # Criar tabela dashboard
+    dashboard_table = Table(dashboard_data, colWidths=[2.5*inch, 2.5*inch], rowHeights=[1.2*inch, 1.2*inch])
+    dashboard_table.setStyle(TableStyle([
+        # Card Município (azul)
+        ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#3498DB')),
+        ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
 
-    # Seção de geração de relatório PDF - FORA do bloco condicional para evitar loop
-    if 'dados' in st.session_state and 'municipio_selecionado' in st.session_state:
-        st.markdown("---")
-        st.header("📄 Relatório PDF Profissional")
-        
-        if not PDF_AVAILABLE:
-            st.error(f"❌ {PDF_ERROR}")
-            st.info("💡 Execute: pip install reportlab Pillow")
+        # Card População (verde)
+        ('BACKGROUND', (1, 0), (1, 0), colors.HexColor('#27AE60')),
+        ('VALIGN', (1, 0), (1, 0), 'MIDDLE'),
+        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+
+        # Card Estrato (cor dinâmica)
+        ('BACKGROUND', (0, 1), (0, 1), cor_estrato),
+        ('VALIGN', (0, 1), (0, 1), 'MIDDLE'),
+        ('ALIGN', (0, 1), (0, 1), 'CENTER'),
+
+        # Card Competência (cinza)
+        ('BACKGROUND', (1, 1), (1, 1), colors.HexColor('#95A5A6')),
+        ('VALIGN', (1, 1), (1, 1), 'MIDDLE'),
+        ('ALIGN', (1, 1), (1, 1), 'CENTER'),
+
+        # Espaçamento entre cards
+        ('LEFTPADDING', (0, 0), (-1, -1), 15),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+        ('TOPPADDING', (0, 0), (-1, -1), 15),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+
+        # Remover bordas da tabela
+        ('GRID', (0, 0), (-1, -1), 0, colors.white),
+    ]))
+
+    return [dashboard_table]
+
+def gerar_relatorio_pdf(dados, municipio, uf):
+    """Gera relatório PDF de 4 páginas com análise financeira"""
+    if not PDF_AVAILABLE:
+        st.error("Bibliotecas necessárias para PDF não estão instaladas. Execute: pip install reportlab")
+        return None
+
+    if not dados or 'pagamentos' not in dados:
+        st.error("Dados não disponíveis para gerar relatório")
+        return None
+
+    pagamentos = dados['pagamentos'][0]
+
+    # Validar e extrair dados
+    try:
+        # Calcular valores corrigidos com validação
+        vlQualidadeEsf = float(pagamentos.get('vlQualidadeEsf', 0))
+        vlPagamentoEmulti = float(pagamentos.get('vlPagamentoEmultiQualidade', 0))
+        vlPagamentoEsb = float(pagamentos.get('vlPagamentoEsb40hQualidade', 0))
+
+        valor_atual = vlQualidadeEsf + vlPagamentoEmulti + vlPagamentoEsb
+
+        # Validar se há valores válidos
+        if valor_atual <= 0:
+            st.error("❌ Erro: Valores de financiamento não encontrados ou inválidos")
+            return None
+
+    except (ValueError, TypeError) as e:
+        st.error(f"❌ Erro ao processar valores financeiros: {e}")
+        return None
+
+    # Obter classificação atual com validação
+    classificacao_atual = pagamentos.get('dsClassificacaoQualidadeEsfEap', 'Bom')
+    classificacoes_validas = ['Ótimo', 'Bom', 'Suficiente', 'Regular']
+
+    if classificacao_atual not in classificacoes_validas:
+        classificacao_atual = 'Bom'  # Valor padrão seguro
+
+    # Valores de referência baseados nas portarias oficiais
+    # Assumindo principalmente eSF que representa a maior parte dos recursos
+    VALORES_REFERENCIA = {
+        'Ótimo': 8000,
+        'Bom': 6000,
+        'Suficiente': 4000,
+        'Regular': 2000
+    }
+
+    # Calcular valores baseados na proporção real entre classificações
+    valor_referencia_atual = VALORES_REFERENCIA.get(classificacao_atual, 6000)
+    valor_referencia_otimo = VALORES_REFERENCIA['Ótimo']
+    valor_referencia_regular = VALORES_REFERENCIA['Regular']
+
+    # Calcular valores proporcionais mantendo a base atual
+    try:
+        fator_multiplicador = valor_atual / valor_referencia_atual if valor_referencia_atual > 0 else 1
+        valor_otimo = valor_referencia_otimo * fator_multiplicador
+        valor_regular = valor_referencia_regular * fator_multiplicador
+
+        # Validar se os valores calculados são razoáveis
+        if valor_otimo <= 0 or valor_regular < 0:
+            st.error("❌ Erro: Valores calculados são inválidos")
+            return None
+
+        # Calcular diferença anual do Regular para o Ótimo
+        diferenca_anual = (valor_otimo - valor_regular) * 12
+
+        # Calcular percentual de ganho do Regular para o Ótimo
+        if valor_regular > 0:
+            percentual_ganho = ((valor_otimo - valor_regular) / valor_regular) * 100
         else:
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                if st.button("🎯 Gerar Relatório PDF", type="primary", use_container_width=True):
-                    try:
-                        with st.spinner("Gerando relatório PDF..."):
-                            # Usar dados do session_state
-                            dados_sessao = st.session_state['dados']
-                            municipio_sessao = st.session_state['municipio_selecionado']
-                            uf_sessao = st.session_state.get('uf_selecionada', 'BR')
-                            
-                            # Criar gerador e gerar PDF
-                            gerador = PDFReportGenerator()
-                            pdf_bytes = gerador.gerar_relatorio_pdf(municipio_sessao, uf_sessao, dados_sessao)
-                            nome_arquivo = gerador.criar_nome_arquivo(municipio_sessao)
-                            
-                            # Disponibilizar download
-                            st.download_button(
-                                label="⬇️ Baixar Relatório PDF",
-                                data=pdf_bytes,
-                                file_name=nome_arquivo,
-                                mime="application/pdf",
-                                type="primary",
-                                use_container_width=True
-                            )
-                            
-                            st.success(f"✅ Relatório gerado com sucesso!")
-                            st.info(f"📊 Arquivo: {nome_arquivo}")
-                            
-                    except Exception as e:
-                        st.error(f"❌ Erro ao gerar relatório: {str(e)}")
-                        st.info("💡 Verifique se todas as dependências estão instaladas: pip install reportlab Pillow")
-            
-            st.markdown("""
-            **📋 O relatório PDF inclui:**
-            - ✅ Análise do cenário financeiro atual
-            - ✅ Tabela completa de cenários (Ótimo, Bom, Suficiente, Regular)
-            - ✅ Projeções anuais de ganhos e perdas
-            - ✅ Layout profissional com logo da Mais Gestor
-            - ✅ Formato ideal para apresentações e tomada de decisões
-            """)
+            percentual_ganho = 0
+
+        # Validar percentual razoável (máximo 400% que seria de Regular para Ótimo)
+        if percentual_ganho > 500:
+            st.warning("⚠️ Aviso: Percentual de ganho muito alto, verifique os dados")
+
+    except (ZeroDivisionError, ValueError) as e:
+        st.error(f"❌ Erro nos cálculos de projeção: {e}")
+        return None
+
+    # Configurar PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=144, bottomMargin=18)
+    story = []
+    styles = getSampleStyleSheet()
+
+    # Estilos customizados
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor('#2C3E50')
+    )
+
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Heading2'],
+        fontSize=16,
+        spaceAfter=20,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor('#34495E')
+    )
+
+    highlight_style = ParagraphStyle(
+        'Highlight',
+        parent=styles['Normal'],
+        fontSize=36,
+        spaceAfter=20,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor('#E74C3C'),
+        fontName='Helvetica-Bold'
+    )
+
+    # PÁGINA 1 - CAPA
+
+    story.append(Spacer(1, 20))
+    story.append(Paragraph("Relatório de Análise Financeira", title_style))
+    story.append(Paragraph("Sistema de Monitoramento de Financiamento da Saúde", subtitle_style))
+
+    story.append(Spacer(1, 40))
+
+    # Dashboard visual da primeira página
+    dashboard_elements = criar_dashboard_primeira_pagina(municipio, uf, pagamentos)
+    for element in dashboard_elements:
+        story.append(element)
+
+    story.append(Spacer(1, 30))
+
+    # Informações adicionais
+    info_data = [
+        ['Data do Relatório:', datetime.now().strftime('%d/%m/%Y')],
+    ]
+
+    info_table = Table(info_data, colWidths=[2*inch, 3*inch])
+    info_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+
+    story.append(info_table)
+    story.append(PageBreak())
+
+    # PÁGINA 2 - ANÁLISE DE POTENCIAL
+    story.append(Paragraph("Análise de Potencial de Recursos", title_style))
+    story.append(Spacer(1, 30))
+
+    story.append(Paragraph("Potencial de aumento de recursos da classificação Regular para Ótimo:", subtitle_style))
+    story.append(Spacer(1, 20))
+
+    story.append(Paragraph(f"+{percentual_ganho:.1f}%", highlight_style))
+    story.append(Spacer(1, 30))
+
+    story.append(Paragraph(f"Este percentual corresponde a <b>{format_currency(diferenca_anual)}</b> anuais que poderiam ser recebidos evoluindo da classificação Regular para Ótimo.", styles['Normal']))
+    story.append(Spacer(1, 20))
+
+    story.append(Paragraph("Este valor adicional poderia fazer uma diferença significativa na gestão da saúde do município, permitindo:", styles['Normal']))
+    story.append(Spacer(1, 10))
+
+    beneficios = [
+        "• Ampliação dos serviços de atenção básica",
+        "• Melhoria da infraestrutura das unidades de saúde",
+        "• Contratação de mais profissionais",
+        "• Investimento em equipamentos e tecnologia",
+        "• Programas de prevenção e promoção da saúde"
+    ]
+
+    for beneficio in beneficios:
+        story.append(Paragraph(beneficio, styles['Normal']))
+        story.append(Spacer(1, 5))
+
+    story.append(PageBreak())
+
+    # PÁGINA 3 - GRÁFICO E MÉTRICAS
+    story.append(Paragraph("Comparativo de Recursos e Métricas", title_style))
+    story.append(Spacer(1, 20))
+
+    # Adicionar gráfico
+    try:
+        grafico_img = gerar_grafico_para_pdf(valor_regular, valor_otimo, 'Regular')
+        if grafico_img:
+            img_buffer = io.BytesIO(grafico_img)
+            graph_img = Image(img_buffer, width=5*inch, height=3.2*inch)
+            graph_img.hAlign = 'CENTER'
+            story.append(graph_img)
+    except Exception as e:
+        story.append(Paragraph(f"Erro ao gerar gráfico: {str(e)}", styles['Normal']))
+
+    story.append(Spacer(1, 30))
+
+    # Tabela de métricas
+    metricas_data = [
+        ['Métrica', 'Valor', 'Descrição'],
+        ['Recurso Atual', format_currency(valor_atual), f'Classificação "{classificacao_atual}"'],
+        ['Recurso Base (Regular)', format_currency(valor_regular), 'Classificação "Regular"'],
+        ['Recurso Potencial (Ótimo)', format_currency(valor_otimo), 'Classificação "Ótimo"'],
+        ['Acréscimo Possível', format_currency(valor_otimo - valor_regular), f'+{percentual_ganho:.1f}%'],
+        ['Ganho Potencial Anual', format_currency(diferenca_anual), 'Valor adicional anual (Regular → Ótimo)']
+    ]
+
+    metricas_table = Table(metricas_data, colWidths=[2*inch, 1.5*inch, 2.5*inch])
+    metricas_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498DB')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+
+    story.append(metricas_table)
+    story.append(PageBreak())
+
+    # PÁGINA 4 - CONCLUSÕES E RECOMENDAÇÕES
+    story.append(Paragraph("Conclusões e Recomendações", title_style))
+    story.append(Spacer(1, 30))
+
+    story.append(Paragraph("Resumo Executivo", subtitle_style))
+    story.append(Paragraph(f"O município de {municipio}/{uf} tem potencial para aumentar seus recursos em <b>{format_currency(valor_otimo - valor_regular)}</b> mensais, representando um acréscimo de <b>{percentual_ganho:.1f}%</b> evoluindo da classificação Regular para Ótimo.", styles['Normal']))
+    story.append(Spacer(1, 20))
+
+    story.append(Paragraph("Benefícios Esperados", subtitle_style))
+    story.append(Paragraph("• <b>Mais recursos:</b> Aumento significativo no financiamento da saúde", styles['Normal']))
+    story.append(Paragraph("• <b>Melhor qualidade:</b> Elevação dos indicadores de qualidade da atenção básica", styles['Normal']))
+    story.append(Paragraph("• <b>População beneficiada:</b> Melhoria no atendimento para toda a população", styles['Normal']))
+    story.append(Spacer(1, 20))
+
+    story.append(Paragraph("Recomendações", subtitle_style))
+    story.append(Paragraph("1. Implementar ações para melhoria dos indicadores de qualidade", styles['Normal']))
+    story.append(Paragraph("2. Investir na capacitação das equipes de saúde", styles['Normal']))
+    story.append(Paragraph("3. Modernizar os processos e sistemas de gestão", styles['Normal']))
+    story.append(Paragraph("4. Monitorar continuamente os indicadores", styles['Normal']))
+    story.append(Spacer(1, 40))
+
+    story.append(Paragraph("Sistema de Monitoramento de Financiamento da Saúde", subtitle_style))
+
+    # Construir PDF com timbrado de fundo
+    doc.build(story,
+             onFirstPage=_adicionar_timbrado_background,
+             onLaterPages=_adicionar_timbrado_background)
+    buffer.seek(0)
+    return buffer.getvalue()
 
 if __name__ == "__main__":
     main()
