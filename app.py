@@ -205,6 +205,31 @@ def exibir_landing_page(dados):
     # Espaçamento
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # Expander para ajuste de valor
+    with st.expander("⚙️ Ajustes Avançados", expanded=False):
+        st.markdown("**Ajuste de Valor Total do Município**")
+        st.markdown("_Use este campo para adicionar ou subtrair um valor do **valor total** do município (que inclui todos os componentes: eSF, eAP, eMulti, eSB, ACS, incentivos, etc.)_")
+
+        valor_ajuste = st.number_input(
+            "Valor de ajuste (R$)",
+            min_value=-1000000.0,
+            max_value=1000000.0,
+            value=0.0,
+            step=100.0,
+            format="%.2f",
+            help="Valor que será somado ao valor total atual. Use valores negativos para subtrair.",
+            key="valor_ajuste_pdf"
+        )
+
+        # Salvar no session_state
+        st.session_state['valor_ajuste'] = valor_ajuste
+
+        if valor_ajuste != 0:
+            if valor_ajuste > 0:
+                st.info(f"✅ Será adicionado {format_currency(valor_ajuste)} ao valor total do município")
+            else:
+                st.warning(f"⚠️ Será subtraído {format_currency(abs(valor_ajuste))} do valor total do município")
+
     # Container destacado para o botão PDF
     with st.container(border=True):
         st.markdown("""
@@ -225,7 +250,8 @@ def exibir_landing_page(dados):
                 if st.button("📥 Gerar Relatório PDF", type="primary", use_container_width=True):
                     with st.spinner('Gerando relatório PDF...'):
                         try:
-                            pdf_bytes = gerar_relatorio_pdf(dados, municipio, uf)
+                            valor_ajuste = st.session_state.get('valor_ajuste', 0.0)
+                            pdf_bytes = gerar_relatorio_pdf(dados, municipio, uf, valor_ajuste)
                             if pdf_bytes:
                                 st.download_button(
                                     label="📄 Download do Relatório PDF",
@@ -446,7 +472,7 @@ def criar_dashboard_primeira_pagina(municipio, uf, pagamentos):
 
     return [dashboard_table]
 
-def gerar_relatorio_pdf(dados, municipio, uf):
+def gerar_relatorio_pdf(dados, municipio, uf, valor_ajuste=0.0):
     """Gera relatório PDF de 4 páginas com análise financeira"""
     if not PDF_AVAILABLE:
         st.error("Bibliotecas necessárias para PDF não estão instaladas. Execute: pip install reportlab")
@@ -456,70 +482,177 @@ def gerar_relatorio_pdf(dados, municipio, uf):
         st.error("Dados não disponíveis para gerar relatório")
         return None
 
+    # Carregar configurações do arquivo config.json
+    config = carregar_config()
+    if not config:
+        st.error("❌ Erro: Não foi possível carregar arquivo config.json")
+        return None
+
+    # Extrair valores de qualidade do config
+    quality_values = config.get('quality_values', {})
+    if not quality_values:
+        st.error("❌ Erro: Valores de qualidade não encontrados no config.json")
+        return None
+
     pagamentos = dados['pagamentos'][0]
 
     # Validar e extrair dados
     try:
-        # Calcular valores corrigidos com validação
+        # Calcular valor total real do município (todos os componentes)
+        # Valores de eSF (Equipes de Saúde da Família)
+        vlTotalEsf = float(pagamentos.get('vlTotalEsf', 0))
         vlQualidadeEsf = float(pagamentos.get('vlQualidadeEsf', 0))
-        vlPagamentoEmulti = float(pagamentos.get('vlPagamentoEmultiQualidade', 0))
-        vlPagamentoEsb = float(pagamentos.get('vlPagamentoEsb40hQualidade', 0))
 
-        valor_atual = vlQualidadeEsf + vlPagamentoEmulti + vlPagamentoEsb
+        # Valores de eAP (Equipes de Atenção Primária)
+        vlTotalEap = float(pagamentos.get('vlTotalEap', 0))
+
+        # Valores de eMulti (Equipes Multiprofissionais)
+        vlTotalEmulti = float(pagamentos.get('vlTotalEmulti', 0))
+        vlPagamentoEmultiQualidade = float(pagamentos.get('vlPagamentoEmultiQualidade', 0))
+
+        # Valores de eSB (Equipes de Saúde Bucal)
+        vlPagamentoEsb40h = float(pagamentos.get('vlPagamentoEsb40h', 0))
+        vlPagamentoEsb40hQualidade = float(pagamentos.get('vlPagamentoEsb40hQualidade', 0))
+
+        # Valores de ACS e outros
+        vlPagamentoAcsDireto = float(pagamentos.get('vlPagamentoAcsDireto', 0))
+        vlPagamentoIncentivoPopulacional = float(pagamentos.get('vlPagamentoIncentivoPopulacional', 0))
+
+        # Valor total do município (TODOS os componentes)
+        valor_total_municipio = (
+            vlTotalEsf + vlQualidadeEsf +                    # eSF: base + qualidade
+            vlTotalEap +                                      # eAP: valor total
+            vlTotalEmulti + vlPagamentoEmultiQualidade +     # eMulti: base + qualidade
+            vlPagamentoEsb40h + vlPagamentoEsb40hQualidade + # eSB: base + qualidade
+            vlPagamentoAcsDireto +                           # ACS
+            vlPagamentoIncentivoPopulacional                 # Incentivos
+        )
+
+        # Valor atual das componentes com qualidade (para cálculos de projeção)
+        valor_componentes_qualidade = vlQualidadeEsf + vlPagamentoEmultiQualidade + vlPagamentoEsb40hQualidade
+
+        # Aplicar ajuste manual sobre o valor total do município
+        valor_total_municipio_original = valor_total_municipio  # Guardar valor original
+        if valor_ajuste != 0:
+            valor_total_municipio += valor_ajuste
 
         # Validar se há valores válidos
-        if valor_atual <= 0:
-            st.error("❌ Erro: Valores de financiamento não encontrados ou inválidos")
+        if valor_componentes_qualidade <= 0:
+            st.error("❌ Erro: Valores de financiamento com qualidade não encontrados ou inválidos")
+            return None
+
+        if valor_total_municipio <= 0:
+            st.error("❌ Erro: Valor total do município inválido após ajuste")
             return None
 
     except (ValueError, TypeError) as e:
         st.error(f"❌ Erro ao processar valores financeiros: {e}")
         return None
 
-    # Obter classificação atual com validação
-    classificacao_atual = pagamentos.get('dsClassificacaoQualidadeEsfEap', 'Bom')
-    classificacoes_validas = ['Ótimo', 'Bom', 'Suficiente', 'Regular']
+    # Obter classificação atual com validação (case-insensitive)
+    classificacao_raw = pagamentos.get('dsClassificacaoQualidadeEsfEap', 'Bom')
 
-    if classificacao_atual not in classificacoes_validas:
-        classificacao_atual = 'Bom'  # Valor padrão seguro
+    # Normalizar classificação (converter para formato padrão)
+    classificacao_normalizada = classificacao_raw.strip().title() if classificacao_raw else 'Bom'
 
-    # Valores de referência baseados nas portarias oficiais
-    # Assumindo principalmente eSF que representa a maior parte dos recursos
-    VALORES_REFERENCIA = {
-        'Ótimo': 8000,
-        'Bom': 6000,
-        'Suficiente': 4000,
-        'Regular': 2000
+    # Mapear possíveis variações para formato padrão
+    mapeamento_classificacao = {
+        'Ótimo': 'Ótimo', 'Otimo': 'Ótimo', 'ÓTIMO': 'Ótimo', 'OTIMO': 'Ótimo',
+        'Bom': 'Bom', 'BOM': 'Bom',
+        'Suficiente': 'Suficiente', 'SUFICIENTE': 'Suficiente',
+        'Regular': 'Regular', 'REGULAR': 'Regular'
     }
 
-    # Calcular valores baseados na proporção real entre classificações
-    valor_referencia_atual = VALORES_REFERENCIA.get(classificacao_atual, 6000)
-    valor_referencia_otimo = VALORES_REFERENCIA['Ótimo']
-    valor_referencia_regular = VALORES_REFERENCIA['Regular']
+    classificacao_atual = mapeamento_classificacao.get(classificacao_normalizada, 'Bom')
 
-    # Calcular valores proporcionais mantendo a base atual
+    # Avisar apenas se realmente não foi possível identificar
+    if classificacao_normalizada not in mapeamento_classificacao and classificacao_raw:
+        st.warning(f"⚠️ Aviso: Classificação '{classificacao_raw}' não reconhecida. Usando 'Bom' como padrão.")
+
+    # Extrair dados reais das equipes para cálculos mais precisos
     try:
-        fator_multiplicador = valor_atual / valor_referencia_atual if valor_referencia_atual > 0 else 1
-        valor_otimo = valor_referencia_otimo * fator_multiplicador
-        valor_regular = valor_referencia_regular * fator_multiplicador
+        # Dados de eSF (Equipes de Saúde da Família)
+        qt_esf_credenciado = float(pagamentos.get('qtEsfCredenciado', 0))
+        qt_esf_pgto = float(pagamentos.get('qtEsfTotalPgto', qt_esf_credenciado))
 
-        # Validar se os valores calculados são razoáveis
-        if valor_otimo <= 0 or valor_regular < 0:
-            st.error("❌ Erro: Valores calculados são inválidos")
+        # Dados de eAP (Equipes de Atenção Primária)
+        qt_eap_credenciadas = float(pagamentos.get('qtEapCredenciadas', 0))
+
+        # Dados de eMulti (Equipes Multiprofissionais)
+        qt_emulti_credenciadas = float(pagamentos.get('qtEmultiCredenciadas', 0))
+
+        # Dados de eSB (Equipes de Saúde Bucal)
+        qt_sb_credenciada = float(pagamentos.get('qtSb40hCredenciada', 0))
+
+    except (ValueError, TypeError) as e:
+        # Fallback para valores padrão se houver erro nos dados das equipes
+        st.warning(f"⚠️ Aviso: Erro ao extrair dados das equipes: {e}. Usando valores padrão.")
+        qt_esf_pgto = max(1, qt_esf_credenciado)  # Pelo menos 1 eSF
+        qt_eap_credenciadas = 0
+        qt_emulti_credenciadas = 0
+        qt_sb_credenciada = 0
+
+    # Valores por equipe serão carregados do config.json
+
+    # Calcular valores de projeção usando config.json
+    try:
+        # Obter valores do config para cada tipo de equipe
+        valores_esf = quality_values.get('eSF', {})
+        valores_eap_30h = quality_values.get('eAP 30h', {})
+        valores_emulti_ampl = quality_values.get('eMULTI Ampl.', {})
+        valores_esb_comum1 = quality_values.get('eSB Comum I', {})
+
+        # Validar se os valores existem no config
+        if not all([valores_esf, valores_eap_30h, valores_emulti_ampl, valores_esb_comum1]):
+            st.error("❌ Erro: Valores de qualidade incompletos no config.json")
             return None
 
-        # Calcular diferença anual do Regular para o Ótimo
-        diferenca_anual = (valor_otimo - valor_regular) * 12
+        # Calcular valor base para classificação "Regular" (usando valores do config)
+        valor_regular_base = (
+            (qt_esf_pgto * valores_esf.get('Regular', 0)) +
+            (qt_eap_credenciadas * valores_eap_30h.get('Regular', 0)) +
+            (qt_emulti_credenciadas * valores_emulti_ampl.get('Regular', 0)) +
+            (qt_sb_credenciada * valores_esb_comum1.get('Regular', 0))
+        )
+
+        # Calcular valor potencial para classificação "Ótimo" (usando valores do config)
+        valor_otimo_base = (
+            (qt_esf_pgto * valores_esf.get('Ótimo', 0)) +
+            (qt_eap_credenciadas * valores_eap_30h.get('Ótimo', 0)) +
+            (qt_emulti_credenciadas * valores_emulti_ampl.get('Ótimo', 0)) +
+            (qt_sb_credenciada * valores_esb_comum1.get('Ótimo', 0))
+        )
+
+        # Aplicar ajuste proporcional se houver ajuste manual
+        if valor_ajuste != 0 and valor_regular_base > 0:
+            # Calcular proporção do ajuste baseado no valor total
+            proporcao_ajuste = valor_ajuste / valor_total_municipio_original
+
+            # Aplicar proporção aos valores de projeção
+            ajuste_proporcional_regular = valor_regular_base * proporcao_ajuste
+            ajuste_proporcional_otimo = valor_otimo_base * proporcao_ajuste
+
+            valor_regular = valor_regular_base + ajuste_proporcional_regular
+            valor_otimo = valor_otimo_base + ajuste_proporcional_otimo
+        else:
+            valor_regular = valor_regular_base
+            valor_otimo = valor_otimo_base
+
+        # Validar se os valores calculados são válidos
+        if valor_otimo <= 0 or valor_regular <= 0:
+            st.error("❌ Erro: Valores de projeção inválidos calculados do config.json")
+            return None
+
+        # Calcular diferença mensal e anual
+        diferenca_mensal = valor_otimo - valor_regular
+        diferenca_anual = diferenca_mensal * 12
 
         # Calcular percentual de ganho do Regular para o Ótimo
-        if valor_regular > 0:
-            percentual_ganho = ((valor_otimo - valor_regular) / valor_regular) * 100
-        else:
-            percentual_ganho = 0
+        percentual_ganho = (diferenca_mensal / valor_regular) * 100
 
-        # Validar percentual razoável (máximo 400% que seria de Regular para Ótimo)
-        if percentual_ganho > 500:
-            st.warning("⚠️ Aviso: Percentual de ganho muito alto, verifique os dados")
+        # Validar percentual razoável (máximo 300% para ser mais restritivo)
+        if percentual_ganho > 300:
+            st.warning("⚠️ Aviso: Percentual de ganho muito alto, verifique os dados do config.json")
 
     except (ZeroDivisionError, ValueError) as e:
         st.error(f"❌ Erro nos cálculos de projeção: {e}")
@@ -573,25 +706,51 @@ def gerar_relatorio_pdf(dados, municipio, uf):
     for element in dashboard_elements:
         story.append(element)
 
-    story.append(Spacer(1, 30))
+    # Espaço para empurrar o rodapé para baixo
+    story.append(Spacer(1, 200))
 
-    # Informações adicionais
-    info_data = [
-        ['Data do Relatório:', datetime.now().strftime('%d/%m/%Y')],
-    ]
+    # Informações da cidade e data no rodapé
+    from datetime import datetime
+    import locale
 
-    info_table = Table(info_data, colWidths=[2*inch, 3*inch])
-    info_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 12),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
-    ]))
+    # Tentar configurar locale para português (opcional)
+    try:
+        locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
+    except:
+        try:
+            locale.setlocale(locale.LC_TIME, 'Portuguese_Brazil.1252')
+        except:
+            pass  # Manter formato padrão se não conseguir configurar
 
-    story.append(info_table)
+    # Formatar data
+    data_atual = datetime.now()
+    try:
+        data_formatada = data_atual.strftime('%d de %B de %Y')
+        # Traduzir meses manualmente se locale não funcionar
+        meses = {
+            'January': 'janeiro', 'February': 'fevereiro', 'March': 'março',
+            'April': 'abril', 'May': 'maio', 'June': 'junho',
+            'July': 'julho', 'August': 'agosto', 'September': 'setembro',
+            'October': 'outubro', 'November': 'novembro', 'December': 'dezembro'
+        }
+        for en, pt in meses.items():
+            data_formatada = data_formatada.replace(en, pt)
+    except:
+        data_formatada = data_atual.strftime('%d/%m/%Y')
+
+    # Estilo para rodapé (letra menor)
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=12,
+        spaceAfter=5,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor('#7F8C8D'),
+        fontName='Helvetica'
+    )
+
+    story.append(Paragraph(f"{municipio}, {uf}", footer_style))
+    story.append(Paragraph(data_formatada, footer_style))
     story.append(PageBreak())
 
     # PÁGINA 2 - ANÁLISE DE POTENCIAL
@@ -630,38 +789,49 @@ def gerar_relatorio_pdf(dados, municipio, uf):
 
     # Adicionar gráfico
     try:
-        grafico_img = gerar_grafico_para_pdf(valor_regular, valor_otimo, 'Regular')
-        if grafico_img:
-            img_buffer = io.BytesIO(grafico_img)
-            graph_img = Image(img_buffer, width=5*inch, height=3.2*inch)
-            graph_img.hAlign = 'CENTER'
-            story.append(graph_img)
+        if PDF_AVAILABLE:
+            grafico_img = gerar_grafico_para_pdf(valor_regular, valor_otimo, 'Regular')
+            if grafico_img:
+                img_buffer = io.BytesIO(grafico_img)
+                graph_img = Image(img_buffer, width=5*inch, height=3.2*inch)
+                graph_img.hAlign = 'CENTER'
+                story.append(graph_img)
+            else:
+                story.append(Paragraph("⚠️ Não foi possível gerar o gráfico comparativo", styles['Normal']))
+        else:
+            story.append(Paragraph("⚠️ Bibliotecas para gráfico não disponíveis", styles['Normal']))
     except Exception as e:
-        story.append(Paragraph(f"Erro ao gerar gráfico: {str(e)}", styles['Normal']))
+        story.append(Paragraph("⚠️ Erro ao gerar gráfico comparativo", styles['Normal']))
 
     story.append(Spacer(1, 30))
 
-    # Tabela de métricas
+    # Tabela de métricas (textos encurtados para melhor formatação)
     metricas_data = [
         ['Métrica', 'Valor', 'Descrição'],
-        ['Recurso Atual', format_currency(valor_atual), f'Classificação "{classificacao_atual}"'],
-        ['Recurso Base (Regular)', format_currency(valor_regular), 'Classificação "Regular"'],
-        ['Recurso Potencial (Ótimo)', format_currency(valor_otimo), 'Classificação "Ótimo"'],
-        ['Acréscimo Possível', format_currency(valor_otimo - valor_regular), f'+{percentual_ganho:.1f}%'],
-        ['Ganho Potencial Anual', format_currency(diferenca_anual), 'Valor adicional anual (Regular → Ótimo)']
+        ['Recurso Total Atual', format_currency(valor_total_municipio), f'Total municipal + ajuste: {format_currency(valor_ajuste)}'],
+        ['Componentes c/ Qualidade', format_currency(valor_componentes_qualidade), f'Atual ("{classificacao_atual}")'],
+        ['Projeção Base (Regular)', format_currency(valor_regular), 'Cenário "Regular"'],
+        ['Projeção Potencial (Ótimo)', format_currency(valor_otimo), 'Cenário "Ótimo"'],
+        ['Acréscimo Possível', format_currency(diferenca_mensal), f'Ganho: +{percentual_ganho:.1f}%'],
+        ['Ganho Potencial Anual', format_currency(diferenca_anual), 'Ganho anual (Regular→Ótimo)']
     ]
 
-    metricas_table = Table(metricas_data, colWidths=[2*inch, 1.5*inch, 2.5*inch])
+    metricas_table = Table(metricas_data, colWidths=[2.2*inch, 1.3*inch, 2.5*inch])
     metricas_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),      # Cabeçalho menor
+        ('FONTSIZE', (0, 1), (-1, -1), 8),     # Conteúdo menor
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498DB')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),   # Padding menor
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6)
     ]))
 
     story.append(metricas_table)
