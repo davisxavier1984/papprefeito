@@ -94,5 +94,4 @@ Thumbs.db
 .dmypy.json
 dmypy.json
 
-# Local data caches
-data_cache_*.json
+

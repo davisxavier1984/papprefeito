@@ -1,80 +1,49 @@
-# Sistema papprefeito - Consulta de Dados
+# Sistema papprefeito - Consulta e Edição de Dados APS
 
-Sistema independente para consulta e visualização de dados de financiamento da saúde do Ministério da Saúde.
+Sistema simplificado para consulta e edição de dados de financiamento da saúde do Ministério da Saúde.
 
-## Estrutura do Sistema
-
-```
-papprefeito/
-├── consulta_dados.py          # Interface principal do sistema
-├── api_client.py             # Cliente para API de financiamento
-├── formatting.py             # Funções de formatação
-├── utils.py                  # Módulo utilitário
-├── requirements.txt          # Dependências do sistema
-├── __init__.py              # Inicialização do módulo
-└── README.md                # Documentação
-```
-
-## Funcionalidades
+## 🎯 Funcionalidades
 
 - ✅ Consulta à API de financiamento da saúde
-- ✅ Seleção por UF e município
-- ✅ Filtro por competência (AAAAMM)
-- ✅ Exibição de resumos orçamentários
-- ✅ Exibição de dados de pagamentos
-- ✅ Formatação automática de valores monetários
+- ✅ Seleção por UF, município e competência
+- ✅ Visualização em tabela editável
+- ✅ Edição inline dos valores financeiros
+- ✅ Sistema CRUD para salvar municípios editados
 - ✅ Cache local dos dados consultados
-- ✅ Indicadores extraídos (IED, Classificações)
 
-## Como Usar
+## 🚀 Como Usar
 
-### 1. Instalação das Dependências
+### 1. Instalação
 ```bash
-cd papprefeito
 pip install -r requirements.txt
 ```
 
-### 2. Execução do Sistema
+### 2. Execução
 ```bash
-streamlit run consulta_dados.py
+streamlit run app.py
 ```
 
-### 3. Uso da Interface
-1. Selecione um Estado (UF)
-2. Selecione um Município
-3. Informe a Competência no formato AAAAMM (ex: 202501)
+### 3. Interface
+1. Selecione a UF no sidebar
+2. Selecione o município
+3. Informe a competência (AAAAMM)
 4. Clique em "Consultar"
+5. Edite os valores na tabela conforme necessário
+6. Salve as edições usando o botão "Salvar Edições"
 
-## Dados Exibidos
+## 📊 Dados Exibidos
 
-### Resumos dos Planos Orçamentários
-- Plano Orçamentário
-- Esfera Administrativa  
-- Valores: Integral, Ajuste, Desconto, Efetivo Repasse
-- Valores de Implantação
+- **Plano Orçamentário**: Tipo do componente
+- **Esfera Administrativa**: Esfera responsável
+- **Valores**: Integral, Ajuste, Desconto, Efetivo, Implantação
 
-### Dados de Pagamentos
-- Faixa do Índice de Equidade (IED)
-- Classificação de Vínculo
-- Classificação de Qualidade
-- Quantidade de ESF Credenciadas/Homologadas
+## 💾 Sistema de Persistência
 
-## Informações Extraídas
-- **IED**: Índice de Equidade em Saúde
-- **Classificação Vínculo**: Avaliação do vínculo das equipes
-- **Classificação Qualidade**: Avaliação da qualidade dos serviços
+- **Cache de API**: `data_cache_papprefeito.json`
+- **Dados Editados**: `municipios_editados.json`
 
-## Cache de Dados
-Os dados consultados são salvos em `data_cache_papprefeito.json` para reutilização.
+## 🔧 API Utilizada
 
-## API Utilizada
 - **Endpoint**: https://relatorioaps-prd.saude.gov.br/financiamento/pagamento
 - **Fonte**: Ministério da Saúde
 - **Tipo**: Relatório Completo de Financiamento
-
-## Dependências
-- streamlit >= 1.28.0
-- pandas >= 2.0.0  
-- requests >= 2.31.0
-- pyUFbr >= 2.0.0
-- urllib3 >= 2.0.0

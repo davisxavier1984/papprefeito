@@ -5,7 +5,6 @@ streamlit>=1.28.0
 
 # Manipulação de dados
 pandas>=2.0.0
-numpy>=1.24.0
 
 # Requisições HTTP
 requests>=2.31.0
@@ -15,25 +14,3 @@ pyUFbr
 
 # Adaptadores HTTP com retry
 urllib3>=2.0.0
-
-# Geração de PDFs
-reportlab>=4.0.0
-
-# Manipulação de imagens
-Pillow>=10.0.0
-
-# Visualizações gráficas
-plotly>=5.17.0
-matplotlib>=3.7.0
-
-# Exportação de imagens estáticas do Plotly (com Chrome integrado)
-kaleido>=1.1.0
-
-# Dependências adicionais para matplotlib e gráficos
-seaborn>=0.12.0
-
-# Utilitários de data/hora
-python-dateutil>=2.8.2
-
-# Manipulação de tipos para Python
-typing-extensions>=4.5.0
