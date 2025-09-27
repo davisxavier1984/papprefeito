@@ -13,6 +13,35 @@ st.set_page_config(
     layout="wide"
 )
 
+# CSS customizado para destacar coluna editável
+st.markdown("""
+<style>
+    /* Destacar coluna editável */
+    .stDataFrame [data-testid="column"]:nth-child(3) {
+        background-color: #e8f4fd !important;
+        border: 2px solid #1f77b4 !important;
+    }
+
+    /* Destacar células editáveis */
+    .stDataFrame [data-testid="column"]:nth-child(3) input {
+        background-color: #e8f4fd !important;
+        border: 1px solid #1f77b4 !important;
+        font-weight: bold !important;
+    }
+
+    /* Efeito hover para coluna editável */
+    .stDataFrame [data-testid="column"]:nth-child(3):hover {
+        background-color: #d0e7f7 !important;
+    }
+
+    /* Estilo para indicar campos calculados */
+    .stDataFrame [data-testid="column"]:nth-child(n+4) {
+        background-color: #f8f9fa !important;
+        color: #495057 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Cache para dados dos municípios
 CACHE_FILE = "data_cache_papprefeito.json"
 EDITED_DATA_FILE = "municipios_editados.json"
@@ -184,31 +213,143 @@ if 'dados_api' in st.session_state and 'municipio_info' in st.session_state:
                 # Processar dados para dataframe
                 df_resumos = pd.DataFrame(resumos)
 
-                # Selecionar apenas as 2 colunas solicitadas
+                # Selecionar colunas e renomear conforme solicitado
                 colunas_simplificadas = {
-                    'dsPlanoOrcamentario': 'Plano Orçamentário',
-                    'vlEfetivoRepasse': 'Valor Efetivo Repasse',
-                    'vlTotalImplantacao': 'Total Implantação'
+                    'dsPlanoOrcamentario': 'Recurso',
+                    'vlEfetivoRepasse': 'Recurso Real'
                 }
 
                 df_exibicao = df_resumos[list(colunas_simplificadas.keys())].copy()
                 df_exibicao = df_exibicao.rename(columns=colunas_simplificadas)
 
-                # Exibir dataframe com formatação
-                st.dataframe(
+                # Carregar dados editados existentes
+                edited_data = load_edited_data()
+                municipio_key = f"{municipio_info['codigo']}_{municipio_info['competencia']}"
+
+                # Função para calcular colunas derivadas
+                def calcular_colunas_derivadas(df):
+                    df = df.copy()
+                    df['Recurso Potencial'] = df['Recurso Real'] + df['Perca Recurso Mensal']
+                    df['Recurso Real Anual'] = df['Recurso Real'] * 12
+                    df['Recurso Potencial Anual'] = df['Recurso Potencial'] * 12
+                    df['Diferença'] = df['Recurso Potencial Anual'] - df['Recurso Real Anual']
+                    return df
+
+                # Inicializar session state para este município se não existir
+                session_key = f"perca_{municipio_key}"
+                if session_key not in st.session_state:
+                    if municipio_key in edited_data:
+                        st.session_state[session_key] = edited_data[municipio_key].get('perca_recurso_mensal', [0.0] * len(df_exibicao))
+                    else:
+                        st.session_state[session_key] = [0.0] * len(df_exibicao)
+
+                # Adicionar coluna Perca Recurso Mensal do session state
+                df_exibicao['Perca Recurso Mensal'] = st.session_state[session_key]
+
+                # Calcular colunas derivadas iniciais
+                df_exibicao = calcular_colunas_derivadas(df_exibicao)
+
+                # Instrução para o usuário
+                st.info("💡 **Dica:** Digite valores na coluna azul 'Perca Recurso Mensal' - os cálculos são atualizados automaticamente!")
+
+                # Exibir dataframe editável (apenas a coluna editável)
+                df_editado = st.data_editor(
                     df_exibicao,
                     column_config={
-                        "Valor Efetivo Repasse": st.column_config.NumberColumn(
-                            "Valor Efetivo Repasse",
-                            format="R$ %.2f"
+                        "Recurso": st.column_config.TextColumn(
+                            "Recurso",
+                            disabled=True,
+                            help="Tipo do recurso/programa"
                         ),
-                        "Total Implantação": st.column_config.NumberColumn(
-                            "Total Implantação",
-                            format="R$ %.2f"
+                        "Recurso Real": st.column_config.NumberColumn(
+                            "Recurso Real",
+                            format="R$ %.2f",
+                            disabled=True,
+                            help="Valor mensal recebido do governo"
+                        ),
+                        "Perca Recurso Mensal": st.column_config.NumberColumn(
+                            "Perca Recurso Mensal",
+                            format="R$ %.2f",
+                            min_value=0.0,
+                            help="💰 EDITÁVEL: Digite o valor perdido mensalmente"
+                        ),
+                        "Recurso Potencial": st.column_config.NumberColumn(
+                            "Recurso Potencial",
+                            format="R$ %.2f",
+                            disabled=True,
+                            help="Calculado: Recurso Real + Perca Mensal"
+                        ),
+                        "Recurso Real Anual": st.column_config.NumberColumn(
+                            "Recurso Real Anual",
+                            format="R$ %.2f",
+                            disabled=True,
+                            help="Calculado: Recurso Real × 12"
+                        ),
+                        "Recurso Potencial Anual": st.column_config.NumberColumn(
+                            "Recurso Potencial Anual",
+                            format="R$ %.2f",
+                            disabled=True,
+                            help="Calculado: Recurso Potencial × 12"
+                        ),
+                        "Diferença": st.column_config.NumberColumn(
+                            "Diferença",
+                            format="R$ %.2f",
+                            disabled=True,
+                            help="Calculado: Diferença entre Potencial e Real anuais"
                         )
                     },
-                    use_container_width=True
+                    use_container_width=True,
+                    key=f"data_editor_{municipio_key}"
                 )
+
+                # SEMPRE recalcular as colunas derivadas após edição
+                df_final = calcular_colunas_derivadas(df_editado)
+
+                # Verificar se houve mudanças comparando com session state
+                valores_atuais = df_editado['Perca Recurso Mensal'].tolist()
+                dados_alterados = valores_atuais != st.session_state[session_key]
+
+                if dados_alterados:
+                    # Atualizar session state
+                    st.session_state[session_key] = valores_atuais
+
+                    # Salvar dados editados
+                    edited_data[municipio_key] = {
+                        'perca_recurso_mensal': valores_atuais
+                    }
+                    save_edited_data(edited_data)
+
+                    # Rerun para atualizar instantaneamente
+                    st.rerun()
+
+                # Exibir totais calculados usando o df_final com cálculos atualizados
+                st.markdown("---")
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    total_perca = df_final['Perca Recurso Mensal'].sum()
+                    st.metric(
+                        "💸 Total Perca Mensal",
+                        format_currency(total_perca),
+                        help="Soma total das perdas mensais"
+                    )
+
+                with col2:
+                    total_diferenca = df_final['Diferença'].sum()
+                    st.metric(
+                        "📊 Diferença Anual Total",
+                        format_currency(total_diferenca),
+                        help="Diferença total anual entre potencial e real"
+                    )
+
+                with col3:
+                    if total_diferenca > 0:
+                        percentual = (total_diferenca / df_final['Recurso Real Anual'].sum()) * 100
+                        st.metric(
+                            "📈 % Perda Anual",
+                            f"{percentual:.1f}%",
+                            help="Percentual de perda em relação ao recurso real anual"
+                        )
 
                 # Calcular e exibir valor total recebido
                 total_recebido = sum(resumo.get('vlEfetivoRepasse', 0) for resumo in resumos)
