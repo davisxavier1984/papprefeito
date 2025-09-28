@@ -32,6 +32,39 @@ body {
   color: var(--text-primary);
 }
 
+/* Header logo sizing */
+.header-logo {
+  max-height: 80px;
+  width: auto;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .header-logo {
+    max-height: 32px;
+  }
+}
+
+/* Decorative background logo in header */
+.header-bg-logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  height: 600px; /* grande e centralizado */
+  opacity: 0.2; /* cor original com leve transparência */
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+@media (max-width: 768px) {
+  .header-bg-logo {
+    height: 240px;
+    opacity: 0.1;
+  }
+}
+
 /* Ant Design overrides */
 .ant-layout {
   background-color: var(--bg-light) !important;

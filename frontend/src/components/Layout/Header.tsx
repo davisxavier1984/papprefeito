@@ -24,16 +24,22 @@ const Header: React.FC = () => {
         justifyContent: 'space-between',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
         borderBottom: '1px solid #e2e8f0',
-        height: '74px'
+        height: '74px',
+        position: 'relative',
+        overflow: 'hidden'
       }}
     >
-      <Space align="center" size="middle">
+      {/* Logo grande como background decorativo */}
+      <img src={logoMaisGestor} alt="" aria-hidden="true" className="header-bg-logo" />
+
+      <Space align="center" size="middle" style={{ height: '100%', position: 'relative', zIndex: 1 }}>
         <img
           src={logoMaisGestor}
           alt="MAIS GESTOR"
+          className="header-logo"
           style={{
-            height: '80px',
-            width: 'auto'
+            width: 'auto',
+            display: 'block'
           }}
         />
         <Title
@@ -51,7 +57,7 @@ const Header: React.FC = () => {
       </Space>
 
       {municipioInfo && (
-        <Space>
+        <Space style={{ position: 'relative', zIndex: 1 }}>
           <Tag
             icon={<BarChartOutlined />}
             style={{
