@@ -13,34 +13,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# CSS customizado para destacar coluna editável
-st.markdown("""
-<style>
-    /* Destacar coluna editável */
-    .stDataFrame [data-testid="column"]:nth-child(3) {
-        background-color: #e8f4fd !important;
-        border: 2px solid #1f77b4 !important;
-    }
-
-    /* Destacar células editáveis */
-    .stDataFrame [data-testid="column"]:nth-child(3) input {
-        background-color: #e8f4fd !important;
-        border: 1px solid #1f77b4 !important;
-        font-weight: bold !important;
-    }
-
-    /* Efeito hover para coluna editável */
-    .stDataFrame [data-testid="column"]:nth-child(3):hover {
-        background-color: #d0e7f7 !important;
-    }
-
-    /* Estilo para indicar campos calculados */
-    .stDataFrame [data-testid="column"]:nth-child(n+4) {
-        background-color: #f8f9fa !important;
-        color: #495057 !important;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # Cache para dados dos municípios
 CACHE_FILE = "data_cache_papprefeito.json"
@@ -221,8 +193,6 @@ if 'dados_api' in st.session_state and 'municipio_info' in st.session_state:
         # Calcular colunas derivadas iniciais
         df_exibicao = calcular_colunas_derivadas(df_exibicao)
 
-        # Instrução para o usuário
-        st.info("💡 **Dica:** Digite valores na coluna azul 'Perca Recurso Mensal' - os cálculos são atualizados automaticamente!")
 
         # Exibir dataframe editável (apenas a coluna editável)
         df_editado = st.data_editor(

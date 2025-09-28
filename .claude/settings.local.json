@@ -3,7 +3,8 @@
     "allow": [
       "Bash(python:*)",
       "Bash(dir:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "mcp__context7__resolve-library-id"
     ],
     "deny": [],
     "ask": []
