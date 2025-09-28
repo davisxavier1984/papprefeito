@@ -12,6 +12,37 @@ import type { UF } from '../../types';
 
 const { Text } = Typography;
 
+// Mapa de nomes oficiais das UFs para garantir label correto
+const UF_NOMES: Record<string, string> = {
+  AC: 'Acre',
+  AL: 'Alagoas',
+  AP: 'Amapá',
+  AM: 'Amazonas',
+  BA: 'Bahia',
+  CE: 'Ceará',
+  DF: 'Distrito Federal',
+  ES: 'Espírito Santo',
+  GO: 'Goiás',
+  MA: 'Maranhão',
+  MT: 'Mato Grosso',
+  MS: 'Mato Grosso do Sul',
+  MG: 'Minas Gerais',
+  PA: 'Pará',
+  PB: 'Paraíba',
+  PR: 'Paraná',
+  PE: 'Pernambuco',
+  PI: 'Piauí',
+  RJ: 'Rio de Janeiro',
+  RN: 'Rio Grande do Norte',
+  RS: 'Rio Grande do Sul',
+  RO: 'Rondônia',
+  RR: 'Roraima',
+  SC: 'Santa Catarina',
+  SP: 'São Paulo',
+  SE: 'Sergipe',
+  TO: 'Tocantins',
+};
+
 const UFSelector: React.FC = () => {
   const { selectedUF, setSelectedUF } = useMunicipioStore();
 
@@ -31,10 +62,14 @@ const UFSelector: React.FC = () => {
     setSelectedUF(value);
   };
 
-  const options = ufs?.map((uf: UF) => ({
-    value: uf.sigla,
-    label: `${uf.sigla} - ${uf.nome}`
-  })) || [];
+  const options = ufs?.map((uf: UF) => {
+    const sigla = (uf.sigla || '').toUpperCase();
+    const nome = UF_NOMES[sigla] || uf.nome || sigla;
+    return {
+      value: sigla,
+      label: `${sigla} - ${nome}`,
+    };
+  }) || [];
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="small">
@@ -48,17 +83,13 @@ const UFSelector: React.FC = () => {
         onChange={handleChange}
         style={{ width: '100%' }}
         showSearch
+        allowClear
         optionFilterProp="label"
+        options={options}
         loading={isLoading}
         notFoundContent={isLoading ? <Spin size="small" /> : 'Nenhuma UF encontrada'}
         status={error ? 'error' : undefined}
-      >
-        {options.map(option => (
-          <Select.Option key={option.value} value={option.value}>
-            {option.label}
-          </Select.Option>
-        ))}
-      </Select>
+      />
 
       {error && (
         <Text type="danger" style={{ fontSize: '12px' }}>

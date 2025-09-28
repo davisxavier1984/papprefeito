@@ -7,12 +7,15 @@ import { Input, Typography, Space, Button, Tooltip } from 'antd';
 import { CalendarOutlined, SyncOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient, queryKeys } from '../../services/api';
-import { useMunicipioStore } from '../../stores/municipioStore';
+import { useCanConsult, useMunicipioStore } from '../../stores/municipioStore';
+import useConsultarDados from '../../hooks/useConsultarDados';
 
 const { Text } = Typography;
 
 const CompetenciaInput: React.FC = () => {
   const { selectedCompetencia, setSelectedCompetencia } = useMunicipioStore();
+  const canConsult = useCanConsult();
+  const { consultar } = useConsultarDados();
 
   // Query para buscar última competência disponível
   const {
@@ -90,9 +93,16 @@ const CompetenciaInput: React.FC = () => {
           placeholder="202401"
           value={selectedCompetencia}
           onChange={handleChange}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && isValidCompetencia(selectedCompetencia) && canConsult) {
+              consultar();
+            }
+          }}
           style={{ flex: 1 }}
           status={status}
           maxLength={6}
+          inputMode="numeric"
+          allowClear
           suffix={
             selectedCompetencia && (
               <Text type="secondary" style={{ fontSize: '11px' }}>

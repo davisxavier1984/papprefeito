@@ -20,16 +20,16 @@ def get_latest_competencia() -> str:
     # Obter data atual
     hoje = datetime.now()
     
-    # Subtrair um mês
+    # Subtrair um mês (apenas sugestão padrão)
     if hoje.month == 1:
         # Se janeiro, vai para dezembro do ano anterior
-        mes_anterior = datetime(hoje.year - 1, 12, 1)
+        alvo = datetime(hoje.year - 1, 12, 1)
     else:
         # Caso contrário, apenas subtrai um mês
-        mes_anterior = datetime(hoje.year, hoje.month - 1, 1)
+        alvo = datetime(hoje.year, hoje.month - 1, 1)
     
     # Formatar como AAAAMM
-    competencia = mes_anterior.strftime("%Y%m")
+    competencia = alvo.strftime("%Y%m")
     
     return competencia
 
@@ -115,8 +115,11 @@ def consultar_api(codigo_ibge: str, competencia: str) -> Optional[Dict[str, Any]
     
     params = {
         "unidadeGeografica": "MUNICIPIO",
+        # Alguns ambientes aceitam chaves *_Ibge; enviamos ambas por robustez
         "coUf": codigo_ibge[:2],
+        "coUfIbge": codigo_ibge[:2],
         "coMunicipio": codigo_ibge[:6],
+        "coMunicipioIbge": codigo_ibge[:6],
         "nuParcelaInicio": competencia,
         "nuParcelaFim": competencia,
         "tipoRelatorio": "COMPLETO"

@@ -9,6 +9,7 @@ import UFSelector from '../Selectors/UFSelector';
 import MunicipioSelector from '../Selectors/MunicipioSelector';
 import CompetenciaInput from '../Selectors/CompetenciaInput';
 import { useCanConsult, useMunicipioStore } from '../../stores/municipioStore';
+import useConsultarDados from '../../hooks/useConsultarDados';
 
 const { Sider } = Layout;
 const { Title } = Typography;
@@ -16,10 +17,10 @@ const { Title } = Typography;
 const Sidebar: React.FC = () => {
   const canConsult = useCanConsult();
   const { isLoading, error, resetState } = useMunicipioStore();
+  const { consultar } = useConsultarDados();
 
   const handleConsultar = () => {
-    // Esta função será implementada quando criarmos o hook de consulta
-    console.log('Consultar dados...');
+    consultar();
   };
 
   const handleReset = () => {

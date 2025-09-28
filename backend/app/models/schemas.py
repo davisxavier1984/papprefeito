@@ -3,6 +3,7 @@ Modelos Pydantic para validação de dados
 """
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, validator
+from pydantic import AliasChoices, ConfigDict
 from datetime import datetime
 
 class UF(BaseModel):
@@ -45,22 +46,40 @@ class ResumoPlanoOrcamentario(BaseModel):
     vlEfetivoRepasse: float = Field(..., description="Valor efetivo do repasse")
     dsFaixaIndiceEquidadeEsfEap: Optional[str] = Field(None, description="Estrato de equidade")
     qtPopulacao: Optional[int] = Field(None, description="Quantidade da população")
+    # Ignorar campos extras vindos da API externa
+    model_config = ConfigDict(extra='ignore', populate_by_name=True)
 
 class Pagamento(BaseModel):
     """Modelo para dados de pagamento"""
-    coUf: str = Field(..., description="Código da UF")
-    coMunicipio: str = Field(..., description="Código do município")
-    nuCompetencia: str = Field(..., description="Competência")
-    dsPlanoOrcamentario: str = Field(..., description="Descrição do plano orçamentário")
-    vlEfetivoRepasse: float = Field(..., description="Valor efetivo do repasse")
+    # Aceita tanto campos locais quanto variações da API externa
+    coUf: str = Field(
+        ...,
+        description="Código da UF",
+        validation_alias=AliasChoices("coUf", "coUfIbge")
+    )
+    coMunicipio: str = Field(
+        ...,
+        description="Código do município",
+        validation_alias=AliasChoices("coMunicipio", "coMunicipioIbge")
+    )
+    nuCompetencia: str = Field(
+        ...,
+        description="Competência",
+        validation_alias=AliasChoices("nuCompetencia", "nuParcela")
+    )
+    dsPlanoOrcamentario: Optional[str] = Field(None, description="Descrição do plano orçamentário")
+    vlEfetivoRepasse: Optional[float] = Field(None, description="Valor efetivo do repasse")
     dsFaixaIndiceEquidadeEsfEap: Optional[str] = Field(None, description="Estrato de equidade")
     qtPopulacao: Optional[int] = Field(None, description="Quantidade da população")
+    # Ignorar demais campos do payload externo
+    model_config = ConfigDict(extra='ignore', populate_by_name=True)
 
 class DadosFinanciamento(BaseModel):
     """Modelo para dados completos de financiamento"""
     resumosPlanosOrcamentarios: List[ResumoPlanoOrcamentario] = Field(default_factory=list)
     pagamentos: List[Pagamento] = Field(default_factory=list)
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    model_config = ConfigDict(extra='ignore', populate_by_name=True)
 
 class MunicipioEditado(BaseModel):
     """Modelo para dados editados de município"""

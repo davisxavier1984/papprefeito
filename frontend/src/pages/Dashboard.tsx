@@ -4,6 +4,8 @@
 
 import React from 'react';
 import { Typography, Space, Divider, Empty } from 'antd';
+import FinancialTable from '../components/DataTable/FinancialTable';
+import MetricsCards from '../components/Metrics/MetricsCards';
 import { useHasDados, useMunicipioInfo } from '../stores/municipioStore';
 
 const { Title, Text } = Typography;
@@ -73,12 +75,9 @@ const Dashboard: React.FC = () => {
 
       <Divider />
 
-      {/* Aqui será implementada a tabela financeira e cards de métricas */}
-      <div style={{ padding: '40px', textAlign: 'center', background: '#f5f5f5', borderRadius: '8px' }}>
-        <Text type="secondary">
-          🚧 Tabela financeira e métricas serão implementadas na próxima etapa
-        </Text>
-      </div>
+      <MetricsCards />
+
+      <FinancialTable />
     </Space>
   );
 };

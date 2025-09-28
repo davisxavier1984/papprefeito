@@ -5,6 +5,7 @@ Migração da lógica de api_client.py para FastAPI
 import httpx
 import json
 import asyncio
+import os
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
@@ -23,8 +24,7 @@ class SaudeAPIClient:
     def get_latest_competencia(self) -> str:
         """Retorna a última competência disponível no sistema (formato AAAAMM)"""
         hoje = datetime.now()
-
-        # Subtrair um mês
+        # Subtrair um mês (apenas sugestão padrão)
         if hoje.month == 1:
             mes_anterior = datetime(hoje.year - 1, 12, 1)
         else:
@@ -44,7 +44,7 @@ class SaudeAPIClient:
         self,
         codigo_ibge: str,
         competencia: str
-    ) -> Optional[DadosFinanciamento]:
+    ) -> Optional[Dict[str, Any]]:
         """
         Consulta a API de financiamento da saúde
 
@@ -53,7 +53,7 @@ class SaudeAPIClient:
             competencia: Competência no formato AAAAMM
 
         Returns:
-            DadosFinanciamento: Dados retornados pela API ou None em caso de erro
+            dict: JSON bruto retornado pela API externa ou None em caso de erro
         """
         # Validar parâmetros
         if not codigo_ibge or not competencia:
@@ -71,8 +71,11 @@ class SaudeAPIClient:
         # Parâmetros da requisição
         params = {
             "unidadeGeografica": "MUNICIPIO",
+            # Envia chaves alternativas para maximizar compatibilidade
             "coUf": codigo_ibge[:2],
+            "coUfIbge": codigo_ibge[:2],
             "coMunicipio": codigo_ibge[:6],
+            "coMunicipioIbge": codigo_ibge[:6],
             "nuParcelaInicio": competencia,
             "nuParcelaFim": competencia,
             "tipoRelatorio": "COMPLETO"
@@ -112,18 +115,18 @@ class SaudeAPIClient:
 
                 logger.info(f"Dados consultados com sucesso: {len(resumos)} resumos, {len(pagamentos)} pagamentos")
 
-                # Converter para modelo Pydantic
-                return DadosFinanciamento(
-                    resumosPlanosOrcamentarios=resumos,
-                    pagamentos=pagamentos,
-                    metadata={
-                        "codigo_ibge": codigo_ibge,
-                        "competencia": competencia,
-                        "consulta_timestamp": datetime.now().isoformat(),
-                        "total_resumos": len(resumos),
-                        "total_pagamentos": len(pagamentos)
-                    }
-                )
+                # Persistir cache local em JSON (compatível com app atual)
+                try:
+                    cache_path = settings.DATA_CACHE_FILE
+                    abs_path = os.path.abspath(cache_path)
+                    with open(abs_path, 'w', encoding='utf-8') as f:
+                        json.dump(dados, f, ensure_ascii=False, indent=4)
+                    logger.info(f"Cache salvo em {abs_path}")
+                except Exception as e:
+                    logger.warning(f"Falha ao salvar cache local: {str(e)}")
+
+                # Retornar JSON bruto da API externa (completo)
+                return dados
 
         except httpx.TimeoutException:
             logger.error("Timeout na consulta à API")

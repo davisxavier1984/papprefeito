@@ -35,8 +35,9 @@ const MunicipioSelector: React.FC = () => {
 
   const options = municipios?.map((municipio: Municipio) => ({
     value: municipio.codigo_ibge,
-    label: `${municipio.nome}`,
-    municipio
+    label: municipio.populacao
+      ? `${municipio.nome} (Pop: ${municipio.populacao.toLocaleString('pt-BR')})`
+      : `${municipio.nome}`,
   })) || [];
 
   const isDisabled = !selectedUF;
@@ -53,7 +54,9 @@ const MunicipioSelector: React.FC = () => {
         onChange={handleChange}
         style={{ width: '100%' }}
         showSearch
+        allowClear
         optionFilterProp="label"
+        options={options}
         loading={isLoading}
         disabled={isDisabled}
         notFoundContent={
@@ -66,21 +69,7 @@ const MunicipioSelector: React.FC = () => {
           )
         }
         status={error ? 'error' : undefined}
-        filterOption={(input, option) =>
-          String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-        }
-      >
-        {options.map(option => (
-          <Select.Option key={option.value} value={option.value}>
-            {option.label}
-            {option.municipio.populacao && (
-              <Text type="secondary" style={{ fontSize: '12px', marginLeft: 8 }}>
-                (Pop: {option.municipio.populacao.toLocaleString()})
-              </Text>
-            )}
-          </Select.Option>
-        ))}
-      </Select>
+      />
 
       {error && (
         <Text type="danger" style={{ fontSize: '12px' }}>

@@ -6,7 +6,6 @@ from fastapi import APIRouter, HTTPException, Query
 from datetime import datetime
 
 from app.models.schemas import (
-    DadosFinanciamento,
     FinanciamentoParams,
     ResponseBase,
     ErrorResponse
@@ -40,7 +39,7 @@ async def obter_ultima_competencia():
             detail="Erro interno do servidor ao obter competência"
         )
 
-@router.get("/dados/{codigo_ibge}/{competencia}", response_model=DadosFinanciamento)
+@router.get("/dados/{codigo_ibge}/{competencia}")
 async def consultar_dados_financiamento(
     codigo_ibge: str,
     competencia: str,
@@ -55,7 +54,7 @@ async def consultar_dados_financiamento(
         force_refresh: Se True, força nova consulta ignorando cache
 
     Returns:
-        DadosFinanciamento: Dados de financiamento do município
+        dict: JSON bruto da API de financiamento
     """
     try:
         # Validar parâmetros
@@ -99,9 +98,26 @@ async def consultar_dados_financiamento(
         dados = await saude_api_client.consultar_financiamento(codigo_ibge, competencia)
 
         if not dados:
+            # Sugerir competência anterior quando não houver dados
+            try:
+                ano_int = int(competencia[:4])
+                mes_int = int(competencia[4:])
+                if mes_int == 1:
+                    sugestao = f"{ano_int - 1}12"
+                else:
+                    sugestao = f"{ano_int}{mes_int - 1:02d}"
+            except Exception:
+                sugestao = None
+
+            detalhe = (
+                "Nenhum dado encontrado para os parâmetros informados"
+                + (f". Dica: a competência selecionada pode não estar publicada ainda. "
+                   f"Tente uma competência anterior{f' (ex.: {sugestao})' if sugestao else ''}." )
+            )
+
             raise HTTPException(
                 status_code=404,
-                detail="Nenhum dado encontrado para os parâmetros informados"
+                detail=detalhe
             )
 
         return dados
@@ -115,7 +131,7 @@ async def consultar_dados_financiamento(
             detail="Erro interno do servidor ao consultar dados de financiamento"
         )
 
-@router.post("/dados/consultar", response_model=DadosFinanciamento)
+@router.post("/dados/consultar")
 async def consultar_dados_post(params: FinanciamentoParams):
     """
     Consulta dados de financiamento via POST
@@ -124,7 +140,7 @@ async def consultar_dados_post(params: FinanciamentoParams):
         params: Parâmetros de consulta (código IBGE e competência)
 
     Returns:
-        DadosFinanciamento: Dados de financiamento do município
+        dict: JSON bruto da API de financiamento
     """
     try:
         dados = await saude_api_client.consultar_financiamento(
