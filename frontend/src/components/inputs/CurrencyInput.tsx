@@ -7,7 +7,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Input } from 'antd';
+import { Input, type InputRef } from 'antd';
 
 type Props = {
   value: number;
@@ -18,6 +18,8 @@ type Props = {
   size?: 'small' | 'middle' | 'large';
   onEnter?: () => void;
   onEscape?: () => void;
+  id?: string;
+  name?: string;
 };
 
 const numberFormatter = new Intl.NumberFormat('pt-BR', {
@@ -53,11 +55,13 @@ const CurrencyInput: React.FC<Props> = ({
   size = 'middle',
   onEnter,
   onEscape,
+  id,
+  name,
 }) => {
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState<string>('');
   const lastCommitted = useRef<number>(value ?? 0);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<InputRef>(null);
 
   // Mantém rastro do valor externo para resetar em ESC
   useEffect(() => {
@@ -84,9 +88,9 @@ const CurrencyInput: React.FC<Props> = ({
     // posiciona caret no fim
     requestAnimationFrame(() => {
       const el = inputRef.current;
-      if (el) {
-        const len = el.value.length;
-        el.setSelectionRange(len, len);
+      if (el?.input) {
+        const len = el.input.value.length;
+        el.input.setSelectionRange(len, len);
       }
     });
   };
@@ -126,6 +130,8 @@ const CurrencyInput: React.FC<Props> = ({
   return (
     <Input
       ref={inputRef}
+      id={id || 'currency-input'}
+      name={name || 'currency'}
       value={displayValue}
       onFocus={handleFocus}
       onBlur={handleBlur}

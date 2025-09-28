@@ -90,6 +90,8 @@ const CompetenciaInput: React.FC = () => {
 
       <Space.Compact style={{ width: '100%' }}>
         <Input
+          id="competencia-input"
+          name="competencia"
           placeholder="202401"
           value={selectedCompetencia}
           onChange={handleChange}
@@ -133,16 +135,6 @@ const CompetenciaInput: React.FC = () => {
         </Text>
       )}
 
-      {ultimaCompetencia && (
-        <Text type="secondary" style={{ fontSize: '11px' }}>
-          💡 Última disponível: {ultimaCompetencia.competencia} ({formatCompetenciaDisplay(ultimaCompetencia.competencia)})
-        </Text>
-      )}
-
-      <Text type="secondary" style={{ fontSize: '11px', color: '#999' }}>
-        Formato: Ano (4 dígitos) + Mês (2 dígitos)<br />
-        Exemplo: 202401 = Janeiro/2024
-      </Text>
     </Space>
   );
 };

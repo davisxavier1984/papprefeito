@@ -19,32 +19,89 @@ class MunicipioService:
         Returns:
             List[UF]: Lista de Unidades Federativas
         """
+        # Fallback com lista completa das UFs brasileiras
+        ufs_fallback = [
+            {'codigo': '12', 'nome': 'Acre', 'sigla': 'AC'},
+            {'codigo': '27', 'nome': 'Alagoas', 'sigla': 'AL'},
+            {'codigo': '16', 'nome': 'Amapá', 'sigla': 'AP'},
+            {'codigo': '13', 'nome': 'Amazonas', 'sigla': 'AM'},
+            {'codigo': '29', 'nome': 'Bahia', 'sigla': 'BA'},
+            {'codigo': '23', 'nome': 'Ceará', 'sigla': 'CE'},
+            {'codigo': '53', 'nome': 'Distrito Federal', 'sigla': 'DF'},
+            {'codigo': '32', 'nome': 'Espírito Santo', 'sigla': 'ES'},
+            {'codigo': '52', 'nome': 'Goiás', 'sigla': 'GO'},
+            {'codigo': '21', 'nome': 'Maranhão', 'sigla': 'MA'},
+            {'codigo': '51', 'nome': 'Mato Grosso', 'sigla': 'MT'},
+            {'codigo': '50', 'nome': 'Mato Grosso do Sul', 'sigla': 'MS'},
+            {'codigo': '31', 'nome': 'Minas Gerais', 'sigla': 'MG'},
+            {'codigo': '15', 'nome': 'Pará', 'sigla': 'PA'},
+            {'codigo': '25', 'nome': 'Paraíba', 'sigla': 'PB'},
+            {'codigo': '41', 'nome': 'Paraná', 'sigla': 'PR'},
+            {'codigo': '26', 'nome': 'Pernambuco', 'sigla': 'PE'},
+            {'codigo': '22', 'nome': 'Piauí', 'sigla': 'PI'},
+            {'codigo': '33', 'nome': 'Rio de Janeiro', 'sigla': 'RJ'},
+            {'codigo': '24', 'nome': 'Rio Grande do Norte', 'sigla': 'RN'},
+            {'codigo': '43', 'nome': 'Rio Grande do Sul', 'sigla': 'RS'},
+            {'codigo': '11', 'nome': 'Rondônia', 'sigla': 'RO'},
+            {'codigo': '14', 'nome': 'Roraima', 'sigla': 'RR'},
+            {'codigo': '42', 'nome': 'Santa Catarina', 'sigla': 'SC'},
+            {'codigo': '35', 'nome': 'São Paulo', 'sigla': 'SP'},
+            {'codigo': '28', 'nome': 'Sergipe', 'sigla': 'SE'},
+            {'codigo': '17', 'nome': 'Tocantins', 'sigla': 'TO'},
+        ]
+
         try:
             ufs_data = []
+            logger.info("Tentando obter UFs da biblioteca pyUFbr...")
+
+            # Primeira tentativa: usar pyUFbr
             ufs_list = ufbr.list_uf
+            logger.info(f"pyUFbr retornou {len(ufs_list)} UFs: {list(ufs_list)}")
 
             for uf_sigla in sorted(ufs_list):
                 try:
-                    uf_obj = ufbr.get_uf(uf_sigla)
-                    ufs_data.append(UF(
-                        codigo=str(uf_obj.codigo),
-                        nome=uf_obj.nome,
-                        sigla=uf_obj.sigla
-                    ))
-                except Exception as e:
-                    logger.warning(f"Erro ao processar UF {uf_sigla}: {str(e)}")
-                    # Fallback com dados básicos
-                    ufs_data.append(UF(
-                        codigo="00",
-                        nome=uf_sigla,
-                        sigla=uf_sigla
-                    ))
+                    uf_dict = ufbr._get_uf_by_sigla(uf_sigla)
+                    # Buscar código no fallback já que pyUFbr não fornece
+                    fallback_uf = next((uf for uf in ufs_fallback if uf['sigla'] == uf_sigla), None)
+                    codigo = fallback_uf['codigo'] if fallback_uf else '00'
 
-            return ufs_data
+                    ufs_data.append(UF(
+                        codigo=codigo,
+                        nome=uf_dict['nome'],
+                        sigla=uf_dict['sigla']
+                    ))
+                    logger.debug(f"UF {uf_sigla} processada com sucesso")
+                except Exception as e:
+                    logger.warning(f"Erro ao processar UF {uf_sigla} via pyUFbr: {str(e)}")
+                    # Buscar no fallback
+                    fallback_uf = next((uf for uf in ufs_fallback if uf['sigla'] == uf_sigla), None)
+                    if fallback_uf:
+                        ufs_data.append(UF(
+                            codigo=fallback_uf['codigo'],
+                            nome=fallback_uf['nome'],
+                            sigla=fallback_uf['sigla']
+                        ))
+                        logger.info(f"UF {uf_sigla} adicionada via fallback")
+
+            if ufs_data:
+                logger.info(f"Retornando {len(ufs_data)} UFs da biblioteca pyUFbr")
+                return ufs_data
 
         except Exception as e:
-            logger.error(f"Erro ao buscar UFs: {str(e)}")
-            return []
+            logger.error(f"Erro ao buscar UFs via pyUFbr: {str(e)}")
+
+        # Se chegou aqui, usar o fallback completo
+        logger.warning("Usando lista fallback completa de UFs")
+        ufs_data = []
+        for uf_info in ufs_fallback:
+            ufs_data.append(UF(
+                codigo=uf_info['codigo'],
+                nome=uf_info['nome'],
+                sigla=uf_info['sigla']
+            ))
+
+        logger.info(f"Retornando {len(ufs_data)} UFs via fallback")
+        return ufs_data
 
     def get_municipios_por_uf(self, uf_sigla: str) -> List[Municipio]:
         """

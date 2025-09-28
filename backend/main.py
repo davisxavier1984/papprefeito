@@ -1,5 +1,5 @@
 """
-FastAPI backend para o sistema papprefeito
+FastAPI backend para o sistema MaisPAP
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

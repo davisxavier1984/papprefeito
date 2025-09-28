@@ -20,18 +20,27 @@ async def listar_ufs():
         List[UF]: Lista de UFs com código, nome e sigla
     """
     try:
+        logger.info("Iniciando consulta de UFs...")
         ufs = municipio_service.get_ufs()
+
         if not ufs:
+            logger.error("Nenhuma UF foi retornada pelo serviço")
             raise HTTPException(
-                status_code=404,
-                detail="Nenhuma UF encontrada"
+                status_code=500,
+                detail="Erro interno: não foi possível carregar a lista de UFs"
             )
+
+        logger.info(f"Retornando {len(ufs)} UFs com sucesso")
         return ufs
+
+    except HTTPException:
+        # Re-lançar exceções HTTP específicas
+        raise
     except Exception as e:
-        logger.error(f"Erro ao listar UFs: {str(e)}")
+        logger.error(f"Erro inesperado ao listar UFs: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail="Erro interno do servidor ao consultar UFs"
+            detail=f"Erro interno do servidor ao consultar UFs: {str(e)}"
         )
 
 @router.get("/municipios/{uf}", response_model=List[Municipio])

@@ -56,7 +56,7 @@ def get_codigo_ibge(municipio_nome):
 # Funções format_currency agora é importada do formatting.py
 
 # Interface Principal
-st.title("🏛️ Sistema papprefeito")
+st.title("🏛️ Sistema MaisPAP")
 st.subheader("Consulta e Edição de Dados de Financiamento APS")
 
 # Sidebar para seleção

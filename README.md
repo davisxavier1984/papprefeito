@@ -1,4 +1,4 @@
-# Sistema papprefeito - Consulta e Edição de Dados APS
+# Sistema MaisPAP - Consulta e Edição de Dados APS
 
 Sistema simplificado para consulta e edição de dados de financiamento da saúde do Ministério da Saúde.
 
