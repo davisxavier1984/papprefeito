@@ -49,6 +49,7 @@ const MunicipioSelector: React.FC = () => {
       </Text>
 
       <Select
+        id="municipio-selector"
         placeholder={isDisabled ? "Selecione primeiro a UF" : "Selecione o município"}
         value={selectedMunicipio?.codigo_ibge || undefined}
         onChange={handleChange}
@@ -69,6 +70,7 @@ const MunicipioSelector: React.FC = () => {
           )
         }
         status={error ? 'error' : undefined}
+        getPopupContainer={() => document.body}
       />
 
       {error && (

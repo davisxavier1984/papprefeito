@@ -78,6 +78,7 @@ const UFSelector: React.FC = () => {
       </Text>
 
       <Select
+        id="uf-selector"
         placeholder="Selecione a UF"
         value={selectedUF || undefined}
         onChange={handleChange}
@@ -89,6 +90,7 @@ const UFSelector: React.FC = () => {
         loading={isLoading}
         notFoundContent={isLoading ? <Spin size="small" /> : 'Nenhuma UF encontrada'}
         status={error ? 'error' : undefined}
+        getPopupContainer={() => document.body}
       />
 
       {error && (
