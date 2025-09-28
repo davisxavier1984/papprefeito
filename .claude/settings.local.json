@@ -4,7 +4,10 @@
       "Bash(python:*)",
       "Bash(dir:*)",
       "Bash(pip install:*)",
-      "mcp__context7__resolve-library-id"
+      "mcp__context7__resolve-library-id",
+      "Bash(chmod:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
