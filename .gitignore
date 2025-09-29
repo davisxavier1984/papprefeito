@@ -95,3 +95,6 @@ Thumbs.db
 dmypy.json
 
 
+# BMAD (local only)
+.bmad-core/
+.bmad-*/

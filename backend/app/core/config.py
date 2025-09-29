@@ -13,7 +13,12 @@ class Settings(BaseModel):
     PROJECT_NAME: str = "papprefeito API"
 
     # CORS
-    ALLOWED_HOSTS: List[str] = ["*"]  # Em produção, especificar domínios específicos
+    ALLOWED_HOSTS: List[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://api-maispap.dasix.site",
+        "https://maispap.dasix.site"
+    ]
 
     # External API
     SAUDE_API_BASE_URL: str = "https://relatorioaps-prd.saude.gov.br/financiamento/pagamento"
