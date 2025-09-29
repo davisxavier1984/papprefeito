@@ -18,6 +18,8 @@
 - Arquivo principal: `backend/app/services/relatorio_pdf.py`
 - Endpoint: `/relatorios/pdf` (existente, com nova implementação)
 
+> **📘 Nota de Implementação:** Este documento descreve as especificações planejadas. Para a implementação real e documentação técnica completa, consulte [gerador-pdf-documentacao.md](./gerador-pdf-documentacao.md).
+
 ---
 
 ## 2. ESTRUTURA DAS 3 PÁGINAS
@@ -121,7 +123,7 @@ pip install weasyprint
 pip install playwright pdfkit
 ```
 
-**Estrutura de Templates:**
+**Estrutura de Templates (Planejada):**
 ```
 backend/templates/
 ├── relatorio_base.html        # Template base
@@ -135,9 +137,20 @@ backend/templates/
     └── footer.html            # Assinatura e rodapé
 ```
 
+> **📘 Implementação Real:** A estrutura foi simplificada para um template monolítico:
+> ```
+> backend/templates/
+> ├── relatorio_base.html        # Template HTML completo (3 páginas)
+> ├── css/
+> │   └── modern-cards.css       # CSS Design System completo
+> └── images/
+>     └── Imagem Timbrado.png    # Background institucional
+> ```
+> Todos os componentes foram integrados no `relatorio_base.html` para melhor manutenibilidade.
+
 ### Design System CSS:
 
-**Paleta de Cores:**
+**Paleta de Cores (Planejada):**
 ```css
 :root {
   --color-danger: #e74c3c;      /* Perdas - Vermelho */
@@ -152,6 +165,16 @@ backend/templates/
   --gradient-success: linear-gradient(135deg, #2ecc71, #27ae60);
 }
 ```
+
+> **📘 Paleta Real Implementada:** A paleta foi refinada para tons mais premium:
+> ```css
+> --color-danger: #FF3B30        /* Vermelho mais vibrante */
+> --color-warning: #FF9500       /* Laranja mais vivo */
+> --color-success: #00C896       /* Verde/ciano moderno */
+> --shadow-premium: 0 20px 60px rgba(0,0,0,0.18)
+> --radius: 16px                 /* Bordas mais arredondadas */
+> ```
+> Veja a paleta completa em [gerador-pdf-documentacao.md](./gerador-pdf-documentacao.md#variáveis-css-root).
 
 **Tipografia Moderna:**
 ```css

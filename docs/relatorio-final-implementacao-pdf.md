@@ -291,6 +291,50 @@ percentual_perda = (total_diferenca_anual / total_real_anual) * 100
 
 ---
 
+## 📚 Documentação Técnica
+
+### Documentação Completa Disponível
+
+Para referência técnica detalhada, consulte a **[Documentação Técnica Completa do Gerador de PDF](./gerador-pdf-documentacao.md)**, que inclui:
+
+#### 📘 Conteúdo da Documentação Técnica
+
+1. **Arquitetura do Sistema**
+   - Estrutura de arquivos e componentes
+   - Fluxo de dados completo
+
+2. **Referência de Funções**
+   - `create_pdf_report()` - Função principal
+   - `compute_financial_summary()` - Cálculo de métricas
+   - `create_html_pdf_report()` - Renderização HTML→PDF
+   - `create_fpdf_report()` - Versão legada (fallback)
+   - Funções utilitárias (`_br_number`, `_safe_ratio`, etc.)
+
+3. **Templates e Design System**
+   - Estrutura completa do HTML (3 páginas)
+   - CSS Design System com variáveis
+   - Componentes visuais (cards, gráficos, badges)
+   - Paleta de cores e tipografia
+
+4. **Guias de Manutenção**
+   - Como adicionar novos cards
+   - Como adicionar novas páginas
+   - Como alterar cores do design system
+   - Como adicionar nova fonte
+
+5. **Troubleshooting**
+   - PDF vazio/branco
+   - Formatação de números incorreta
+   - WeasyPrint crashes
+   - Cards não quebram linha
+
+6. **Testes Recomendados**
+   - Testes unitários
+   - Testes de integração
+   - Checklist de qualidade visual
+
+---
+
 ## 📈 Próximos Passos Recomendados
 
 ### Deploy (Prioridade Alta)
@@ -307,9 +351,9 @@ percentual_perda = (total_diferenca_anual / total_real_anual) * 100
 5. A/B testing de layouts
 
 ### Documentação
-1. Atualizar documentação de API (OpenAPI/Swagger)
-2. Criar guia de troubleshooting
-3. Documentar processo de regeneração de PDFs
+1. ✅ Documentação técnica completa criada ([gerador-pdf-documentacao.md](./gerador-pdf-documentacao.md))
+2. Atualizar documentação de API (OpenAPI/Swagger)
+3. Criar guia de troubleshooting para usuários finais
 
 ---
 
