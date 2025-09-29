@@ -1,7 +1,11 @@
-"""Serviços utilitários para geração do relatório financeiro em PDF."""
+"""Serviços utilitários para geração do relatório financeiro em PDF usando HTML-to-PDF."""
 from __future__ import annotations
 
+import html
+import base64
 from typing import Any, Dict, Iterable, Optional
+from pathlib import Path
+import weasyprint
 
 from fpdf import FPDF
 
@@ -18,6 +22,20 @@ def _br_number(value: float, decimals: int = 2) -> str:
     pattern = f"{{:,.{decimals}f}}"
     formatted = pattern.format(value)
     return formatted.replace(',', 'X').replace('.', ',').replace('X', '.')
+
+
+def _mix_with_white(color: tuple[int, int, int], factor: float) -> tuple[int, int, int]:
+    """Mistura uma cor com branco para gerar tonalidades mais suaves."""
+    factor = max(0.0, min(1.0, factor))
+    return tuple(int(component + (255 - component) * factor) for component in color)
+
+
+def _safe_ratio(value: float, total: float) -> float:
+    """Garante um valor proporcional entre 0 e 1 evitando divisões inválidas."""
+    if total <= 0:
+        return 0.0
+    ratio = value / total
+    return max(0.0, min(1.0, ratio))
 
 
 def compute_financial_summary(
@@ -102,6 +120,180 @@ def _draw_arrow(pdf: FPDF, start_x: float, end_x: float, y: float):
     pdf.rect(end_x - 6, y - 1, 3, 2, 'F')
 
 
+def _draw_financial_cards(pdf: FPDF, resumo: ResumoFinanceiro):
+    """Desenha cards em grade com visual aprimorado para a primeira página."""
+
+    potencial_mensal = resumo.total_recebido + resumo.total_perca_mensal
+    potencial_anual = potencial_mensal * 12
+    percentual_perda = resumo.percentual_perda_anual
+
+    ratio_perda_mensal = _safe_ratio(resumo.total_perca_mensal, potencial_mensal)
+    ratio_diferenca_anual = _safe_ratio(resumo.total_diferenca_anual, potencial_anual)
+    ratio_recebimento_atual = _safe_ratio(resumo.total_recebido, potencial_mensal)
+
+    cards_data = [
+        {
+            'titulo': 'PERDA MENSAL',
+            'valor': f'R$ {_br_number(resumo.total_perca_mensal, 0)}',
+            'descricao': 'recursos que poderiam melhorar a saúde',
+            'detalhe': f'Equivalente a R$ {_br_number(resumo.total_diferenca_anual, 0)} por ano',
+            'tag': 'Oportunidade',
+            'cor_tema': (231, 76, 60),
+            'cor_valor': (192, 57, 43),
+            'cor_descricao': (117, 128, 138),
+            'ratio': ratio_perda_mensal,
+            'indicador': f'{int(round(ratio_perda_mensal * 100))}% do potencial mensal',
+        },
+        {
+            'titulo': 'DIFERENÇA ANUAL',
+            'valor': f'R$ {_br_number(resumo.total_diferenca_anual, 0)}',
+            'descricao': 'valor total perdido no ano',
+            'detalhe': f'Impacto de {percentual_perda:.1f}% do orçamento anual',
+            'tag': 'Visão anual',
+            'cor_tema': (243, 156, 18),
+            'cor_valor': (211, 133, 10),
+            'cor_descricao': (117, 128, 138),
+            'ratio': ratio_diferenca_anual,
+            'indicador': f'{int(round(ratio_diferenca_anual * 100))}% do potencial anual',
+        },
+        {
+            'titulo': 'RECEBIMENTO ATUAL',
+            'valor': f'R$ {_br_number(resumo.total_recebido, 0)}',
+            'descricao': 'recursos mensais atuais',
+            'detalhe': f'Potencial com ajuste: R$ {_br_number(potencial_mensal, 0)}',
+            'tag': 'Cenário atual',
+            'cor_tema': (46, 204, 113),
+            'cor_valor': (39, 174, 96),
+            'cor_descricao': (117, 128, 138),
+            'ratio': ratio_recebimento_atual,
+            'indicador': f'{int(round(ratio_recebimento_atual * 100))}% do potencial mensal',
+        }
+    ]
+
+    page_width = 210
+    margin = 12
+    available_width = page_width - (2 * margin)
+    cards_per_row = 3
+    gap_x = 6
+    gap_y = 12
+    card_width = (available_width - (gap_x * (cards_per_row - 1))) / cards_per_row
+    card_height = 72
+    header_height = 22
+    shadow_offset = 2.4
+    inner_padding = 2.0
+    progress_height = 5
+    current_y = pdf.get_y() + 12
+    icon_symbols = ['!', '+', '$']
+
+    for index, card in enumerate(cards_data):
+        row = index // cards_per_row
+        column = index % cards_per_row
+        card_x = margin + column * (card_width + gap_x)
+        card_y = current_y + row * (card_height + gap_y)
+
+        # sombra suave
+        pdf.set_fill_color(226, 231, 240)
+        pdf.rect(card_x + shadow_offset, card_y + shadow_offset, card_width, card_height, 'F')
+
+        # base com tonalidade do tema
+        pdf.set_fill_color(*_mix_with_white(card['cor_tema'], 0.85))
+        pdf.rect(card_x, card_y, card_width, card_height, 'F')
+
+        inner_x = card_x + inner_padding
+        inner_y = card_y + inner_padding
+        inner_width = card_width - (2 * inner_padding)
+        inner_height = card_height - (2 * inner_padding)
+
+        # corpo branco com borda temática
+        pdf.set_fill_color(255, 255, 255)
+        pdf.rect(inner_x, inner_y, inner_width, inner_height, 'F')
+
+        pdf.set_draw_color(*_mix_with_white(card['cor_tema'], 0.6))
+        pdf.set_line_width(0.4)
+        pdf.rect(inner_x, inner_y, inner_width, inner_height, 'D')
+
+        # faixa superior colorida
+        pdf.set_fill_color(*card['cor_tema'])
+        pdf.rect(inner_x, inner_y, inner_width, header_height, 'F')
+
+        # selo informativo
+        tag_text = _sanitize_text(card['tag'])
+        if tag_text:
+            tag_width = pdf.get_string_width(tag_text) + 6
+            tag_x = inner_x + inner_width - tag_width - 4
+            tag_y = inner_y + 4
+            pdf.set_fill_color(*_mix_with_white(card['cor_tema'], 0.75))
+            pdf.rect(tag_x, tag_y, tag_width, 7, 'F')
+            pdf.set_text_color(*card['cor_tema'])
+            pdf.set_font('Helvetica', 'B', 7)
+            pdf.set_xy(tag_x, tag_y + 1)
+            pdf.cell(tag_width, 5, tag_text, align='C')
+
+        # ícone em destaque
+        icon_diameter = 14
+        icon_box_x = inner_x + 6
+        icon_box_y = inner_y + (header_height - icon_diameter) / 2
+        pdf.set_fill_color(*_mix_with_white(card['cor_tema'], 0.55))
+        pdf.ellipse(icon_box_x, icon_box_y, icon_diameter, icon_diameter, 'F')
+
+        pdf.set_text_color(*card['cor_tema'])
+        pdf.set_font('Helvetica', 'B', 11)
+        pdf.set_xy(icon_box_x, icon_box_y + 3)
+        pdf.cell(icon_diameter, 8, icon_symbols[index], align='C')
+
+        # título centralizado na faixa colorida
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 11)
+        pdf.set_xy(inner_x + icon_diameter + 14, inner_y + 6)
+        pdf.cell(inner_width - icon_diameter - 40, 8, _sanitize_text(card['titulo']), align='L')
+
+        body_start = inner_y + header_height
+        body_x = inner_x + 12
+        body_width = inner_width - 24
+
+        # valor em destaque
+        pdf.set_text_color(*card['cor_valor'])
+        pdf.set_font('Helvetica', 'B', 17)
+        pdf.set_xy(body_x, body_start + 6)
+        pdf.cell(body_width, 10, _sanitize_text(card['valor']), align='L')
+
+        # descrição complementar
+        pdf.set_text_color(*card['cor_descricao'])
+        pdf.set_font('Helvetica', '', 9)
+        pdf.set_xy(body_x, body_start + 22)
+        pdf.cell(body_width, 6, _sanitize_text(card['descricao']), align='L')
+
+        # detalhe adicional
+        pdf.set_font('Helvetica', '', 8)
+        pdf.set_xy(body_x, body_start + 30)
+        pdf.cell(body_width, 6, _sanitize_text(card['detalhe']), align='L')
+
+        # indicador visual de progresso
+        progress_width = body_width
+        progress_y = body_start + 40
+        pdf.set_fill_color(237, 242, 250)
+        pdf.rect(body_x, progress_y, progress_width, progress_height, 'F')
+
+        progress_fill_width = progress_width * card['ratio']
+        if progress_fill_width > 0:
+            pdf.set_fill_color(*card['cor_tema'])
+            pdf.rect(body_x, progress_y, progress_fill_width, progress_height, 'F')
+
+        pdf.set_text_color(*card['cor_descricao'])
+        pdf.set_font('Helvetica', '', 8)
+        pdf.set_xy(body_x, progress_y + progress_height + 1)
+        pdf.cell(progress_width, 6, _sanitize_text(card['indicador']), align='L')
+
+    rows = (len(cards_data) + cards_per_row - 1) // cards_per_row
+    final_y = current_y + (rows * card_height) + ((rows - 1) * gap_y)
+    pdf.set_y(final_y)
+    pdf.ln(8)
+
+    pdf.set_line_width(0.2)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_draw_color(0, 0, 0)
+
+
 def _create_page_1_intro_destaque(pdf: FPDF, municipio_label: str, competencia: str, resumo: ResumoFinanceiro):
     """Página 1: Introdução + Destaque Principal."""
     pdf.add_page()
@@ -151,15 +343,8 @@ def _create_page_1_intro_destaque(pdf: FPDF, municipio_label: str, competencia: 
 
     pdf.ln(38)
 
-    # Resumo dos valores
-    pdf.set_font('Helvetica', '', 11)
-    pdf.set_text_color(66, 82, 110)
-    resumo_texto = (
-        f"• Perda mensal estimada: R$ {_br_number(resumo.total_perca_mensal, 2)}\n"
-        f"• Diferença anual estimada: R$ {_br_number(resumo.total_diferenca_anual, 2)}\n"
-        f"• Total recebido mensalmente: R$ {_br_number(resumo.total_recebido, 2)}"
-    )
-    pdf.multi_cell(0, 6, _sanitize_text(resumo_texto))
+    # Cards com métricas financeiras
+    _draw_financial_cards(pdf, resumo)
 
 
 def _create_page_2_infograficos(pdf: FPDF, municipio_label: str, resumo: ResumoFinanceiro):
@@ -373,7 +558,23 @@ def create_pdf_report(
     competencia: str,
     resumo: ResumoFinanceiro,
 ) -> bytes:
-    """Cria o relatório em PDF com 3 páginas conforme especificações do épico brownfield."""
+    """Cria o relatório em PDF usando templates HTML modernos."""
+    return create_html_pdf_report(
+        municipio_nome=municipio_nome,
+        uf=uf,
+        competencia=competencia,
+        resumo=resumo
+    )
+
+
+def create_fpdf_report(
+    *,
+    municipio_nome: Optional[str],
+    uf: Optional[str],
+    competencia: str,
+    resumo: ResumoFinanceiro,
+) -> bytes:
+    """Cria o relatório em PDF com 3 páginas usando FPDF (versão legada)."""
     municipio_label = municipio_nome or 'Município'
     if uf:
         municipio_label = f"{municipio_label}/{uf.upper()}"
@@ -392,3 +593,144 @@ def create_pdf_report(
 
     buffer = pdf.output(dest='S')
     return buffer
+
+
+def create_html_pdf_report(
+    *,
+    municipio_nome: Optional[str],
+    uf: Optional[str],
+    competencia: str,
+    resumo: ResumoFinanceiro,
+) -> bytes:
+    """Cria o relatório em PDF usando templates HTML modernos."""
+
+    templates_root = Path(__file__).resolve().parents[2] / "templates"
+
+    # Carregar CSS
+    css_path = templates_root / "css" / "modern-cards.css"
+    css_content = ""
+    if css_path.exists():
+        css_content = css_path.read_text(encoding='utf-8')
+
+    # Carregar imagem do timbrado e converter para base64
+    img_path = templates_root / "images" / "Imagem Timbrado.png"
+    img_base64 = ""
+    if img_path.exists():
+        with open(img_path, "rb") as img_file:
+            img_data = img_file.read()
+            img_base64 = base64.b64encode(img_data).decode('utf-8')
+            # Substituir URL relativa por data URI no CSS
+            css_content = css_content.replace(
+                "url('../images/Imagem Timbrado.png')",
+                f"url('data:image/png;base64,{img_base64}')"
+            )
+
+    # Carregar template HTML
+    template_path = templates_root / "relatorio_base.html"
+    html_content = ""
+    if template_path.exists():
+        html_template = template_path.read_text(encoding='utf-8')
+    else:
+        raise FileNotFoundError(f"Template HTML não encontrado: {template_path}")
+
+    if html_template:
+
+        # Calcular valores necessários
+        recurso_atual_anual = resumo.total_recebido * 12
+        recurso_potencial_anual = recurso_atual_anual + resumo.total_diferenca_anual
+        recurso_potencial_mensal = resumo.total_recebido + resumo.total_perca_mensal
+
+        # Métricas complementares para os cards
+        ratio_perda_mensal = _safe_ratio(resumo.total_perca_mensal, recurso_potencial_mensal)
+        ratio_diferenca_anual = _safe_ratio(resumo.total_diferenca_anual, recurso_potencial_anual)
+        ratio_recebimento_atual = _safe_ratio(resumo.total_recebido, recurso_potencial_mensal)
+
+        def _progress_value(ratio: float) -> int:
+            if ratio <= 0:
+                return 0
+            return max(6, min(100, int(round(ratio * 100))))
+
+        perda_percent = int(round(ratio_perda_mensal * 100))
+        diferenca_percent = int(round(ratio_diferenca_anual * 100))
+        recebimento_percent = int(round(ratio_recebimento_atual * 100))
+
+        perda_detalhe = f"Equivalente a R$ {_br_number(resumo.total_diferenca_anual, 0)} por ano"
+        diferenca_detalhe = f"Impacto de {resumo.percentual_perda_anual:.1f}% do orçamento anual"
+        atual_detalhe = f"Potencial com ajuste: R$ {_br_number(recurso_potencial_mensal, 0)}"
+
+        perda_indicador = f"{perda_percent}% do potencial mensal"
+        diferenca_indicador = f"{diferenca_percent}% do potencial anual"
+        atual_indicador = f"Cobertura atual de {recebimento_percent}%"
+
+        # Substituir variáveis no template
+        html_content = html_template.replace('{{ municipio_nome }}', municipio_nome or 'Município')
+        html_content = html_content.replace('{{ uf }}', uf or '')
+        html_content = html_content.replace('{{ css_content }}', css_content)
+
+        # Processar todas as substituições de template
+        replacements = {
+            '{{ "%.2f"|format(resumo.percentual_perda_anual) }}': f"{resumo.percentual_perda_anual:.2f}",
+            '{{ "{:,.0f}".format(resumo.total_perca_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_perca_mensal, 0),
+            '{{ "{:,.0f}".format(resumo.total_diferenca_anual).replace(\',\', \'.\') }}': _br_number(resumo.total_diferenca_anual, 0),
+            '{{ "{:,.0f}".format(resumo.total_recebido).replace(\',\', \'.\') }}': _br_number(resumo.total_recebido, 0),
+            '{{ "{:,.0f}".format(resumo.total_recebido * 12).replace(\',\', \'.\') }}': _br_number(recurso_atual_anual, 0),
+            '{{ "{:,.0f}".format((resumo.total_recebido * 12) + resumo.total_diferenca_anual).replace(\',\', \'.\') }}': _br_number(recurso_potencial_anual, 0),
+            '{{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perca_mensal).replace(\',\', \'.\') }}': _br_number(recurso_potencial_mensal, 0),
+            '__PERDA_BADGE__': html.escape('Oportunidade'),
+            '__PERDA_DETALHE__': html.escape(perda_detalhe),
+            '__PERDA_PROGRESS__': str(_progress_value(ratio_perda_mensal)),
+            '__PERDA_INDICADOR__': html.escape(perda_indicador),
+            '__DIFERENCA_BADGE__': html.escape('Visão anual'),
+            '__DIFERENCA_DETALHE__': html.escape(diferenca_detalhe),
+            '__DIFERENCA_PROGRESS__': str(_progress_value(ratio_diferenca_anual)),
+            '__DIFERENCA_INDICADOR__': html.escape(diferenca_indicador),
+            '__ATUAL_BADGE__': html.escape('Cenário atual'),
+            '__ATUAL_DETALHE__': html.escape(atual_detalhe),
+            '__ATUAL_PROGRESS__': str(_progress_value(ratio_recebimento_atual)),
+            '__ATUAL_INDICADOR__': html.escape(atual_indicador),
+        }
+
+        # Aplicar todas as substituições
+        for old_pattern, new_value in replacements.items():
+            html_content = html_content.replace(old_pattern, new_value)
+
+        # Substituir cálculos para gráfico de barras (porcentagem de altura)
+        if recurso_potencial_anual > 0:
+            bar_height_percentage = (recurso_atual_anual / recurso_potencial_anual) * 100
+        else:
+            bar_height_percentage = 50
+
+        html_content = html_content.replace(
+            '{{ (resumo.total_recebido * 12 / ((resumo.total_recebido * 12) + resumo.total_diferenca_anual) * 100) }}',
+            f"{bar_height_percentage:.1f}"
+        )
+
+        # Substituir valor em milhões para o eixo do gráfico
+        max_value_millions = recurso_potencial_anual / 1000000
+        html_content = html_content.replace(
+            '{{ "{:.1f}mi".format(((resumo.total_recebido * 12) + resumo.total_diferenca_anual) / 1000000) }}',
+            f"{max_value_millions:.1f}mi"
+        )
+
+    # Gerar PDF com WeasyPrint
+    try:
+        # Verificar se o HTML foi processado corretamente
+        if not html_content or len(html_content) < 1000:
+            raise ValueError("HTML template não foi processado corretamente")
+
+        # Configurar base_url para que o WeasyPrint encontre as imagens
+        base_url = templates_root.as_uri() + '/'
+        html_doc = weasyprint.HTML(string=html_content, base_url=base_url)
+        pdf_bytes = html_doc.write_pdf()
+
+        # Verificar se o PDF foi gerado corretamente
+        if not pdf_bytes or len(pdf_bytes) < 5000:
+            raise ValueError("PDF gerado está muito pequeno")
+
+        return pdf_bytes
+    except Exception as e:
+        # Propagar erro para diagnóstico
+        print(f"❌ Erro ao gerar PDF com HTML-to-PDF: {e}")
+        import traceback
+        traceback.print_exc()
+        raise

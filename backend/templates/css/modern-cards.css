@@ -1,0 +1,903 @@
+/* Modern Cards CSS - Design System para Relatórios PDF */
+
+:root {
+  /* Paleta de Cores Premium */
+  --color-danger: #FF3B30;
+  --color-danger-dark: #D70015;
+  --color-danger-light: #FF6B6B;
+  --color-warning: #FF9500;
+  --color-warning-dark: #E8890C;
+  --color-warning-light: #FFB84D;
+  --color-success: #00C896;
+  --color-success-dark: #00A578;
+  --color-success-light: #26D0CE;
+
+  /* Cores de Texto Premium */
+  --color-text: #1A1A1A;
+  --color-text-muted: #6B7280;
+  --color-text-light: #9CA3AF;
+  --color-white: #FFFFFF;
+
+  /* Sombras Premium */
+  --shadow-soft: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-medium: 0 4px 20px rgba(0,0,0,0.12);
+  --shadow-strong: 0 12px 40px rgba(0,0,0,0.15);
+  --shadow-premium: 0 20px 60px rgba(0,0,0,0.18);
+  --shadow-inner: inset 0 1px 0 rgba(255,255,255,0.2);
+
+  /* Bordas Premium */
+  --radius: 16px;
+  --radius-small: 8px;
+  --radius-large: 24px;
+
+  /* Gradientes Premium */
+  --gradient-danger: linear-gradient(135deg, #FF6B6B 0%, #FF3B30 50%, #D70015 100%);
+  --gradient-warning: linear-gradient(135deg, #FFB84D 0%, #FF9500 50%, #E8890C 100%);
+  --gradient-success: linear-gradient(135deg, #26D0CE 0%, #00C896 50%, #00A578 100%);
+
+  /* Gradientes de Background */
+  --gradient-card-danger: linear-gradient(135deg, rgba(255,59,48,0.03) 0%, rgba(215,0,21,0.06) 100%);
+  --gradient-card-warning: linear-gradient(135deg, rgba(255,149,0,0.03) 0%, rgba(232,137,12,0.06) 100%);
+  --gradient-card-success: linear-gradient(135deg, rgba(0,200,150,0.03) 0%, rgba(0,165,120,0.06) 100%);
+
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.3);
+}
+
+/* Reset e Base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: var(--color-text);
+  background: white;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  color-adjust: exact;
+}
+
+/* Plano de Fundo - Timbrado Institucional */
+@page {
+  size: A4;
+  margin: 0;
+}
+
+.page {
+  position: relative;
+  min-height: 297mm;
+  width: 210mm;
+  padding: 20mm;
+  background-image: url('../images/Imagem Timbrado.png');
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+/* Overlay sutil para garantir legibilidade - APENAS PÁGINA 1 */
+.page-1::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.70);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Overlay mais suave para páginas 2 e 3 */
+.page-2::before,
+.page-3::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.85);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Cards Container Premium */
+.financial-cards {
+  display: flex;
+  gap: 16px;
+  margin: 24px 0;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
+}
+
+/* Card Base Premium */
+.financial-card {
+  flex: 1;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-premium);
+  border: 1px solid var(--glass-border);
+  padding: 24px 20px;
+  position: relative;
+  overflow: hidden;
+  min-height: 180px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+
+  /* Gradiente sutil de background */
+  background-image: var(--card-gradient);
+
+  /* Borda superior colorida */
+  border-top: 3px solid var(--accent-color);
+
+}
+
+/* Efeito de brilho sutil */
+.financial-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+  opacity: 0.6;
+}
+
+/* Elemento decorativo no canto */
+.financial-card::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 20px;
+  height: 20px;
+  background: var(--gradient-accent);
+  border-radius: 0 var(--radius) 0 var(--radius);
+  opacity: 0.1;
+}
+
+/* Efeito Hover Premium para PDF */
+.financial-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-strong);
+  border-color: var(--accent-color);
+}
+
+/* Card Variants Premium */
+.financial-card.danger {
+  --accent-color: var(--color-danger);
+  --gradient-accent: var(--gradient-danger);
+  --card-gradient: var(--gradient-card-danger);
+}
+
+.financial-card.warning {
+  --accent-color: var(--color-warning);
+  --gradient-accent: var(--gradient-warning);
+  --card-gradient: var(--gradient-card-warning);
+}
+
+.financial-card.success {
+  --accent-color: var(--color-success);
+  --gradient-accent: var(--gradient-success);
+  --card-gradient: var(--gradient-card-success);
+}
+
+/* Header Premium com Ícone */
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-small);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  font-weight: 900;
+  color: var(--color-white);
+  font-size: 20px;
+  background: var(--gradient-accent);
+  box-shadow: var(--shadow-medium);
+  flex-shrink: 0;
+
+  /* Efeito de profundidade */
+  position: relative;
+}
+
+/* Efeito interno no ícone */
+.card-icon::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  border-radius: calc(var(--radius-small) - 2px);
+  background: var(--shadow-inner);
+  opacity: 0.3;
+}
+
+.danger .card-icon {
+  background: var(--gradient-danger);
+  box-shadow: 0 4px 16px rgba(255, 59, 48, 0.3);
+}
+
+.warning .card-icon {
+  background: var(--gradient-warning);
+  box-shadow: 0 4px 16px rgba(255, 149, 0, 0.3);
+}
+
+.success .card-icon {
+  background: var(--gradient-success);
+  box-shadow: 0 4px 16px rgba(0, 200, 150, 0.3);
+}
+
+/* Títulos Premium */
+.card-title {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-text-muted);
+  margin: 0 0 4px 0;
+  opacity: 0.8;
+  line-height: 1.2;
+}
+
+/* Valores Principais Premium */
+.card-value {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--accent-color);
+  margin: 12px 0 8px 0;
+  line-height: 1.1;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+
+  /* Gradiente sutil no texto */
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+
+  /* Fallback para PDF */
+  @media print {
+    color: var(--accent-color);
+    -webkit-text-fill-color: var(--accent-color);
+  }
+}
+
+/* Descrições Premium */
+.card-description {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.card-detail {
+  font-size: 9px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin-top: 8px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.card-badge {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--accent-color);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-soft);
+}
+
+.card-progress {
+  margin-top: auto;
+  height: 6px;
+  background: rgba(26, 26, 26, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.card-progress::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.3);
+  mix-blend-mode: screen;
+}
+
+.card-progress-bar {
+  position: relative;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gradient-accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: width 0.4s ease;
+}
+
+.card-indicator {
+  margin-top: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--accent-color);
+  text-transform: uppercase;
+}
+
+/* Indicador de Tendência */
+.card-trend {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--gradient-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: white;
+  font-weight: bold;
+  opacity: 0.8;
+}
+
+/* Banner Principal */
+.banner-principal {
+  background: var(--gradient-danger);
+  color: white;
+  text-align: center;
+  padding: 20px;
+  border-radius: var(--radius);
+  margin: 20px 0;
+  box-shadow: var(--shadow-strong);
+  position: relative;
+  z-index: 2;
+}
+
+.banner-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.banner-percentage {
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Cabeçalho do Relatório */
+.report-header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 20px 0;
+  position: relative;
+  z-index: 2;
+}
+
+.report-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 16px;
+}
+
+.report-greeting {
+  font-size: 12px;
+  color: var(--color-text);
+  margin-bottom: 12px;
+}
+
+.report-intro {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Responsive para PDF */
+@media print {
+  .financial-cards {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .financial-card {
+    page-break-inside: avoid;
+    margin-bottom: 0;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+}
+
+/* ===== PÁGINA 2: Comparativo e Análise Mensal ===== */
+
+/* Seção Comparativa */
+.comparison-section {
+  padding: 20px 0;
+  margin-bottom: 30px;
+  position: relative;
+  z-index: 2;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 20px;
+}
+
+.resource-comparison {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 20px;
+}
+
+.resource-item {
+  flex: 1;
+  text-align: center;
+  padding: 15px;
+}
+
+.resource-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+
+.resource-value {
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.resource-value.danger {
+  color: var(--color-danger);
+}
+
+.resource-value.success {
+  color: var(--color-success);
+}
+
+/* Gráfico de Barras CSS */
+.chart-container {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.bar-chart {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 10px;
+  height: 120px;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.bar {
+  width: 40px;
+  background: var(--gradient-danger);
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  min-height: 20px;
+  transition: height 0.3s ease;
+}
+
+.current-bar {
+  background: var(--gradient-danger);
+}
+
+.potential-bar {
+  background: var(--gradient-success);
+}
+
+.bar-label {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.chart-arrow {
+  font-size: 20px;
+  color: var(--color-success);
+  font-weight: bold;
+  align-self: center;
+}
+
+.chart-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  margin-top: 5px;
+}
+
+/* Análise Mensal */
+.monthly-analysis {
+  padding: 20px 0;
+  border-top: 2px solid #f8f9fa;
+  position: relative;
+  z-index: 2;
+}
+
+.monthly-values {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.monthly-item {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+}
+
+.monthly-label {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 5px;
+  color: var(--color-text);
+}
+
+.monthly-label.danger {
+  color: var(--color-danger);
+}
+
+.monthly-label.success {
+  color: var(--color-success);
+}
+
+.monthly-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.monthly-value.danger {
+  color: var(--color-danger);
+}
+
+.monthly-value.success {
+  color: var(--color-success);
+}
+
+/* Destaque Mensal */
+.monthly-highlight {
+  text-align: center;
+  padding: 15px;
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  border-radius: var(--radius);
+  position: relative;
+}
+
+.highlight-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-success);
+  margin-bottom: 8px;
+  text-decoration: underline;
+}
+
+.highlight-value {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--color-success);
+  margin-bottom: 10px;
+}
+
+.up-arrow {
+  font-size: 24px;
+  color: var(--color-success);
+  font-weight: bold;
+}
+
+/* ===== PÁGINA 3: Impacto + Conclusão ===== */
+
+.page-3 {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100vh;
+}
+
+/* Seção de Impacto */
+.impact-section {
+  text-align: center;
+  padding: 30px 0;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+.impact-percentage {
+  font-size: 42px;
+  font-weight: 900;
+  color: var(--color-danger);
+  margin-bottom: 15px;
+  line-height: 1;
+}
+
+.equals-symbol {
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--color-success);
+  margin: 10px 0;
+}
+
+.impact-value-box {
+  display: inline-block;
+  background: white;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-strong);
+  padding: 20px 30px;
+  position: relative;
+}
+
+.impact-value-box::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: -3px;
+  bottom: -3px;
+  background: #e9ecef;
+  border-radius: var(--radius);
+  z-index: -1;
+}
+
+.impact-value {
+  font-size: 34px;
+  font-weight: 900;
+  color: var(--color-success);
+}
+
+/* Mensagem Motivacional */
+.motivational-message {
+  text-align: center;
+  padding: 25px 20px;
+  background: var(--gradient-success);
+  color: white;
+  border-radius: var(--radius);
+  margin: 20px 0;
+  box-shadow: var(--shadow-medium);
+}
+
+.motivational-message h2 {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+}
+
+/* Considerações Finais */
+.final-considerations {
+  padding: 20px 0;
+  margin-top: auto;
+  position: relative;
+  z-index: 2;
+}
+
+.final-considerations h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 15px;
+}
+
+.final-considerations p {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--color-text);
+  margin-bottom: 12px;
+  text-align: justify;
+}
+
+.signature {
+  margin-top: 20px;
+  text-align: left;
+}
+
+.signature p {
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+/* Animações e Transições Premium */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+/* Aplicar animações nos cards */
+.financial-card {
+  animation: slideInUp 0.6s ease-out forwards;
+}
+
+.financial-card:nth-child(1) { animation-delay: 0.1s; }
+.financial-card:nth-child(2) { animation-delay: 0.2s; }
+.financial-card:nth-child(3) { animation-delay: 0.3s; }
+
+.card-icon {
+  animation: fadeInScale 0.8s ease-out 0.4s both;
+}
+
+.card-trend {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* Gradientes Animados para Premium */
+.financial-card.danger {
+  background: linear-gradient(-45deg,
+    rgba(255,59,48,0.02),
+    rgba(255,107,107,0.03),
+    rgba(215,0,21,0.04),
+    rgba(255,59,48,0.02)
+  );
+  background-size: 400% 400%;
+  animation: gradientShift 8s ease infinite;
+}
+
+.financial-card.warning {
+  background: linear-gradient(-45deg,
+    rgba(255,149,0,0.02),
+    rgba(255,184,77,0.03),
+    rgba(232,137,12,0.04),
+    rgba(255,149,0,0.02)
+  );
+  background-size: 400% 400%;
+  animation: gradientShift 10s ease infinite;
+}
+
+.financial-card.success {
+  background: linear-gradient(-45deg,
+    rgba(0,200,150,0.02),
+    rgba(38,208,206,0.03),
+    rgba(0,165,120,0.04),
+    rgba(0,200,150,0.02)
+  );
+  background-size: 400% 400%;
+  animation: gradientShift 12s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Configurações de Página para PDF */
+@media print {
+  /* Desabilitar animações no PDF */
+  *, *::before, *::after {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+
+  .page {
+    page-break-after: always;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .page:last-child {
+    page-break-after: avoid;
+  }
+
+  .financial-cards {
+    page-break-inside: avoid;
+  }
+
+  .financial-card {
+    page-break-inside: avoid;
+    margin-bottom: 0;
+  }
+
+  .chart-container {
+    page-break-inside: avoid;
+  }
+
+  .monthly-highlight {
+    page-break-inside: avoid;
+  }
+
+  .impact-section {
+    page-break-inside: avoid;
+  }
+
+  .final-considerations {
+    page-break-inside: avoid;
+  }
+
+  /* Garantir que gradientes sejam renderizados corretamente */
+  .financial-card {
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+}
+
+/* Utilitários */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.mb-1 { margin-bottom: 8px; }
+.mb-2 { margin-bottom: 16px; }
+.mb-3 { margin-bottom: 24px; }
+
+.p-1 { padding: 8px; }
+.p-2 { padding: 16px; }
+.p-3 { padding: 24px; }

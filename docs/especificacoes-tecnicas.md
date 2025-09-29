@@ -9,12 +9,14 @@
 
 ## 1. VISÃO GERAL
 
-**Objetivo:** Expandir o sistema existente de relatórios PDF de 2 para 3 páginas, incorporando infográficos comparativos e estrutura executiva formal.
+**Objetivo:** Modernizar o sistema de relatórios PDF com design UI/UX avançado, utilizando arquitetura HTML-to-PDF para layouts responsivos e elementos visuais modernos.
 
 **Tecnologias Base:**
-- Backend: FastAPI + Python + fpdf2
+- Backend: FastAPI + Python
+- Engine PDF: **HTML-to-PDF** (WeasyPrint ou Playwright)
+- Templates: HTML + CSS moderno
 - Arquivo principal: `backend/app/services/relatorio_pdf.py`
-- Endpoint: `/relatorios/pdf` (existente)
+- Endpoint: `/relatorios/pdf` (existente, com nova implementação)
 
 ---
 
@@ -110,7 +112,68 @@ Alysson Ribeiro"
 
 ## 3. ESPECIFICAÇÕES TÉCNICAS
 
-### Cálculos Necessários:
+### Arquitetura HTML-to-PDF:
+
+**Dependências:**
+```bash
+pip install weasyprint
+# ou alternativa:
+pip install playwright pdfkit
+```
+
+**Estrutura de Templates:**
+```
+backend/templates/
+├── relatorio_base.html        # Template base
+├── css/
+│   ├── modern-cards.css       # Estilos dos cards UI/UX
+│   ├── charts.css             # Gráficos com CSS
+│   └── print.css              # Otimizações para PDF
+└── components/
+    ├── financial-cards.html    # Cards das métricas
+    ├── charts.html            # Componentes de gráfico
+    └── footer.html            # Assinatura e rodapé
+```
+
+### Design System CSS:
+
+**Paleta de Cores:**
+```css
+:root {
+  --color-danger: #e74c3c;      /* Perdas - Vermelho */
+  --color-warning: #f39c12;     /* Diferença - Laranja */
+  --color-success: #2ecc71;     /* Recebimento - Verde */
+  --color-text: #2c3e50;        /* Texto principal */
+  --color-text-muted: #7f8c8d;  /* Texto secundário */
+  --shadow: 0 4px 12px rgba(0,0,0,0.1);
+  --radius: 12px;
+  --gradient-danger: linear-gradient(135deg, #e74c3c, #c0392b);
+  --gradient-warning: linear-gradient(135deg, #f39c12, #d68910);
+  --gradient-success: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+```
+
+**Tipografia Moderna:**
+```css
+.card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; }
+.card-value { font-size: 24px; font-weight: 800; }
+.card-description { font-size: 10px; color: var(--color-text-muted); }
+.percentage-large { font-size: 48px; font-weight: 900; }
+```
+
+**Cards Premium:**
+```css
+.financial-card {
+  background: white;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--accent-color);
+  padding: 20px;
+  margin: 8px 0;
+}
+```
+
+### Cálculos Necessários (Mantidos):
 ```python
 # Valores mensais (base)
 recurso_atual_mensal = resumo.total_recebido
@@ -122,20 +185,21 @@ recurso_atual_anual = recurso_atual_mensal * 12
 recurso_potencial_anual = recurso_atual_anual + resumo.total_diferenca_anual
 ```
 
-### Códigos de Cor (RGB):
+### Implementação:
 ```python
-VERMELHO = (220, 53, 69)    # Valores atuais
-AZUL = (40, 116, 240)       # Acréscimos/crescimento
-PRETO = (0, 0, 0)          # Valores potenciais
-VERDE = (40, 167, 69)      # Mensagens positivas
-```
+def create_html_pdf_report(
+    municipio_nome: str,
+    uf: str,
+    competencia: str,
+    resumo: ResumoFinanceiro,
+) -> bytes:
+    """Gera relatório PDF usando templates HTML modernos."""
+    html_content = render_template('relatorio_base.html', {
+        'municipio_nome': municipio_nome,
+        'uf': uf,
+        'resumo': resumo,
+        'competencia': competencia
+    })
 
-### Fontes e Tamanhos:
-```python
-TITULO_PRINCIPAL = ('Helvetica', 'B', 18)
-SUBTITULO = ('Helvetica', 'B', 14)
-TEXTO_NORMAL = ('Helvetica', '', 12)
-PERCENTUAL_GRANDE = ('Helvetica', 'B', 46)
-PERCENTUAL_MEDIO = ('Helvetica', 'B', 42)
-VALORES = ('Helvetica', 'B', 20)
+    return weasyprint.HTML(string=html_content).write_pdf()
 ```

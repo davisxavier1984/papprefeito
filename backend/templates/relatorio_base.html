@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório de Projeção Financeira - {{ municipio_nome }}/{{ uf }}</title>
+    <style>
+        {{ css_content }}
+    </style>
+</head>
+<body>
+    <!-- PÁGINA 1: Introdução + Cards Modernos -->
+    <div class="page page-1">
+        <!-- Cabeçalho do Relatório -->
+        <div class="report-header">
+            <h1 class="report-title">
+                Relatório de Projeção Financeira – Município de {{ municipio_nome }}/{{ uf }}
+            </h1>
+
+            <p class="report-greeting">
+                Excelentíssimo(a) Senhor(a) Prefeito(a),
+            </p>
+
+            <p class="report-intro">
+                Com o objetivo de oferecer uma visão estratégica sobre a evolução dos
+                recursos do município, apresentamos a seguir uma análise detalhada com base
+                no cenário atual e projeções futuras.
+            </p>
+        </div>
+
+        <!-- Banner Principal -->
+        <div class="banner-principal">
+            <div class="banner-title">
+                Quanto eu deixo de receber anualmente?
+            </div>
+            <div class="banner-percentage">
+                {{ "%.2f"|format(resumo.percentual_perda_anual) }}%
+            </div>
+        </div>
+
+        <!-- Cards Financeiros Premium -->
+        <div class="financial-cards">
+            <!-- Card Perda Mensal Premium -->
+            <div class="financial-card danger">
+                <div class="card-trend">↓</div>
+                <div class="card-badge">__PERDA_BADGE__</div>
+                <div class="card-header">
+                    <div class="card-icon">⚠</div>
+                    <div>
+                        <h3 class="card-title">Perda Mensal Estimada</h3>
+                    </div>
+                </div>
+                <div class="card-value">
+                    R$ {{ "{:,.0f}".format(resumo.total_perca_mensal).replace(',', '.') }}
+                </div>
+                <p class="card-description">
+                    recursos perdidos mensalmente que poderiam melhorar significativamente a saúde pública
+                </p>
+                <p class="card-detail">__PERDA_DETALHE__</p>
+                <div class="card-progress">
+                    <div class="card-progress-bar" style="width: __PERDA_PROGRESS__%;"></div>
+                </div>
+                <div class="card-indicator">__PERDA_INDICADOR__</div>
+            </div>
+
+            <!-- Card Diferença Anual Premium -->
+            <div class="financial-card warning">
+                <div class="card-trend">Σ</div>
+                <div class="card-badge">__DIFERENCA_BADGE__</div>
+                <div class="card-header">
+                    <div class="card-icon">📊</div>
+                    <div>
+                        <h3 class="card-title">Impacto Anual Total</h3>
+                    </div>
+                </div>
+                <div class="card-value">
+                    R$ {{ "{:,.0f}".format(resumo.total_diferenca_anual).replace(',', '.') }}
+                </div>
+                <p class="card-description">
+                    valor total de recursos não recebidos ao longo de um ano completo
+                </p>
+                <p class="card-detail">__DIFERENCA_DETALHE__</p>
+                <div class="card-progress">
+                    <div class="card-progress-bar" style="width: __DIFERENCA_PROGRESS__%;"></div>
+                </div>
+                <div class="card-indicator">__DIFERENCA_INDICADOR__</div>
+            </div>
+
+            <!-- Card Recebimento Atual Premium -->
+            <div class="financial-card success">
+                <div class="card-trend">✓</div>
+                <div class="card-badge">__ATUAL_BADGE__</div>
+                <div class="card-header">
+                    <div class="card-icon">💰</div>
+                    <div>
+                        <h3 class="card-title">Recursos Atuais</h3>
+                    </div>
+                </div>
+                <div class="card-value">
+                    R$ {{ "{:,.0f}".format(resumo.total_recebido).replace(',', '.') }}
+                </div>
+                <p class="card-description">
+                    recursos mensais efetivamente recebidos pela atenção básica municipal
+                </p>
+                <p class="card-detail">__ATUAL_DETALHE__</p>
+                <div class="card-progress">
+                    <div class="card-progress-bar" style="width: __ATUAL_PROGRESS__%;"></div>
+                </div>
+                <div class="card-indicator">__ATUAL_INDICADOR__</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PÁGINA 2: Infográficos Duplos -->
+    <div class="page page-2" style="page-break-before: always;">
+        <!-- Seção Superior: Comparativo Anual -->
+        <div class="comparison-section">
+            <h2 class="section-title text-center mb-3">
+                Comparativo de Recursos - Atenção Básica {{ municipio_nome }}
+            </h2>
+
+            <div class="resource-comparison">
+                <div class="resource-item current">
+                    <h3 class="resource-title">Recurso Atenção Básica atual</h3>
+                    <div class="resource-value danger">
+                        R$ {{ "{:,.0f}".format(resumo.total_recebido * 12).replace(',', '.') }}
+                    </div>
+                </div>
+
+                <div class="resource-item potential">
+                    <h3 class="resource-title">Recurso Atenção Básica potencial</h3>
+                    <div class="resource-value success">
+                        R$ {{ "{:,.0f}".format((resumo.total_recebido * 12) + resumo.total_diferenca_anual).replace(',', '.') }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico de Barras CSS -->
+            <div class="chart-container">
+                <div class="bar-chart">
+                    <div class="bar current-bar" style="height: {{ (resumo.total_recebido * 12 / ((resumo.total_recebido * 12) + resumo.total_diferenca_anual) * 100) }}%;">
+                        <div class="bar-label">Atual</div>
+                    </div>
+                    <div class="chart-arrow">→</div>
+                    <div class="bar potential-bar" style="height: 100%;">
+                        <div class="bar-label">Potencial</div>
+                    </div>
+                </div>
+                <div class="chart-axis">
+                    <span>0</span>
+                    <span>{{ "{:.1f}mi".format(((resumo.total_recebido * 12) + resumo.total_diferenca_anual) / 1000000) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção Inferior: Análise Mensal -->
+        <div class="monthly-analysis">
+            <h2 class="section-title text-center mb-2">Mensal</h2>
+
+            <div class="monthly-values">
+                <div class="monthly-item">
+                    <div class="monthly-label danger">Recurso Atual</div>
+                    <div class="monthly-value danger">R$ {{ "{:,.0f}".format(resumo.total_recebido).replace(',', '.') }}</div>
+                </div>
+
+                <div class="monthly-item">
+                    <div class="monthly-label">Recurso Potencial</div>
+                    <div class="monthly-value">R$ {{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perca_mensal).replace(',', '.') }}</div>
+                </div>
+
+                <div class="monthly-item">
+                    <div class="monthly-label success">Acréscimo</div>
+                    <div class="monthly-value success">R$ {{ "{:,.0f}".format(resumo.total_perca_mensal).replace(',', '.') }}</div>
+                </div>
+            </div>
+
+            <div class="monthly-highlight">
+                <div class="highlight-title">Acréscimo Mensal de Receita</div>
+                <div class="highlight-value">R$ {{ "{:,.0f}".format(resumo.total_perca_mensal).replace(',', '.') }}</div>
+                <div class="up-arrow">↗</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PÁGINA 3: Impacto + Conclusão -->
+    <div class="page page-3" style="page-break-before: always;">
+        <!-- Seção Superior: Impacto Visual -->
+        <div class="impact-section">
+            <div class="impact-percentage">{{ "%.2f"|format(resumo.percentual_perda_anual) }}%</div>
+            <div class="equals-symbol">=</div>
+            <div class="impact-value-box">
+                <div class="impact-value">R$ {{ "{:,.0f}".format(resumo.total_diferenca_anual).replace(',', '.') }}</div>
+            </div>
+        </div>
+
+        <!-- Seção Central: Mensagem Motivacional -->
+        <div class="motivational-message">
+            <h2>MAIS RECURSO E UMA MELHOR QUALIDADE DE SAÚDE PARA A POPULAÇÃO!</h2>
+        </div>
+
+        <!-- Seção Inferior: Considerações Finais -->
+        <div class="final-considerations">
+            <h3>4. Considerações Finais</h3>
+            <p>
+                O acompanhamento constante desses indicadores permitirá à administração
+                tomar decisões mais assertivas, equilibrando gastos e planejando investimentos
+                futuros com segurança. O avanço até o Cenário Ótimo permitirá à cidade ampliar
+                a qualidade dos serviços prestados à população e realizar obras de maior impacto
+                social e econômico.
+            </p>
+            <p>
+                Estamos à disposição para auxiliar na interpretação dos dados e na definição de
+                ações estratégicas para maximizar esse crescimento.
+            </p>
+
+            <div class="signature">
+                <p>Atenciosamente,</p>
+                <p><strong>Mais Gestor</strong></p>
+                <p><strong>Alysson Ribeiro</strong></p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

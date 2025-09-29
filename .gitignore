@@ -98,3 +98,15 @@ dmypy.json
 # BMAD (local only)
 .bmad-core/
 .bmad-*/
+
+# Relatórios PDF gerados (testes)
+backend/*.pdf
+backend/**/*.pdf
+
+# Arquivos de debug temporários
+backend/debug_*.py
+backend/debug_*.html
+backend/test_output*.pdf
+
+# Pasta de testes temporários
+backend/temp/
