@@ -22,6 +22,13 @@ export interface FinanciamentoParams {
   competencia: string;
 }
 
+export interface RelatorioPDFRequest {
+  codigo_ibge: string;
+  competencia: string;
+  municipio_nome?: string;
+  uf?: string;
+}
+
 export interface ResumoPlanoOrcamentario {
   dsPlanoOrcamentario: string;
   vlEfetivoRepasse: number;

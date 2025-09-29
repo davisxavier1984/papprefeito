@@ -13,11 +13,24 @@ import type {
   MunicipioEditadoUpdate,
   FinanciamentoParams,
   CompetenciaInfo,
-  ApiError
+  ApiError,
+  RelatorioPDFRequest
 } from '../types';
 
 // Configuração base da API
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const DEFAULT_API_BASE_URL = 'http://localhost:8000/api';
+
+const resolveApiBaseUrl = (): string => {
+  const raw = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (!raw) {
+    return DEFAULT_API_BASE_URL;
+  }
+
+  const sanitized = raw.replace(/\/+$/, '');
+  return /\/api($|\/)/.test(sanitized) ? sanitized : `${sanitized}/api`;
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 class ApiClient {
   private client: AxiosInstance;
@@ -123,6 +136,22 @@ class ApiClient {
    */
   async consultarDadosFinanciamentoPOST(params: FinanciamentoParams): Promise<DadosFinanciamento> {
     const response = await this.client.post<DadosFinanciamento>('/financiamento/dados/consultar', params);
+    return response.data;
+  }
+
+  // ================================
+  // ENDPOINTS DE RELATÓRIOS
+  // ================================
+
+  /**
+   * Gera o relatório financeiro em PDF para download
+   */
+  async gerarRelatorioPDF(payload: RelatorioPDFRequest): Promise<Blob> {
+    const response = await this.client.post<Blob>(
+      '/relatorios/pdf',
+      payload,
+      { responseType: 'blob' }
+    );
     return response.data;
   }
 

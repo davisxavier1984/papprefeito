@@ -2,16 +2,57 @@
  * Página principal do dashboard
  */
 
-import React from 'react';
-import { Typography, Space, Divider, Empty } from 'antd';
+import React, { useState } from 'react';
+import { Typography, Space, Divider, Empty, Button, message } from 'antd';
 import FinancialTable from '../components/DataTable/FinancialTable';
 import MetricsCards from '../components/Metrics/MetricsCards';
-import { useHasDados } from '../stores/municipioStore';
+import { useHasDados, useMunicipioInfo, useMunicipioStore } from '../stores/municipioStore';
+import { DownloadOutlined } from '@ant-design/icons';
+import { apiClient } from '../services/api';
 
 const { Title, Text } = Typography;
 
 const Dashboard: React.FC = () => {
   const hasDados = useHasDados();
+  const municipioInfo = useMunicipioInfo();
+  const { resumoFinanceiro } = useMunicipioStore();
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGerarPDF = async () => {
+    if (!municipioInfo || !municipioInfo.codigo || !municipioInfo.competencia) {
+      message.warning('Selecione um município e competência antes de gerar o relatório.');
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+      const blob = await apiClient.gerarRelatorioPDF({
+        codigo_ibge: municipioInfo.codigo,
+        competencia: municipioInfo.competencia,
+        municipio_nome: municipioInfo.nome,
+        uf: municipioInfo.uf,
+      });
+
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute(
+        'download',
+        `relatorio_${municipioInfo.codigo}_${municipioInfo.competencia}.pdf`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+
+      message.success('Relatório gerado com sucesso.');
+    } catch (error) {
+      console.error(error);
+      message.error('Não foi possível gerar o relatório. Tente novamente.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   if (!hasDados) {
     return (
@@ -132,6 +173,24 @@ const Dashboard: React.FC = () => {
   return (
     <div className="fade-in-up">
       <Space direction="vertical" style={{ width: '100%' }} size="large">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}
+        >
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={handleGerarPDF}
+            loading={isGenerating}
+            disabled={!municipioInfo || !resumoFinanceiro}
+          >
+            Gerar relatório PDF
+          </Button>
+        </div>
 
         <MetricsCards />
 

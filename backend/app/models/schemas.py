@@ -115,6 +115,36 @@ class ResumoFinanceiro(BaseModel):
     percentual_perda_anual: float
     total_recebido: float
 
+
+class RelatorioPDFRequest(BaseModel):
+    """Payload para geração do relatório financeiro em PDF"""
+    codigo_ibge: str = Field(..., description="Código IBGE do município")
+    competencia: str = Field(..., min_length=6, max_length=6, description="Competência no formato AAAAMM")
+    municipio_nome: Optional[str] = Field(None, description="Nome do município para exibição")
+    uf: Optional[str] = Field(None, description="Sigla da UF para exibição")
+
+    @validator('codigo_ibge')
+    def validate_codigo_ibge(cls, v: str) -> str:
+        if not v or not v.isdigit() or len(v) < 6:
+            raise ValueError('Código IBGE deve conter ao menos 6 dígitos numéricos')
+        return v
+
+    @validator('competencia')
+    def validate_competencia(cls, v: str) -> str:
+        if not v.isdigit():
+            raise ValueError('Competência deve conter apenas dígitos')
+
+        ano = int(v[:4])
+        mes = int(v[4:])
+
+        if ano < 2020 or ano > 2030:
+            raise ValueError('Ano deve estar entre 2020 e 2030')
+
+        if mes < 1 or mes > 12:
+            raise ValueError('Mês deve estar entre 01 e 12')
+
+        return v
+
 class ResponseBase(BaseModel):
     """Modelo base para respostas da API"""
     success: bool = True

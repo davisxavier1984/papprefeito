@@ -1,6 +1,8 @@
 """
 FastAPI backend para o sistema MaisPAP
 """
+from typing import List
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -8,6 +10,20 @@ import uvicorn
 
 from app.api.router import api_router
 from app.core.config import settings
+
+
+def _sanitize_origins(origins: List[str]) -> List[str]:
+    """Normaliza origens removendo barras finais e duplicados."""
+    sanitized = {origin.rstrip('/') for origin in origins if origin}
+    return sorted(sanitized)
+
+
+DEFAULT_CORS_ORIGINS = {
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+}
 
 # Criar instância do FastAPI
 app = FastAPI(
@@ -19,11 +35,12 @@ app = FastAPI(
 )
 
 # Configurar CORS
+configured_origins = _sanitize_origins(list(DEFAULT_CORS_ORIGINS) + (settings.ALLOWED_HOSTS or []))
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_HOSTS,
+    allow_origins=configured_origins,  # Usar lista específica de origens
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

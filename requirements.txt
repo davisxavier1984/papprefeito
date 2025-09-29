@@ -14,3 +14,6 @@ pyUFbr
 
 # Adaptadores HTTP com retry
 urllib3>=2.0.0
+
+# Geração de relatórios em PDF
+reportlab>=3.6.12
