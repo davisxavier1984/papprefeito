@@ -3,7 +3,7 @@ Router principal da API que inclui todos os endpoints
 """
 from fastapi import APIRouter
 
-from app.api.endpoints import municipios, financiamento, municipios_editados, relatorios
+from app.api.endpoints import municipios, financiamento, municipios_editados, relatorios, edicoes
 
 # Router principal
 api_router = APIRouter()
@@ -31,4 +31,11 @@ api_router.include_router(
     relatorios.router,
     prefix="/relatorios",
     tags=["Relatórios"]
+)
+
+# Novo endpoint Appwrite
+api_router.include_router(
+    edicoes.router,
+    prefix="",
+    tags=["Edições Appwrite"]
 )

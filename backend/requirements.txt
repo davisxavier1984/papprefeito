@@ -13,3 +13,4 @@ python-dotenv==1.0.0
 pyufbr==0.1.0
 fpdf2==2.7.6
 weasyprint==62.3
+appwrite>=6.0.0
