@@ -135,20 +135,26 @@
                 </div>
             </div>
 
-            <!-- Gráfico de Barras CSS -->
+            <!-- Gráfico de Linha Ascendente -->
             <div class="chart-container">
-                <div class="bar-chart">
-                    <div class="bar current-bar" style="height: {{ (resumo.total_recebido * 12 / ((resumo.total_recebido * 12) + resumo.total_diferenca_anual) * 100) }}%;">
-                        <div class="bar-label">Atual</div>
-                    </div>
-                    <div class="chart-arrow">→</div>
-                    <div class="bar potential-bar" style="height: 100%;">
-                        <div class="bar-label">Potencial</div>
-                    </div>
-                </div>
-                <div class="chart-axis">
-                    <span>0</span>
-                    <span>{{ "{:.1f}mi".format(((resumo.total_recebido * 12) + resumo.total_diferenca_anual) / 1000000) }}</span>
+                <div class="line-chart">
+                    <svg width="400" height="200" viewBox="0 0 400 200" style="display: block; margin: 0 auto;">
+                        <!-- Linha de crescimento -->
+                        <line x1="50" y1="150" x2="350" y2="50" stroke="#00C896" stroke-width="4" />
+
+                        <!-- Ponto inicial (Atual) -->
+                        <circle cx="50" cy="150" r="8" fill="#FF3B30" />
+                        <text x="50" y="180" text-anchor="middle" font-size="14" font-weight="bold" fill="#FF3B30">Atual</text>
+                        <text x="50" y="195" text-anchor="middle" font-size="12" fill="#333">R$ {{ "{:,.0f}".format(resumo.total_recebido * 12).replace(',', '.') }}</text>
+
+                        <!-- Ponto final (Potencial) -->
+                        <circle cx="350" cy="50" r="8" fill="#00C896" />
+                        <text x="350" y="35" text-anchor="middle" font-size="14" font-weight="bold" fill="#00C896">Potencial</text>
+                        <text x="350" y="20" text-anchor="middle" font-size="12" fill="#333">R$ {{ "{:,.0f}".format((resumo.total_recebido * 12) + resumo.total_diferenca_anual).replace(',', '.') }}</text>
+
+                        <!-- Seta indicando crescimento -->
+                        <polygon points="350,50 345,55 345,52 335,52 335,48 345,48 345,45" fill="#00C896" />
+                    </svg>
                 </div>
             </div>
         </div>
@@ -177,7 +183,9 @@
             <div class="monthly-highlight">
                 <div class="highlight-title">Acréscimo Mensal de Receita</div>
                 <div class="highlight-value">R$ {{ "{:,.0f}".format(resumo.total_perca_mensal).replace(',', '.') }}</div>
-                <div class="up-arrow">↗</div>
+                <div class="up-arrow">
+                    <img src="../../frontend/src/assets/logo.png" alt="Mais Gestor" style="width: 60px; height: auto;">
+                </div>
             </div>
         </div>
     </div>
@@ -200,7 +208,7 @@
 
         <!-- Seção Inferior: Considerações Finais -->
         <div class="final-considerations">
-            <h3>4. Considerações Finais</h3>
+            <h3>Considerações Finais</h3>
             <p>
                 O acompanhamento constante desses indicadores permitirá à administração
                 tomar decisões mais assertivas, equilibrando gastos e planejando investimentos

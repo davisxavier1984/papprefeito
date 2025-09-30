@@ -1,0 +1,9 @@
+Pagina 2:
+
+Estes caracteres estão sendo impressos: 0 11.0mi
+Parecem ser limites do gráfico. Refaça este gráfico, troque-o por um gráfico de linha, mais centralizado e ascendente.
+
+Na Pagina 3:
+
+O Timbrado não está preenchendo toda a página: deixa como nas páginas 1 e 2, ou descubra o que está afetando-o e resolva.
+

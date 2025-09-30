@@ -11,7 +11,9 @@
       "Bash(curl:*)",
       "Bash(source:*)",
       "Read(//tmp/**)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
