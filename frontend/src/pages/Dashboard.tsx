@@ -6,6 +6,8 @@ import React, { useState } from 'react';
 import { Typography, Space, Divider, Empty, Button, message } from 'antd';
 import FinancialTable from '../components/DataTable/FinancialTable';
 import MetricsCards from '../components/Metrics/MetricsCards';
+import { ProgramasCards } from '../components/Programas/ProgramasCards';
+import { AnaliseBox } from '../components/Programas/AnaliseBox';
 import { useHasDados, useMunicipioInfo, useMunicipioStore } from '../stores/municipioStore';
 import { DownloadOutlined } from '@ant-design/icons';
 import { apiClient } from '../services/api';
@@ -15,8 +17,9 @@ const { Title, Text } = Typography;
 const Dashboard: React.FC = () => {
   const hasDados = useHasDados();
   const municipioInfo = useMunicipioInfo();
-  const { resumoFinanceiro } = useMunicipioStore();
+  const { resumoFinanceiro, dadosProgramas } = useMunicipioStore();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingDetailed, setIsGeneratingDetailed] = useState(false);
 
   const handleGerarPDF = async () => {
     if (!municipioInfo || !municipioInfo.codigo || !municipioInfo.competencia) {
@@ -51,6 +54,42 @@ const Dashboard: React.FC = () => {
       message.error('Não foi possível gerar o relatório. Tente novamente.');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleGerarPDFDetalhado = async () => {
+    if (!municipioInfo || !municipioInfo.codigo || !municipioInfo.competencia) {
+      message.warning('Selecione um município e competência antes de gerar o relatório.');
+      return;
+    }
+
+    try {
+      setIsGeneratingDetailed(true);
+      const blob = await apiClient.gerarRelatorioDetalhadoPDF({
+        codigo_ibge: municipioInfo.codigo,
+        competencia: municipioInfo.competencia,
+        municipio_nome: municipioInfo.nome,
+        uf: municipioInfo.uf,
+      });
+
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute(
+        'download',
+        `relatorio_detalhado_${municipioInfo.codigo}_${municipioInfo.competencia}.pdf`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+
+      message.success('Relatório detalhado gerado com sucesso.');
+    } catch (error) {
+      console.error(error);
+      message.error('Não foi possível gerar o relatório detalhado. Tente novamente.');
+    } finally {
+      setIsGeneratingDetailed(false);
     }
   };
 
@@ -182,17 +221,33 @@ const Dashboard: React.FC = () => {
           }}
         >
           <Button
-            type="primary"
             icon={<DownloadOutlined />}
             onClick={handleGerarPDF}
             loading={isGenerating}
             disabled={!municipioInfo || !resumoFinanceiro}
           >
-            Gerar relatório PDF
+            Relatório PAP Prefeito
+          </Button>
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={handleGerarPDFDetalhado}
+            loading={isGeneratingDetailed}
+            disabled={!municipioInfo || !resumoFinanceiro}
+          >
+            Relatório Detalhado
           </Button>
         </div>
 
         <MetricsCards />
+
+        {/* Cards de Detalhamento por Programa */}
+        {dadosProgramas && dadosProgramas.length > 0 && (
+          <>
+            <ProgramasCards />
+            <AnaliseBox programas={dadosProgramas} />
+          </>
+        )}
 
         <div style={{
           background: '#fff',

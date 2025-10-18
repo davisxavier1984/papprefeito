@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import html
 import base64
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, List, Optional
 from pathlib import Path
 import weasyprint
 
 from fpdf import FPDF
 
-from app.models.schemas import ResumoFinanceiro
+from app.models.schemas import ResumoFinanceiro, DetalhamentoPrograma, ResumoDetalhado
 
 
 def _sanitize_text(value: str) -> str:
@@ -36,6 +36,71 @@ def _safe_ratio(value: float, total: float) -> float:
         return 0.0
     ratio = value / total
     return max(0.0, min(1.0, ratio))
+
+
+def _mapear_programa_info(nome_programa: str) -> tuple[str, str, str]:
+    """Mapeia nome do programa para (nome_curto, ícone, cor_tema)."""
+    mapeamento = {
+        "Equipes de Saúde da Família - eSF e equipes de Atenção Primária - eAP": ("eSF/eAP", "👥", "warning"),
+        "Atenção à Saúde Bucal": ("Saúde Bucal", "🦷", "success"),
+        "Equipes Multiprofissionais - eMulti": ("eMulti", "🏥", "success"),
+        "Agentes Comunitários de Saúde": ("ACS", "🚶", "success"),
+        "Demais programas, serviços e equipes da Atenção Primária à Saúde": ("Demais", "⚙️", "muted"),
+        "Componente per capita de base populacional": ("Per Capita", "👨‍👩‍👧‍👦", "info"),
+    }
+    return mapeamento.get(nome_programa, (nome_programa[:20], "⚙️", "muted"))
+
+
+def compute_detailed_summary(
+    resumos_planos: Iterable[Dict[str, Any]]
+) -> List[DetalhamentoPrograma]:
+    """Processa resumos de planos orçamentários e retorna detalhamento."""
+    programas = []
+
+    for plano in resumos_planos:
+        nome_completo = plano.get('dsPlanoOrcamentario', 'Sem descrição')
+        valor_integral = float(plano.get('vlIntegral') or 0.0)
+        valor_ajuste = float(plano.get('vlAjuste') or 0.0)
+        valor_desconto = float(plano.get('vlDesconto') or 0.0)
+        valor_efetivo = float(plano.get('vlEfetivoRepasse') or 0.0)
+
+        # Calcular percentual de efetivação
+        if valor_integral > 0:
+            percentual_efetivacao = (valor_efetivo / valor_integral) * 100.0
+        else:
+            percentual_efetivacao = 0.0
+
+        # Determinar status
+        tem_desconto = valor_desconto < 0
+        ativo = valor_efetivo > 0
+
+        # Mapear informações do programa
+        nome_curto, icone, cor_base = _mapear_programa_info(nome_completo)
+
+        # Ajustar cor se houver desconto
+        if tem_desconto:
+            cor_tema = "warning" if percentual_efetivacao >= 50 else "danger"
+        elif not ativo:
+            cor_tema = "muted"
+        else:
+            cor_tema = cor_base
+
+        programa = DetalhamentoPrograma(
+            nome=nome_completo,
+            nome_curto=nome_curto,
+            valor_integral=valor_integral,
+            valor_ajuste=valor_ajuste,
+            valor_desconto=valor_desconto,
+            valor_efetivo=valor_efetivo,
+            percentual_efetivacao=percentual_efetivacao,
+            tem_desconto=tem_desconto,
+            ativo=ativo,
+            icone=icone,
+            cor_tema=cor_tema
+        )
+        programas.append(programa)
+
+    return programas
 
 
 def compute_financial_summary(
@@ -551,19 +616,164 @@ def _create_page_3_impacto_conclusao(pdf: FPDF, resumo: ResumoFinanceiro):
     pdf.cell(0, 6, _sanitize_text('Alysson Ribeiro'), ln=True)
 
 
+def _get_badge_text(programa: DetalhamentoPrograma) -> str:
+    """Retorna o texto do badge baseado no status do programa."""
+    if not programa.ativo:
+        return "❌ Sem credenciamento"
+    elif programa.tem_desconto:
+        return "⚠️ Desconto aplicado"
+    elif programa.percentual_efetivacao >= 100:
+        return "✓ 100% recebido"
+    else:
+        return "✓ Ativo"
+
+
+def _generate_program_cards_html(programas: List[DetalhamentoPrograma]) -> str:
+    """Gera HTML dos cards de programas."""
+    cards_html = []
+
+    for programa in programas:
+        badge_text = _get_badge_text(programa)
+
+        # Montar linhas de valores
+        value_rows = []
+        value_rows.append(f'''
+            <div class="value-row">
+                <span class="value-label">Integral:</span>
+                <span class="value-amount">R$ {_br_number(programa.valor_integral, 0)}</span>
+            </div>
+        ''')
+
+        if programa.tem_desconto:
+            value_rows.append(f'''
+                <div class="value-row discount">
+                    <span class="value-label">Desconto:</span>
+                    <span class="value-amount">R$ {_br_number(programa.valor_desconto, 0)}</span>
+                </div>
+            ''')
+
+        value_rows.append(f'''
+            <div class="value-row total">
+                <span class="value-label">Efetivo:</span>
+                <span class="value-amount">R$ {_br_number(programa.valor_efetivo, 0)}</span>
+            </div>
+        ''')
+
+        card_html = f'''
+            <div class="program-card {programa.cor_tema}">
+                <div class="program-badge">{html.escape(badge_text)}</div>
+                <div class="program-header">
+                    <div class="program-icon">{programa.icone}</div>
+                    <h3 class="program-title">{html.escape(programa.nome_curto)}</h3>
+                </div>
+                <div class="program-values">
+                    {''.join(value_rows)}
+                </div>
+                <div class="program-progress">
+                    <div class="program-progress-bar">
+                        <div class="program-progress-fill" style="width: {programa.percentual_efetivacao:.1f}%"></div>
+                    </div>
+                    <div class="program-progress-label">{programa.percentual_efetivacao:.1f}% do integral</div>
+                </div>
+            </div>
+        '''
+        cards_html.append(card_html)
+
+    return '\n'.join(cards_html)
+
+
+def _generate_composition_bars_html(programas: List[DetalhamentoPrograma]) -> str:
+    """Gera HTML das barras de composição."""
+    # Calcular total
+    total_efetivo = sum(p.valor_efetivo for p in programas if p.ativo)
+
+    if total_efetivo == 0:
+        return '<p>Sem dados para composição</p>'
+
+    bars_html = []
+    color_index = 1
+
+    for programa in programas:
+        if programa.ativo and programa.valor_efetivo > 0:
+            percentual = (programa.valor_efetivo / total_efetivo) * 100
+
+            bar_html = f'''
+                <div class="composition-bar-row">
+                    <div class="composition-bar-label">{html.escape(programa.nome_curto)}</div>
+                    <div class="composition-bar-track">
+                        <div class="composition-bar-fill color-{color_index}" style="width: {percentual:.1f}%">
+                            {percentual:.1f}%
+                        </div>
+                    </div>
+                    <div class="composition-bar-value">R$ {_br_number(programa.valor_efetivo, 0)}</div>
+                </div>
+            '''
+            bars_html.append(bar_html)
+            color_index = (color_index % 6) + 1
+
+    # Adicionar linha de total
+    bars_html.append(f'''
+        <div class="composition-bar-row" style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #e5e7eb;">
+            <div class="composition-bar-label" style="font-weight: 900;">TOTAL</div>
+            <div class="composition-bar-track"></div>
+            <div class="composition-bar-value" style="font-size: 14px; color: #1A1A1A;">R$ {_br_number(total_efetivo, 0)}</div>
+        </div>
+    ''')
+
+    return '\n'.join(bars_html)
+
+
+def _generate_discount_analysis_html(programas: List[DetalhamentoPrograma]) -> str:
+    """Gera HTML da análise de descontos se houver programas com desconto."""
+    programas_com_desconto = [p for p in programas if p.tem_desconto]
+
+    if not programas_com_desconto:
+        return ''
+
+    # Somar todos os descontos
+    total_desconto = sum(abs(p.valor_desconto) for p in programas_com_desconto)
+    total_desconto_anual = total_desconto * 12
+
+    # Listar programas com desconto
+    lista_programas = ', '.join([p.nome_curto for p in programas_com_desconto])
+
+    analysis_html = f'''
+        <div class="discount-analysis-box">
+            <div class="discount-analysis-title">
+                ⚠️ Análise de Descontos Identificados
+            </div>
+            <div class="discount-analysis-content">
+                <p>
+                    O(s) programa(s) <strong>{html.escape(lista_programas)}</strong> apresenta(m) desconto(s) aplicado(s).
+                </p>
+                <div class="discount-highlight">
+                    Valor total perdido: R$ {_br_number(total_desconto, 0)}/mês = R$ {_br_number(total_desconto_anual, 0)}/ano
+                </div>
+                <div class="discount-suggestion">
+                    💡 Oportunidade: Este valor pode ser recuperado através da melhoria de indicadores e regularização cadastral das equipes.
+                </div>
+            </div>
+        </div>
+    '''
+
+    return analysis_html
+
+
 def create_pdf_report(
     *,
     municipio_nome: Optional[str],
     uf: Optional[str],
     competencia: str,
     resumo: ResumoFinanceiro,
+    resumos_planos: Optional[List[Dict[str, Any]]] = None,
 ) -> bytes:
     """Cria o relatório em PDF usando templates HTML modernos."""
     return create_html_pdf_report(
         municipio_nome=municipio_nome,
         uf=uf,
         competencia=competencia,
-        resumo=resumo
+        resumo=resumo,
+        resumos_planos=resumos_planos
     )
 
 
@@ -601,6 +811,7 @@ def create_html_pdf_report(
     uf: Optional[str],
     competencia: str,
     resumo: ResumoFinanceiro,
+    resumos_planos: Optional[List[Dict[str, Any]]] = None,
 ) -> bytes:
     """Cria o relatório em PDF usando templates HTML modernos."""
 
@@ -712,6 +923,37 @@ def create_html_pdf_report(
             f"{max_value_millions:.1f}mi"
         )
 
+        # Processar Página 4: Detalhamento por Programa
+        if resumos_planos:
+            programas = compute_detailed_summary(resumos_planos)
+
+            # Extrair competências dos dados
+            comp_cnes = resumos_planos[0].get('nuCompCnes', competencia) if resumos_planos else competencia
+            parcela_pgto = resumos_planos[0].get('nuParcela', competencia) if resumos_planos else competencia
+
+            # Substituir competências
+            html_content = html_content.replace('__COMPETENCIA_CNES__', str(comp_cnes))
+            html_content = html_content.replace('__PARCELA_PGTO__', str(parcela_pgto))
+
+            # Gerar HTML dos cards de programas
+            program_cards_html = _generate_program_cards_html(programas)
+            html_content = html_content.replace('__PROGRAM_CARDS__', program_cards_html)
+
+            # Gerar HTML das barras de composição
+            composition_bars_html = _generate_composition_bars_html(programas)
+            html_content = html_content.replace('__COMPOSITION_BARS__', composition_bars_html)
+
+            # Gerar HTML da análise de descontos (se houver)
+            discount_analysis_html = _generate_discount_analysis_html(programas)
+            html_content = html_content.replace('__DISCOUNT_ANALYSIS__', discount_analysis_html)
+        else:
+            # Se não houver dados de programas, remover placeholders
+            html_content = html_content.replace('__COMPETENCIA_CNES__', competencia)
+            html_content = html_content.replace('__PARCELA_PGTO__', competencia)
+            html_content = html_content.replace('__PROGRAM_CARDS__', '<p>Dados não disponíveis</p>')
+            html_content = html_content.replace('__COMPOSITION_BARS__', '')
+            html_content = html_content.replace('__DISCOUNT_ANALYSIS__', '')
+
     # Gerar PDF com WeasyPrint
     try:
         # Verificar se o HTML foi processado corretamente
@@ -731,6 +973,780 @@ def create_html_pdf_report(
     except Exception as e:
         # Propagar erro para diagnóstico
         print(f"❌ Erro ao gerar PDF com HTML-to-PDF: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+
+
+def _processar_saude_familia_detalhado(pagamentos: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Processa dados detalhados de Saúde da Família (eSF e eAP) a partir dos pagamentos."""
+    if not pagamentos or len(pagamentos) == 0:
+        return None
+
+    pagamento = pagamentos[0]  # Pegar primeiro pagamento
+
+    esf = {
+        'equipes': {
+            'credenciadas': pagamento.get('qtEsfCredenciado', 0) or 0,
+            'homologadas': pagamento.get('qtEsfHomologado', 0) or 0,
+            'total_pgto': pagamento.get('qtEsfTotalPgto', 0) or 0,
+        },
+        'pagamento_percentual': {
+            'pc100': pagamento.get('qtEsf100pcPgto', 0) or 0,
+            'pc75': pagamento.get('qtEsf75pcPgto', 0) or 0,
+            'pc50': pagamento.get('qtEsf50pcPgto', 0) or 0,
+            'pc25': pagamento.get('qtEsf25pcPgto', 0) or 0,
+        },
+        'valores': {
+            'fixo': float(pagamento.get('vlFixoEsf', 0) or 0),
+            'vinculo': float(pagamento.get('vlVinculoEsf', 0) or 0),
+            'qualidade': float(pagamento.get('vlQualidadeEsf', 0) or 0),
+            'total': float(pagamento.get('vlTotalEsf', 0) or 0),
+            'implantacao': float(pagamento.get('vlPagamentoImplantacaoEsf', 0) or 0),
+        },
+        'classificacoes': {
+            'equidade': pagamento.get('dsFaixaIndiceEquidadeEsfEap', 'Não informado'),
+            'vinculo': pagamento.get('dsClassificacaoVinculoEsfEap', 'Não informado'),
+            'qualidade': pagamento.get('dsClassificacaoQualidadeEsfEap', 'Não informado'),
+        }
+    }
+
+    eap = {
+        'equipes': {
+            'credenciadas': pagamento.get('qtEapCredenciadas', 0) or 0,
+            'homologadas': pagamento.get('qtEapHomologado', 0) or 0,
+            'total_pgto': pagamento.get('qtEapTotalPgto', 0) or 0,
+        },
+        'carga_horaria': {
+            'ch20_completas': pagamento.get('qtEap20hCompletas', 0) or 0,
+            'ch20_incompletas': pagamento.get('qtEap20hIncompletas', 0) or 0,
+            'ch30_completas': pagamento.get('qtEap30hCompletas', 0) or 0,
+            'ch30_incompletas': pagamento.get('qtEap30hIncompletas', 0) or 0,
+        },
+        'valores': {
+            'fixo': float(pagamento.get('vlFixoEap', 0) or 0),
+            'vinculo': float(pagamento.get('vlVinculoEap', 0) or 0),
+            'qualidade': float(pagamento.get('vlQualidadeEap', 0) or 0),
+            'total': float(pagamento.get('vlTotalEap', 0) or 0),
+            'implantacao': float(pagamento.get('vlPagamentoImplantacaoEap', 0) or 0),
+        }
+    }
+
+    vl_total = esf['valores']['total'] + eap['valores']['total']
+    qt_total_equipes = esf['equipes']['credenciadas'] + eap['equipes']['credenciadas']
+
+    return {
+        'esf': esf,
+        'eap': eap,
+        'totais': {
+            'vlTotal': vl_total,
+            'qtTotalEquipes': qt_total_equipes
+        }
+    }
+
+
+def _gerar_html_saude_familia_detalhado(dados: Dict[str, Any]) -> str:
+    """Gera HTML para seção de Saúde da Família (eSF e eAP) detalhada."""
+    if not dados:
+        return '<p>Sem dados de Saúde da Família disponíveis.</p>'
+
+    esf = dados.get('esf', {})
+    eap = dados.get('eap', {})
+    totais = dados.get('totais', {})
+
+    resultado_html = f'''
+    <div class="detail-section">
+        <h3 style="color: #f59e0b; margin-top: 0;">eSF - Equipes de Saúde da Família</h3>
+
+        <div class="subsection-title">Equipes</div>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <span class="detail-label">Credenciadas</span>
+                <span class="detail-value">{esf.get('equipes', {}).get('credenciadas', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Homologadas</span>
+                <span class="detail-value">{esf.get('equipes', {}).get('homologadas', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Total com Pagamento</span>
+                <span class="detail-value">{esf.get('equipes', {}).get('total_pgto', 0)}</span>
+            </div>
+        </div>
+
+        <div class="subsection-title">Pagamento por Percentual</div>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <span class="detail-label">100% do Valor</span>
+                <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc100', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">75% do Valor</span>
+                <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc75', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">50% do Valor</span>
+                <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc50', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">25% do Valor</span>
+                <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc25', 0)}</span>
+            </div>
+        </div>
+
+        <div class="subsection-title">Classificações</div>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <span class="detail-label">Índice de Equidade</span>
+                <span class="detail-value">{html.escape(str(esf.get('classificacoes', {}).get('equidade', 'N/A')))}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Classificação Vínculo</span>
+                <span class="detail-value">{html.escape(str(esf.get('classificacoes', {}).get('vinculo', 'N/A')))}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Classificação Qualidade</span>
+                <span class="detail-value">{html.escape(str(esf.get('classificacoes', {}).get('qualidade', 'N/A')))}</span>
+            </div>
+        </div>
+
+        <div class="subsection-title">Valores Financeiros eSF</div>
+        <table class="valores-table">
+            <thead>
+                <tr>
+                    <th>Componente</th>
+                    <th style="text-align: right;">Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Valor Fixo</td>
+                    <td style="text-align: right;">R$ {_br_number(esf.get('valores', {}).get('fixo', 0), 2)}</td>
+                </tr>
+                <tr>
+                    <td>Valor Vínculo</td>
+                    <td style="text-align: right;">R$ {_br_number(esf.get('valores', {}).get('vinculo', 0), 2)}</td>
+                </tr>
+                <tr>
+                    <td>Valor Qualidade</td>
+                    <td style="text-align: right;">R$ {_br_number(esf.get('valores', {}).get('qualidade', 0), 2)}</td>
+                </tr>
+                <tr>
+                    <td>Implantação</td>
+                    <td style="text-align: right;">R$ {_br_number(esf.get('valores', {}).get('implantacao', 0), 2)}</td>
+                </tr>
+                <tr style="font-weight: 600; background: #f3f4f6;">
+                    <td>Total eSF</td>
+                    <td style="text-align: right;">R$ {_br_number(esf.get('valores', {}).get('total', 0), 2)}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    '''
+
+    # Seção eAP
+    if eap.get('equipes', {}).get('credenciadas', 0) > 0:
+        resultado_html += f'''
+        <div class="detail-section" style="border-left-color: #fb923c;">
+            <h3 style="color: #fb923c; margin-top: 0;">eAP - Equipes de Atenção Primária</h3>
+
+            <div class="subsection-title">Equipes</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Credenciadas</span>
+                    <span class="detail-value">{eap.get('equipes', {}).get('credenciadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Homologadas</span>
+                    <span class="detail-value">{eap.get('equipes', {}).get('homologadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Total com Pagamento</span>
+                    <span class="detail-value">{eap.get('equipes', {}).get('total_pgto', 0)}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title">Carga Horária</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">20h Completas</span>
+                    <span class="detail-value">{eap.get('carga_horaria', {}).get('ch20_completas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">20h Incompletas</span>
+                    <span class="detail-value">{eap.get('carga_horaria', {}).get('ch20_incompletas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">30h Completas</span>
+                    <span class="detail-value">{eap.get('carga_horaria', {}).get('ch30_completas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">30h Incompletas</span>
+                    <span class="detail-value">{eap.get('carga_horaria', {}).get('ch30_incompletas', 0)}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title">Valores Financeiros eAP</div>
+            <table class="valores-table">
+                <thead>
+                    <tr>
+                        <th>Componente</th>
+                        <th style="text-align: right;">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Valor Fixo</td>
+                        <td style="text-align: right;">R$ {_br_number(eap.get('valores', {}).get('fixo', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Valor Vínculo</td>
+                        <td style="text-align: right;">R$ {_br_number(eap.get('valores', {}).get('vinculo', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Valor Qualidade</td>
+                        <td style="text-align: right;">R$ {_br_number(eap.get('valores', {}).get('qualidade', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Implantação</td>
+                        <td style="text-align: right;">R$ {_br_number(eap.get('valores', {}).get('implantacao', 0), 2)}</td>
+                    </tr>
+                    <tr style="font-weight: 600; background: #f3f4f6;">
+                        <td>Total eAP</td>
+                        <td style="text-align: right;">R$ {_br_number(eap.get('valores', {}).get('total', 0), 2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        '''
+
+    # Totais
+    resultado_html += f'''
+    <div class="highlight-box">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">Total de Equipes (eSF + eAP)</p>
+                <div class="value" style="font-size: 32px; color: #f59e0b;">{totais.get('qtTotalEquipes', 0)}</div>
+            </div>
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">Valor Total eSF + eAP</p>
+                <div class="value" style="font-size: 28px;">R$ {_br_number(totais.get('vlTotal', 0), 2)}</div>
+            </div>
+        </div>
+    </div>
+    '''
+
+    return resultado_html
+
+
+def _processar_saude_bucal_detalhado(pagamentos: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Processa dados detalhados de Saúde Bucal a partir dos pagamentos."""
+    if not pagamentos or len(pagamentos) == 0:
+        return None
+
+    pagamento = pagamentos[0]  # Pegar primeiro pagamento
+
+    esb = {
+        'modalidade40h': {
+            'credenciadas': pagamento.get('qtSb40hCredenciada', 0) or 0,
+            'homologadas': pagamento.get('qtSb40hHomologado', 0) or 0,
+            'modalidadeI': pagamento.get('qtSbPagamentoModalidadeI', 0) or 0,
+            'modalidadeII': pagamento.get('qtSbPagamentoModalidadeII', 0) or 0,
+        },
+        'chDiferenciada': {
+            'credenciadas': pagamento.get('qtSb40hDifCredenciada', 0) or 0,
+            'homologadas': pagamento.get('qtSbChDifHomologado', 0) or 0,
+            'modalidade20h': pagamento.get('qtSbPagamentoDifModalidade20Horas', 0) or 0,
+            'modalidade30h': pagamento.get('qtSbPagamentoDifModalidade30Horas', 0) or 0,
+        },
+        'quilombolasAssentamentos': {
+            'modalidadeI': pagamento.get('qtSbEqpQuilombAssentModalI', 0) or 0,
+            'modalidadeII': pagamento.get('qtSbEqpQuilombAssentModalII', 0) or 0,
+        },
+        'implantacao': pagamento.get('qtSbEquipeImplantacao', 0) or 0,
+        'valores': {
+            'pagamento': float(pagamento.get('vlPagamentoEsb40h', 0) or 0),
+            'qualidade': float(pagamento.get('vlPagamentoEsb40hQualidade', 0) or 0),
+            'chDiferenciada': float(pagamento.get('vlPagamentoEsbChDiferenciada', 0) or 0),
+            'implantacao': float(pagamento.get('vlPagamentoImplantacaoEsb40h', 0) or 0),
+        }
+    }
+
+    uom = {
+        'credenciadas': pagamento.get('qtUomCredenciada', 0) or 0,
+        'homologadas': pagamento.get('qtUomHomologado', 0) or 0,
+        'pagas': pagamento.get('qtUomPgto', 0) or 0,
+        'valores': {
+            'pagamento': float(pagamento.get('vlPagamentoUom', 0) or 0),
+            'implantacao': float(pagamento.get('vlPagamentoUomImplantacao', 0) or 0),
+        }
+    }
+
+    ceo = {
+        'municipal': float(pagamento.get('vlPagamentoCeoMunicipal', 0) or 0),
+        'estadual': float(pagamento.get('vlPagamentoCeoEstadual', 0) or 0),
+    }
+
+    lrpd = {
+        'municipal': float(pagamento.get('vlPagamentoLrpdMunicipal', 0) or 0),
+        'estadual': float(pagamento.get('vlPagamentoLrpdEstadual', 0) or 0),
+    }
+
+    vl_total = (
+        esb['valores']['pagamento'] +
+        esb['valores']['qualidade'] +
+        esb['valores']['chDiferenciada'] +
+        esb['valores']['implantacao'] +
+        uom['valores']['pagamento'] +
+        uom['valores']['implantacao'] +
+        ceo['municipal'] +
+        ceo['estadual'] +
+        lrpd['municipal'] +
+        lrpd['estadual']
+    )
+
+    qt_total_equipes = (
+        esb['modalidade40h']['credenciadas'] +
+        esb['chDiferenciada']['credenciadas'] +
+        esb['quilombolasAssentamentos']['modalidadeI'] +
+        esb['quilombolasAssentamentos']['modalidadeII'] +
+        uom['credenciadas']
+    )
+
+    return {
+        'esb': esb,
+        'uom': uom,
+        'ceo': ceo,
+        'lrpd': lrpd,
+        'totais': {
+            'vlTotal': vl_total,
+            'qtTotalEquipes': qt_total_equipes
+        }
+    }
+
+
+def _gerar_html_saude_bucal_detalhado(dados: Dict[str, Any]) -> str:
+    """Gera HTML para seção de Saúde Bucal detalhada."""
+    if not dados:
+        return '<p>Sem dados de Saúde Bucal disponíveis.</p>'
+
+    esb = dados.get('esb', {})
+    uom = dados.get('uom', {})
+    ceo = dados.get('ceo', {})
+    lrpd = dados.get('lrpd', {})
+    totais = dados.get('totais', {})
+
+    html = f'''
+    <div class="detail-section">
+        <h3 style="color: #0ea5e9; margin-top: 0;">ESB - Equipes de Saúde Bucal</h3>
+
+        <div class="subsection-title">Modalidade 40h</div>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <span class="detail-label">Credenciadas</span>
+                <span class="detail-value">{esb.get('modalidade40h', {}).get('credenciadas', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Homologadas</span>
+                <span class="detail-value">{esb.get('modalidade40h', {}).get('homologadas', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Modalidade I</span>
+                <span class="detail-value">{esb.get('modalidade40h', {}).get('modalidadeI', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Modalidade II</span>
+                <span class="detail-value">{esb.get('modalidade40h', {}).get('modalidadeII', 0)}</span>
+            </div>
+        </div>
+
+        <div class="subsection-title">Carga Horária Diferenciada</div>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <span class="detail-label">Credenciadas</span>
+                <span class="detail-value">{esb.get('chDiferenciada', {}).get('credenciadas', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Homologadas</span>
+                <span class="detail-value">{esb.get('chDiferenciada', {}).get('homologadas', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">20 horas</span>
+                <span class="detail-value">{esb.get('chDiferenciada', {}).get('modalidade20h', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">30 horas</span>
+                <span class="detail-value">{esb.get('chDiferenciada', {}).get('modalidade30h', 0)}</span>
+            </div>
+        </div>
+
+        <div class="subsection-title">Valores Financeiros ESB</div>
+        <table class="valores-table">
+            <thead>
+                <tr>
+                    <th>Componente</th>
+                    <th style="text-align: right;">Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Pagamento ESB 40h</td>
+                    <td style="text-align: right;">R$ {_br_number(esb.get('valores', {}).get('pagamento', 0), 2)}</td>
+                </tr>
+                <tr>
+                    <td>Qualidade</td>
+                    <td style="text-align: right;">R$ {_br_number(esb.get('valores', {}).get('qualidade', 0), 2)}</td>
+                </tr>
+                <tr>
+                    <td>CH Diferenciada</td>
+                    <td style="text-align: right;">R$ {_br_number(esb.get('valores', {}).get('chDiferenciada', 0), 2)}</td>
+                </tr>
+                <tr>
+                    <td>Implantação</td>
+                    <td style="text-align: right;">R$ {_br_number(esb.get('valores', {}).get('implantacao', 0), 2)}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    '''
+
+    # UOM
+    if uom.get('credenciadas', 0) > 0:
+        html += f'''
+        <div class="detail-section" style="border-left-color: #8b5cf6;">
+            <h3 style="color: #8b5cf6; margin-top: 0;">UOM - Unidade Odontológica Móvel</h3>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Credenciadas</span>
+                    <span class="detail-value">{uom.get('credenciadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Homologadas</span>
+                    <span class="detail-value">{uom.get('homologadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Pagas</span>
+                    <span class="detail-value">{uom.get('pagas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Valor Pagamento</span>
+                    <span class="detail-value">R$ {_br_number(uom.get('valores', {}).get('pagamento', 0), 2)}</span>
+                </div>
+            </div>
+        </div>
+        '''
+
+    # CEO
+    if ceo.get('municipal', 0) > 0 or ceo.get('estadual', 0) > 0:
+        html += f'''
+        <div class="detail-section" style="border-left-color: #3b82f6;">
+            <h3 style="color: #3b82f6; margin-top: 0;">CEO - Centro de Especialidades Odontológicas</h3>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">CEO Municipal</span>
+                    <span class="detail-value">R$ {_br_number(ceo.get('municipal', 0), 2)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">CEO Estadual</span>
+                    <span class="detail-value">R$ {_br_number(ceo.get('estadual', 0), 2)}</span>
+                </div>
+            </div>
+        </div>
+        '''
+
+    # LRPD
+    if lrpd.get('municipal', 0) > 0 or lrpd.get('estadual', 0) > 0:
+        html += f'''
+        <div class="detail-section" style="border-left-color: #10b981;">
+            <h3 style="color: #10b981; margin-top: 0;">LRPD - Laboratório Regional de Prótese Dentária</h3>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">LRPD Municipal</span>
+                    <span class="detail-value">R$ {_br_number(lrpd.get('municipal', 0), 2)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">LRPD Estadual</span>
+                    <span class="detail-value">R$ {_br_number(lrpd.get('estadual', 0), 2)}</span>
+                </div>
+            </div>
+        </div>
+        '''
+
+    # Totais
+    html += f'''
+    <div class="highlight-box">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">Total de Equipes</p>
+                <div class="value" style="font-size: 32px; color: #0ea5e9;">{totais.get('qtTotalEquipes', 0)}</div>
+            </div>
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">Valor Total Saúde Bucal</p>
+                <div class="value" style="font-size: 28px;">R$ {_br_number(totais.get('vlTotal', 0), 2)}</div>
+            </div>
+        </div>
+    </div>
+    '''
+
+    return html
+
+
+def _processar_emulti_detalhado(pagamentos: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Processa dados detalhados de eMulti a partir dos pagamentos."""
+    if not pagamentos or len(pagamentos) == 0:
+        return None
+
+    pagamento = pagamentos[0]  # Pegar primeiro pagamento
+
+    emulti = {
+        'equipes': {
+            'credenciadas': pagamento.get('qtEmultiCredenciadas', 0) or 0,
+            'homologadas': pagamento.get('qtEmultiHomologado', 0) or 0,
+            'pagas': pagamento.get('qtEmultiPagas', 0) or 0,
+        },
+        'tipos': {
+            'ampliada': pagamento.get('qtEmultiPagamentoAmpliada', 0) or 0,
+            'intermunicipal': pagamento.get('qtEmultiPagamentoIntermunicipal', 0) or 0,
+            'complementar': pagamento.get('qtEmultiPagamentoComplementar', 0) or 0,
+            'estrategica': pagamento.get('qtEmultiPagamentoEstrategica', 0) or 0,
+        },
+        'atend_remoto': {
+            'equipes': pagamento.get('qtEmultiPagasAtendRemoto', 0) or 0,
+            'valor': float(pagamento.get('vlPagamentoEmultiAtendimentoRemoto', 0) or 0),
+        },
+        'valores': {
+            'custeio': float(pagamento.get('vlPagamentoEmultiCusteio', 0) or 0),
+            'qualidade': float(pagamento.get('vlPagamentoEmultiQualidade', 0) or 0),
+            'atend_remoto': float(pagamento.get('vlPagamentoEmultiAtendimentoRemoto', 0) or 0),
+            'implantacao': float(pagamento.get('vlPagamentoEmultiImplantacao', 0) or 0),
+            'total': float(pagamento.get('vlTotalEmulti', 0) or 0),
+        },
+        'classificacao_qualidade': pagamento.get('dsClassificacaoQualidadeEmulti', 'Não informado'),
+    }
+
+    return {
+        'emulti': emulti,
+        'totais': {
+            'vlTotal': emulti['valores']['total'],
+            'qtTotalEquipes': emulti['equipes']['credenciadas']
+        }
+    }
+
+
+def _gerar_html_emulti_detalhado(dados: Dict[str, Any]) -> str:
+    """Gera HTML para seção de eMulti detalhada."""
+    if not dados:
+        return '<p>Sem dados de Equipes Multiprofissionais disponíveis.</p>'
+
+    emulti = dados.get('emulti', {})
+    totais = dados.get('totais', {})
+
+    html = f'''
+    <div class="detail-section">
+        <h3 style="color: #22c55e; margin-top: 0;">eMulti - Equipes Multiprofissionais</h3>
+
+        <div class="subsection-title">Equipes</div>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <span class="detail-label">Credenciadas</span>
+                <span class="detail-value">{emulti.get('equipes', {}).get('credenciadas', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Homologadas</span>
+                <span class="detail-value">{emulti.get('equipes', {}).get('homologadas', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Pagas</span>
+                <span class="detail-value">{emulti.get('equipes', {}).get('pagas', 0)}</span>
+            </div>
+        </div>
+
+        <div class="subsection-title">Tipos de Equipes eMulti</div>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <span class="detail-label">Ampliada</span>
+                <span class="detail-value">{emulti.get('tipos', {}).get('ampliada', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Intermunicipal</span>
+                <span class="detail-value">{emulti.get('tipos', {}).get('intermunicipal', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Complementar</span>
+                <span class="detail-value">{emulti.get('tipos', {}).get('complementar', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Estratégica</span>
+                <span class="detail-value">{emulti.get('tipos', {}).get('estrategica', 0)}</span>
+            </div>
+        </div>
+
+        <div class="subsection-title">Atendimento Remoto</div>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <span class="detail-label">Equipes com Atendimento Remoto</span>
+                <span class="detail-value">{emulti.get('atend_remoto', {}).get('equipes', 0)}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Valor Atendimento Remoto</span>
+                <span class="detail-value">R$ {_br_number(emulti.get('atend_remoto', {}).get('valor', 0), 2)}</span>
+            </div>
+        </div>
+
+        <div class="subsection-title">Classificação</div>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <span class="detail-label">Classificação de Qualidade</span>
+                <span class="detail-value">{html.escape(str(emulti.get('classificacao_qualidade', 'N/A')))}</span>
+            </div>
+        </div>
+
+        <div class="subsection-title">Valores Financeiros eMulti</div>
+        <table class="valores-table">
+            <thead>
+                <tr>
+                    <th>Componente</th>
+                    <th style="text-align: right;">Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Custeio</td>
+                    <td style="text-align: right;">R$ {_br_number(emulti.get('valores', {}).get('custeio', 0), 2)}</td>
+                </tr>
+                <tr>
+                    <td>Qualidade</td>
+                    <td style="text-align: right;">R$ {_br_number(emulti.get('valores', {}).get('qualidade', 0), 2)}</td>
+                </tr>
+                <tr>
+                    <td>Atendimento Remoto</td>
+                    <td style="text-align: right;">R$ {_br_number(emulti.get('valores', {}).get('atend_remoto', 0), 2)}</td>
+                </tr>
+                <tr>
+                    <td>Implantação</td>
+                    <td style="text-align: right;">R$ {_br_number(emulti.get('valores', {}).get('implantacao', 0), 2)}</td>
+                </tr>
+                <tr style="font-weight: 600; background: #f3f4f6;">
+                    <td>Total eMulti</td>
+                    <td style="text-align: right;">R$ {_br_number(emulti.get('valores', {}).get('total', 0), 2)}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    '''
+
+    # Totais
+    html += f'''
+    <div class="highlight-box" style="background: #ecfdf5; border-color: #22c55e;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">Total de Equipes eMulti</p>
+                <div class="value" style="font-size: 32px; color: #22c55e;">{totais.get('qtTotalEquipes', 0)}</div>
+            </div>
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">Valor Total eMulti</p>
+                <div class="value" style="font-size: 28px; color: #22c55e;">R$ {_br_number(totais.get('vlTotal', 0), 2)}</div>
+            </div>
+        </div>
+    </div>
+    '''
+
+    return html
+
+
+def create_detailed_pdf_report(
+    *,
+    municipio_nome: Optional[str],
+    uf: Optional[str],
+    competencia: str,
+    resumo: ResumoFinanceiro,
+    pagamentos: Optional[List[Dict[str, Any]]] = None,
+) -> bytes:
+    """Cria relatório PDF detalhado com separação por temas e detalhamento de Saúde Bucal."""
+
+    templates_root = Path(__file__).resolve().parents[2] / "templates"
+
+    # Carregar CSS
+    css_path = templates_root / "css" / "modern-cards.css"
+    css_content = ""
+    if css_path.exists():
+        css_content = css_path.read_text(encoding='utf-8')
+
+    # Carregar imagem do timbrado e converter para base64
+    img_path = templates_root / "images" / "Imagem Timbrado.png"
+    if img_path.exists():
+        with open(img_path, "rb") as img_file:
+            img_data = img_file.read()
+            img_base64 = base64.b64encode(img_data).decode('utf-8')
+            css_content = css_content.replace(
+                "url('../images/Imagem Timbrado.png')",
+                f"url('data:image/png;base64,{img_base64}')"
+            )
+
+    # Carregar template HTML detalhado
+    template_path = templates_root / "relatorio_detalhado.html"
+    if not template_path.exists():
+        raise FileNotFoundError(f"Template HTML detalhado não encontrado: {template_path}")
+
+    html_template = template_path.read_text(encoding='utf-8')
+
+    # Processar dados detalhados de Saúde Bucal
+    saude_bucal_dados = _processar_saude_bucal_detalhado(pagamentos or [])
+    saude_bucal_html = _gerar_html_saude_bucal_detalhado(saude_bucal_dados)
+
+    # Processar dados detalhados de Saúde da Família (eSF/eAP)
+    saude_familia_dados = _processar_saude_familia_detalhado(pagamentos or [])
+    saude_familia_html = _gerar_html_saude_familia_detalhado(saude_familia_dados)
+
+    # Processar dados detalhados de eMulti
+    emulti_dados = _processar_emulti_detalhado(pagamentos or [])
+    emulti_html = _gerar_html_emulti_detalhado(emulti_dados)
+
+    # Substituir variáveis básicas
+    html_content = html_template.replace('{{ municipio_nome }}', municipio_nome or 'Município')
+    html_content = html_content.replace('{{ uf }}', uf or '')
+    html_content = html_content.replace('{{ css_content }}', css_content)
+
+    # Substituir competências
+    if pagamentos and len(pagamentos) > 0:
+        comp_cnes = pagamentos[0].get('nuCompCnes', competencia)
+        parcela_pgto = pagamentos[0].get('nuParcela', competencia)
+    else:
+        comp_cnes = competencia
+        parcela_pgto = competencia
+
+    html_content = html_content.replace('__COMPETENCIA_CNES__', str(comp_cnes))
+    html_content = html_content.replace('__PARCELA_PGTO__', str(parcela_pgto))
+
+    # Substituir conteúdos das seções
+    html_content = html_content.replace('__SAUDE_FAMILIA_CONTENT__', saude_familia_html)
+    html_content = html_content.replace('__SAUDE_BUCAL_CONTENT__', saude_bucal_html)
+    html_content = html_content.replace('__EMULTI_CONTENT__', emulti_html)
+
+    # Substituir valores do resumo financeiro
+    replacements = {
+        '{{ "{:,.0f}".format(resumo.total_recebido).replace(\',\', \'.\') }}': _br_number(resumo.total_recebido, 0),
+        '{{ "{:,.0f}".format(resumo.total_perca_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_perca_mensal, 0),
+        '{{ "{:,.0f}".format(resumo.total_diferenca_anual).replace(\',\', \'.\') }}': _br_number(resumo.total_diferenca_anual, 0),
+        '{{ "%.2f"|format(resumo.percentual_perda_anual) }}': f"{resumo.percentual_perda_anual:.2f}",
+        '{{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perca_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_recebido + resumo.total_perca_mensal, 0),
+    }
+
+    for old_pattern, new_value in replacements.items():
+        html_content = html_content.replace(old_pattern, new_value)
+
+    # Gerar PDF
+    try:
+        base_url = templates_root.as_uri() + '/'
+        html_doc = weasyprint.HTML(string=html_content, base_url=base_url)
+        pdf_bytes = html_doc.write_pdf()
+
+        if not pdf_bytes or len(pdf_bytes) < 5000:
+            raise ValueError("PDF gerado está muito pequeno")
+
+        return pdf_bytes
+    except Exception as e:
+        print(f"❌ Erro ao gerar PDF detalhado: {e}")
         import traceback
         traceback.print_exc()
         raise

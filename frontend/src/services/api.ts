@@ -156,6 +156,18 @@ class ApiClient {
   }
 
   /**
+   * Gera o relatório financeiro DETALHADO em PDF para download
+   */
+  async gerarRelatorioDetalhadoPDF(payload: RelatorioPDFRequest): Promise<Blob> {
+    const response = await this.client.post<Blob>(
+      '/relatorios/pdf-detalhado',
+      payload,
+      { responseType: 'blob' }
+    );
+    return response.data;
+  }
+
+  /**
    * Testa conexão com a API externa do governo
    */
   async testarConexaoAPI(): Promise<{

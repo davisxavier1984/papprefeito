@@ -10,8 +10,10 @@ import type {
   DadosFinanciamento,
   MunicipioEditado,
   DadosProcessados,
-  ResumoFinanceiro
+  ResumoFinanceiro,
+  DetalhamentoPrograma
 } from '../types';
+import { processarProgramas } from '../utils/processarProgramas';
 
 // Estado inicial
 const initialState = {
@@ -31,6 +33,9 @@ const initialState = {
   // Dados processados para tabela
   dadosProcessados: [],
   resumoFinanceiro: null,
+
+  // Dados processados para cards de programas
+  dadosProgramas: [],
 };
 
 /**
@@ -56,6 +61,7 @@ export const useMunicipioStore = create<AppStore>()(
             dadosEditados: null,
             dadosProcessados: [],
             resumoFinanceiro: null,
+            dadosProgramas: [],
             error: null
           }), false, 'setSelectedUF');
         },
@@ -68,6 +74,7 @@ export const useMunicipioStore = create<AppStore>()(
             dadosEditados: null,
             dadosProcessados: [],
             resumoFinanceiro: null,
+            dadosProgramas: [],
             error: null
           }), false, 'setSelectedMunicipio');
         },
@@ -80,6 +87,7 @@ export const useMunicipioStore = create<AppStore>()(
             dadosEditados: null,
             dadosProcessados: [],
             resumoFinanceiro: null,
+            dadosProgramas: [],
             error: null
           }), false, 'setSelectedCompetencia');
         },
@@ -94,6 +102,7 @@ export const useMunicipioStore = create<AppStore>()(
           // Se temos dados, processar automaticamente
           if (dados) {
             get().processarDados();
+            get().processarProgramas();
           }
         },
 
@@ -131,6 +140,10 @@ export const useMunicipioStore = create<AppStore>()(
 
         updateResumoFinanceiro: (resumo: ResumoFinanceiro) => {
           set({ resumoFinanceiro: resumo }, false, 'updateResumoFinanceiro');
+        },
+
+        updateDadosProgramas: (programas: DetalhamentoPrograma[]) => {
+          set({ dadosProgramas: programas }, false, 'updateDadosProgramas');
         },
 
         // ================================
@@ -193,6 +206,23 @@ export const useMunicipioStore = create<AppStore>()(
           };
 
           set({ resumoFinanceiro: resumo }, false, 'calcularResumoFinanceiro');
+        },
+
+        processarProgramas: () => {
+          const { dadosFinanciamento } = get();
+
+          if (!dadosFinanciamento?.resumosPlanosOrcamentarios) {
+            set({ dadosProgramas: [] }, false, 'processarProgramas');
+            return;
+          }
+
+          const pagamento = dadosFinanciamento.pagamentos?.[0];
+          const programas = processarProgramas(
+            dadosFinanciamento.resumosPlanosOrcamentarios,
+            pagamento
+          );
+
+          set({ dadosProgramas: programas }, false, 'processarProgramas');
         },
 
       }),

@@ -1,22 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)",
-      "Bash(dir:*)",
-      "Bash(pip install:*)",
-      "mcp__context7__resolve-library-id",
-      "Bash(chmod:*)",
-      "WebFetch(domain:localhost)",
-      "Bash(npm run build:*)",
-      "Bash(curl:*)",
-      "Bash(source:*)",
-      "Read(//tmp/**)",
-      "Bash(python3:*)",
-      "Bash(find:*)",
-      "Bash(cat:*)",
-      "Bash(git log:*)",
-      "Bash(git commit:*)",
-      "Bash(git add:*)"
+      "Bash(python -c \"\nfrom app.services.relatorio_pdf import create_detailed_pdf_report\nfrom app.models.schemas import ResumoFinanceiro\nimport json\n\n# Carregar dados reais do cache\nwith open(''data_cache_papprefeito.json'', ''r'') as f:\n    data = json.load(f)\n\n# Criar resumo\nresumo = ResumoFinanceiro(\n    total_perca_mensal=10000.0,\n    total_diferenca_anual=120000.0,\n    percentual_perda_anual=5.5,\n    total_recebido=445127.4\n)\n\n# Tentar gerar PDF com dados reais\ntry:\n    pdf_bytes = create_detailed_pdf_report(\n        municipio_nome=''Alexandria'',\n        uf=''RN'',\n        competencia=''202509'',\n        resumo=resumo,\n        pagamentos=data.get(''pagamentos'', [])\n    )\n    print(f''✓ PDF detalhado gerado com sucesso!'')\n    print(f''  Tamanho: {len(pdf_bytes):,} bytes'')\n    print(f''  Dados de pagamento: {len(data.get(\"\"pagamentos\"\", []))} registros'')\n    \n    # Salvar para inspeção\n    with open(''/tmp/relatorio_detalhado_teste.pdf'', ''wb'') as f:\n        f.write(pdf_bytes)\n    print(f''  ✓ PDF salvo em /tmp/relatorio_detalhado_teste.pdf'')\n    \nexcept Exception as e:\n    print(f''✗ Erro ao gerar PDF: {type(e).__name__}: {e}'')\n    import traceback\n    traceback.print_exc()\n\")"
     ],
     "deny": [],
     "ask": []

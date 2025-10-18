@@ -116,6 +116,118 @@ class ResumoFinanceiro(BaseModel):
     total_recebido: float
 
 
+class DetalhamentoPrograma(BaseModel):
+    """Modelo para detalhamento de um programa/plano orçamentário"""
+    nome: str = Field(..., description="Nome do programa")
+    nome_curto: str = Field(..., description="Nome abreviado do programa")
+    valor_integral: float = Field(..., description="Valor integral do programa")
+    valor_ajuste: float = Field(default=0.0, description="Valor de ajuste")
+    valor_desconto: float = Field(default=0.0, description="Valor de desconto (negativo)")
+    valor_efetivo: float = Field(..., description="Valor efetivamente recebido")
+    percentual_efetivacao: float = Field(..., description="Percentual do valor integral que foi efetivado")
+    tem_desconto: bool = Field(default=False, description="Indica se há desconto aplicado")
+    ativo: bool = Field(default=True, description="Indica se o programa está ativo (valor > 0)")
+    icone: str = Field(default="⚙️", description="Ícone do programa")
+    cor_tema: str = Field(default="success", description="Cor temática: success, warning, danger, muted")
+
+
+class ESBModalidade40h(BaseModel):
+    """Detalhamento de ESB Modalidade 40h"""
+    credenciadas: int = Field(default=0)
+    homologadas: int = Field(default=0)
+    modalidade_i: int = Field(default=0, alias="modalidadeI")
+    modalidade_ii: int = Field(default=0, alias="modalidadeII")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ESBCHDiferenciada(BaseModel):
+    """Detalhamento de ESB Carga Horária Diferenciada"""
+    credenciadas: int = Field(default=0)
+    homologadas: int = Field(default=0)
+    modalidade_20h: int = Field(default=0, alias="modalidade20h")
+    modalidade_30h: int = Field(default=0, alias="modalidade30h")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ESBQuilombolasAssentamentos(BaseModel):
+    """Equipes ESB em Quilombolas e Assentamentos"""
+    modalidade_i: int = Field(default=0, alias="modalidadeI")
+    modalidade_ii: int = Field(default=0, alias="modalidadeII")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ESBValores(BaseModel):
+    """Valores financeiros das ESB"""
+    pagamento: float = Field(default=0.0)
+    qualidade: float = Field(default=0.0)
+    ch_diferenciada: float = Field(default=0.0, alias="chDiferenciada")
+    implantacao: float = Field(default=0.0)
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ESBDetalhamento(BaseModel):
+    """Detalhamento completo de ESB"""
+    modalidade40h: ESBModalidade40h = Field(default_factory=ESBModalidade40h)
+    ch_diferenciada: ESBCHDiferenciada = Field(default_factory=ESBCHDiferenciada, alias="chDiferenciada")
+    quilombolas_assentamentos: ESBQuilombolasAssentamentos = Field(
+        default_factory=ESBQuilombolasAssentamentos,
+        alias="quilombolasAssentamentos"
+    )
+    implantacao: int = Field(default=0)
+    valores: ESBValores = Field(default_factory=ESBValores)
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class UOMValores(BaseModel):
+    """Valores financeiros de UOM"""
+    pagamento: float = Field(default=0.0)
+    implantacao: float = Field(default=0.0)
+
+
+class UOMDetalhamento(BaseModel):
+    """Detalhamento de Unidade Odontológica Móvel"""
+    credenciadas: int = Field(default=0)
+    homologadas: int = Field(default=0)
+    pagas: int = Field(default=0)
+    valores: UOMValores = Field(default_factory=UOMValores)
+
+
+class CEODetalhamento(BaseModel):
+    """Detalhamento de CEO (Centro Especialidades Odontológicas)"""
+    municipal: float = Field(default=0.0)
+    estadual: float = Field(default=0.0)
+
+
+class LRPDDetalhamento(BaseModel):
+    """Detalhamento de LRPD (Laboratório Regional Prótese Dentária)"""
+    municipal: float = Field(default=0.0)
+    estadual: float = Field(default=0.0)
+
+
+class TotaisSaudeBucal(BaseModel):
+    """Totais consolidados de Saúde Bucal"""
+    vl_total: float = Field(default=0.0, alias="vlTotal")
+    qt_total_equipes: int = Field(default=0, alias="qtTotalEquipes")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class DetalhamentoSaudeBucal(BaseModel):
+    """Detalhamento expandido de Saúde Bucal"""
+    esb: ESBDetalhamento = Field(default_factory=ESBDetalhamento)
+    uom: UOMDetalhamento = Field(default_factory=UOMDetalhamento)
+    ceo: CEODetalhamento = Field(default_factory=CEODetalhamento)
+    lrpd: LRPDDetalhamento = Field(default_factory=LRPDDetalhamento)
+    totais: TotaisSaudeBucal = Field(default_factory=TotaisSaudeBucal)
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ResumoDetalhado(ResumoFinanceiro):
+    """Modelo para resumo financeiro com detalhamento de programas"""
+    programas: List[DetalhamentoPrograma] = Field(default_factory=list, description="Detalhamento por programa")
+    total_valor_integral: float = Field(default=0.0, description="Soma de todos os valores integrais")
+    total_desconto: float = Field(default=0.0, description="Soma de todos os descontos")
+
+
 class RelatorioPDFRequest(BaseModel):
     """Payload para geração do relatório financeiro em PDF"""
     codigo_ibge: str = Field(..., description="Código IBGE do município")
