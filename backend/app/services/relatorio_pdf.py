@@ -1092,6 +1092,217 @@ def _gerar_html_saude_familia_detalhado(dados: Optional[Dict[str, Any]]) -> str:
     return resultado_html
 
 
+def _gerar_html_esf_detalhado(dados: Optional[Dict[str, Any]]) -> str:
+    """Gera apenas a seção eSF em HTML para página própria."""
+    if not dados:
+        return '''
+        <div class="detail-section" style="background: #fef3c7; border-left-color: #f59e0b;">
+            <p style="color: #92400e; margin: 0;">
+                ⚠️ Nenhum dado de eSF disponível para esta competência.
+            </p>
+        </div>
+        '''
+
+    esf = dados.get('esf', {})
+
+    # Escapar classificações
+    equidade = html.escape(str(esf.get('classificacoes', {}).get('equidade', 'N/A')))
+    vinculo = html.escape(str(esf.get('classificacoes', {}).get('vinculo', 'N/A')))
+    qualidade = html.escape(str(esf.get('classificacoes', {}).get('qualidade', 'N/A')))
+
+    return f'''
+    <div class="mixed-grid-section">
+        <div class="mixed-grid-header" style="background: linear-gradient(135deg, #f59e0b, #fb923c);">
+            <span>eSF - Equipes de Saúde da Família</span>
+            <span>{esf.get('equipes', {}).get('total_pgto', 0)} equipes</span>
+        </div>
+        <div class="mixed-grid-body">
+            <div class="subsection-title">Equipes e Pagamento</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Credenciadas</span>
+                    <span class="detail-value">{esf.get('equipes', {}).get('credenciadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Homologadas</span>
+                    <span class="detail-value">{esf.get('equipes', {}).get('homologadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Total com Pagamento</span>
+                    <span class="detail-value">{esf.get('equipes', {}).get('total_pgto', 0)}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Pagamento por Percentual</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">100% do Valor</span>
+                    <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc100', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">75% do Valor</span>
+                    <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc75', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">50% do Valor</span>
+                    <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc50', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">25% do Valor</span>
+                    <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc25', 0)}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Classificações</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Índice de Equidade</span>
+                    <span class="detail-value">{equidade}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Classificação Vínculo</span>
+                    <span class="detail-value">{vinculo}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Classificação Qualidade</span>
+                    <span class="detail-value">{qualidade}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Valores Financeiros</div>
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>Valor Fixo</td>
+                        <td>Base</td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('fixo', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Valor Vínculo</td>
+                        <td>Desempenho</td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('vinculo', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Valor Qualidade</td>
+                        <td>Desempenho</td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('qualidade', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Implantação</td>
+                        <td>Incentivo</td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('implantacao', 0), 2)}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Total eSF</td>
+                        <td></td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('total', 0), 2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
+
+
+def _gerar_html_eap_detalhado(dados: Optional[Dict[str, Any]]) -> str:
+    """Gera apenas a seção eAP em HTML para página própria."""
+    if not dados:
+        return '''
+        <div class="detail-section" style="background: #ffedd5; border-left-color: #fb923c;">
+            <p style="color: #7c2d12; margin: 0;">
+                ⚠️ Nenhum dado de eAP disponível para esta competência.
+            </p>
+        </div>
+        '''
+
+    eap = dados.get('eap', {})
+    if (eap.get('equipes', {}) or {}).get('credenciadas', 0) <= 0 and (eap.get('equipes', {}) or {}).get('total_pgto', 0) <= 0:
+        return '''
+        <div class="detail-section" style="background: #ffedd5; border-left-color: #fb923c;">
+            <p style="color: #7c2d12; margin: 0;">
+                ⚠️ Nenhum dado de eAP disponível para esta competência.
+            </p>
+        </div>
+        '''
+
+    return f'''
+    <div class="mixed-grid-section">
+        <div class="mixed-grid-header" style="background: linear-gradient(135deg, #fb923c, #f97316);">
+            <span>eAP - Equipes de Atenção Primária</span>
+            <span>{eap.get('equipes', {}).get('total_pgto', 0)} equipes</span>
+        </div>
+        <div class="mixed-grid-body">
+            <div class="subsection-title">Equipes</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Credenciadas</span>
+                    <span class="detail-value">{eap.get('equipes', {}).get('credenciadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Homologadas</span>
+                    <span class="detail-value">{eap.get('equipes', {}).get('homologadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Total com Pagamento</span>
+                    <span class="detail-value">{eap.get('equipes', {}).get('total_pgto', 0)}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Carga Horária</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">20h Completas</span>
+                    <span class="detail-value">{eap.get('carga_horaria', {}).get('ch20_completas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">20h Incompletas</span>
+                    <span class="detail-value">{eap.get('carga_horaria', {}).get('ch20_incompletas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">30h Completas</span>
+                    <span class="detail-value">{eap.get('carga_horaria', {}).get('ch30_completas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">30h Incompletas</span>
+                    <span class="detail-value">{eap.get('carga_horaria', {}).get('ch30_incompletas', 0)}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Valores Financeiros</div>
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>Valor Fixo</td>
+                        <td>Base</td>
+                        <td>R$ {_br_number(eap.get('valores', {}).get('fixo', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Valor Vínculo</td>
+                        <td>Desempenho</td>
+                        <td>R$ {_br_number(eap.get('valores', {}).get('vinculo', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Valor Qualidade</td>
+                        <td>Desempenho</td>
+                        <td>R$ {_br_number(eap.get('valores', {}).get('qualidade', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Implantação</td>
+                        <td>Incentivo</td>
+                        <td>R$ {_br_number(eap.get('valores', {}).get('implantacao', 0), 2)}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Total eAP</td>
+                        <td></td>
+                        <td>R$ {_br_number(eap.get('valores', {}).get('total', 0), 2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
+
+
 def _processar_saude_bucal_detalhado(pagamentos: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Processa dados detalhados de Saúde Bucal a partir dos pagamentos."""
     if not pagamentos or len(pagamentos) == 0:
@@ -1326,57 +1537,7 @@ def _gerar_html_saude_bucal_detalhado(dados: Optional[Dict[str, Any]]) -> str:
         </div>
         '''
 
-    # CEO
-    if ceo.get('municipal', 0) > 0 or ceo.get('estadual', 0) > 0:
-        resultado_html += f'''
-        <div class="mixed-grid-section">
-            <div class="mixed-grid-header" style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">
-                <span>CEO - Centro de Especialidades Odontológicas</span>
-            </div>
-            <div class="mixed-grid-body">
-                <table class="compact-table-3col">
-                    <tbody>
-                        <tr>
-                            <td>CEO Municipal</td>
-                            <td>Gestão</td>
-                            <td>R$ {_br_number(ceo.get('municipal', 0), 2)}</td>
-                        </tr>
-                        <tr>
-                            <td>CEO Estadual</td>
-                            <td>Gestão</td>
-                            <td>R$ {_br_number(ceo.get('estadual', 0), 2)}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        '''
-
-    # LRPD
-    if lrpd.get('municipal', 0) > 0 or lrpd.get('estadual', 0) > 0:
-        resultado_html += f'''
-        <div class="mixed-grid-section">
-            <div class="mixed-grid-header" style="background: linear-gradient(135deg, #10b981, #34d399);">
-                <span>LRPD - Laboratório Regional de Prótese Dentária</span>
-            </div>
-            <div class="mixed-grid-body">
-                <table class="compact-table-3col">
-                    <tbody>
-                        <tr>
-                            <td>LRPD Municipal</td>
-                            <td>Gestão</td>
-                            <td>R$ {_br_number(lrpd.get('municipal', 0), 2)}</td>
-                        </tr>
-                        <tr>
-                            <td>LRPD Estadual</td>
-                            <td>Gestão</td>
-                            <td>R$ {_br_number(lrpd.get('estadual', 0), 2)}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        '''
+    # CEO e LRPD movidos para páginas próprias
 
     # Totais
     resultado_html += f'''
@@ -1395,6 +1556,74 @@ def _gerar_html_saude_bucal_detalhado(dados: Optional[Dict[str, Any]]) -> str:
     '''
 
     return resultado_html
+
+
+def _gerar_html_ceo_detalhado(dados: Optional[Dict[str, Any]]) -> str:
+    """Gera HTML da seção CEO em página própria."""
+    if not dados:
+        return '''<div class="detail-section" style="background:#dbeafe;border-left-color:#3b82f6;"><p style="margin:0;color:#1e3a8a;">⚠️ Nenhum dado de CEO disponível.</p></div>'''
+
+    ceo = dados.get('ceo', {})
+    if (ceo.get('municipal', 0) or 0) <= 0 and (ceo.get('estadual', 0) or 0) <= 0:
+        return '''<div class="detail-section" style="background:#dbeafe;border-left-color:#3b82f6;"><p style="margin:0;color:#1e3a8a;">⚠️ Nenhum dado de CEO disponível.</p></div>'''
+
+    return f'''
+    <div class="mixed-grid-section">
+        <div class="mixed-grid-header" style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">
+            <span>CEO - Centro de Especialidades Odontológicas</span>
+        </div>
+        <div class="mixed-grid-body">
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>CEO Municipal</td>
+                        <td>Gestão</td>
+                        <td>R$ {_br_number(ceo.get('municipal', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>CEO Estadual</td>
+                        <td>Gestão</td>
+                        <td>R$ {_br_number(ceo.get('estadual', 0), 2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
+
+
+def _gerar_html_lrpd_detalhado(dados: Optional[Dict[str, Any]]) -> str:
+    """Gera HTML da seção LRPD em página própria."""
+    if not dados:
+        return '''<div class="detail-section" style="background:#ecfdf5;border-left-color:#10b981;"><p style="margin:0;color:#064e3b;">⚠️ Nenhum dado de LRPD disponível.</p></div>'''
+
+    lrpd = dados.get('lrpd', {})
+    if (lrpd.get('municipal', 0) or 0) <= 0 and (lrpd.get('estadual', 0) or 0) <= 0:
+        return '''<div class="detail-section" style="background:#ecfdf5;border-left-color:#10b981;"><p style="margin:0;color:#064e3b;">⚠️ Nenhum dado de LRPD disponível.</p></div>'''
+
+    return f'''
+    <div class="mixed-grid-section">
+        <div class="mixed-grid-header" style="background: linear-gradient(135deg, #10b981, #34d399);">
+            <span>LRPD - Laboratório Regional de Prótese Dentária</span>
+        </div>
+        <div class="mixed-grid-body">
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>LRPD Municipal</td>
+                        <td>Gestão</td>
+                        <td>R$ {_br_number(lrpd.get('municipal', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>LRPD Estadual</td>
+                        <td>Gestão</td>
+                        <td>R$ {_br_number(lrpd.get('estadual', 0), 2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
 
 
 def _processar_emulti_detalhado(pagamentos: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -1578,7 +1807,7 @@ def _gerar_html_emulti_detalhado(dados: Optional[Dict[str, Any]]) -> str:
     </div>
     '''
 
-    return resultado_html
+    return f'<div class="emulti-section">{resultado_html}</div>'
 
 
 def _gerar_paginas_por_card(
@@ -1749,12 +1978,15 @@ def create_detailed_pdf_report(
     # Processar dados detalhados de Saúde Bucal
     saude_bucal_dados = _processar_saude_bucal_detalhado(pagamentos_validos)
     saude_bucal_html = _gerar_html_saude_bucal_detalhado(saude_bucal_dados)
+    ceo_html = _gerar_html_ceo_detalhado(saude_bucal_dados)
+    lrpd_html = _gerar_html_lrpd_detalhado(saude_bucal_dados)
     if not saude_bucal_dados:
         logger.debug("Nenhum dado de Saúde Bucal processado")
 
     # Processar dados detalhados de Saúde da Família (eSF/eAP)
     saude_familia_dados = _processar_saude_familia_detalhado(pagamentos_validos)
-    saude_familia_html = _gerar_html_saude_familia_detalhado(saude_familia_dados)
+    esf_html = _gerar_html_esf_detalhado(saude_familia_dados)
+    eap_html = _gerar_html_eap_detalhado(saude_familia_dados)
     if not saude_familia_dados:
         logger.debug("Nenhum dado de Saúde da Família processado")
 
@@ -1782,8 +2014,11 @@ def create_detailed_pdf_report(
     html_content = html_content.replace('__PARCELA_PGTO__', str(parcela_pgto))
 
     # Substituir conteúdo das seções temáticas
-    html_content = html_content.replace('__SAUDE_FAMILIA_CONTENT__', saude_familia_html or '<p>Dados não disponíveis</p>')
+    html_content = html_content.replace('__ESF_CONTENT__', esf_html or '<p>Dados não disponíveis</p>')
+    html_content = html_content.replace('__EAP_CONTENT__', eap_html or '<p>Dados não disponíveis</p>')
     html_content = html_content.replace('__SAUDE_BUCAL_CONTENT__', saude_bucal_html or '<p>Dados não disponíveis</p>')
+    html_content = html_content.replace('__CEO_CONTENT__', ceo_html or '<p>Dados não disponíveis</p>')
+    html_content = html_content.replace('__LRPD_CONTENT__', lrpd_html or '<p>Dados não disponíveis</p>')
     html_content = html_content.replace('__EMULTI_CONTENT__', emulti_html or '<p>Dados não disponíveis</p>')
 
     # Substituir valores do resumo financeiro

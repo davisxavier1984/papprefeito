@@ -18,7 +18,8 @@
 
         .detail-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            /* Aumenta para 3 colunas para condensar informações */
+            grid-template-columns: repeat(3, 1fr);
             gap: 12px;
             margin-top: 12px;
         }
@@ -112,9 +113,9 @@
         }
 
         /* Ajustar padding da .page para criar margens internas */
-        /* 5cm topo, 2cm laterais, 3cm inferior */
+        /* 5,5cm topo (+1cm), 1,8cm laterais, 2,4cm inferior */
         body > .page {
-            padding: 50mm 20mm 30mm 20mm !important;
+            padding: 55mm 18mm 24mm 18mm !important;
             background-position: top center !important;
             background-size: 100% auto !important;
             box-sizing: border-box;
@@ -138,7 +139,7 @@
         }
 
         /* Força quebra antes das páginas 2+ */
-        .page-2, .page-3, .page-4, .page-5 {
+        .page-2, .page-3, .page-4, .page-5, .page-6, .page-7, .page-8 {
             page-break-before: always;
             break-before: page;
         }
@@ -153,58 +154,54 @@
             break-inside: avoid;
         }
 
-        /* Ajustar tamanhos de fonte para caber melhor */
-        .detail-grid {
-            gap: 8px;
+        /* Compactação e padronização tipográfica (legível ~10pt) */
+        .detail-grid { gap: 8px; }
+
+        /* Base textual das seções detalhadas */
+        .mixed-grid-section,
+        .mixed-grid-body,
+        .definition-list,
+        .definition-item,
+        .detail-item,
+        .compact-table-3col,
+        .valores-table {
+            font-size: 10pt;
         }
 
-        .detail-item {
-            padding: 6px 8px;
-            font-size: 11px;
-        }
-
-        .detail-label {
-            font-size: 9px;
-        }
-
-        .detail-value {
-            font-size: 12px;
-        }
+        .detail-item { padding: 6px 8px; }
+        .detail-label { font-size: 9pt; }
+        .detail-value { font-size: 10pt; }
 
         .subsection-title {
-            font-size: 12px;
+            font-size: 11pt;
             margin-top: 10px;
             margin-bottom: 5px;
         }
 
-        .compact-table-3col {
-            font-size: 9px;
-        }
-
-        .compact-table-3col td {
-            padding: 4px 6px;
-        }
-
-        .valores-table {
-            font-size: 9px;
-        }
+        .compact-table-3col td { padding: 4px 6px; }
 
         .valores-table td,
-        .valores-table th {
-            padding: 5px 6px;
-        }
+        .valores-table th { padding: 5px 6px; }
 
         .theme-header {
             padding: 12px;
             margin-bottom: 12px;
         }
 
-        .theme-header h2 {
-            font-size: 18px;
-        }
+        .theme-header h2 { font-size: 18px; }
+        .theme-header p { font-size: 11pt; }
 
-        .theme-header p {
-            font-size: 11px;
+        /* Overrides específicos para cartões de programa no PDF detalhado */
+        .program-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        .program-card { padding: 12px; }
+
+        /* Permitir quebra dentro do bloco do eMulti para não estourar a página */
+        .emulti-section .mixed-grid-section {
+            page-break-inside: auto;
+            break-inside: auto;
         }
     </style>
 </head>
@@ -241,28 +238,58 @@
         </div>
     </div>
 
-    <!-- PÁGINA 2: Saúde da Família e eAP -->
+    <!-- PÁGINA 2: Saúde da Família (eSF) -->
     <div class="page page-2" style="page-break-before: always;">
         <div class="theme-header" style="background: linear-gradient(135deg, #f59e0b, #fb923c);">
-            <h2>👥 Saúde da Família e eAP</h2>
-            <p style="margin: 5px 0 0 0; font-size: 13px;">Equipes de Saúde da Família e Atenção Primária</p>
+            <h2>👥 Saúde da Família (eSF)</h2>
+            <p style="margin: 5px 0 0 0; font-size: 13px;">Equipes de Saúde da Família</p>
         </div>
 
-        __SAUDE_FAMILIA_CONTENT__
+        __ESF_CONTENT__
     </div>
 
-    <!-- PÁGINA 3: Saúde Bucal Detalhada -->
+    <!-- PÁGINA 3: eAP em página própria -->
     <div class="page page-3" style="page-break-before: always;">
+        <div class="theme-header" style="background: linear-gradient(135deg, #fb923c, #f97316);">
+            <h2>🏥 eAP - Equipes de Atenção Primária</h2>
+            <p style="margin: 5px 0 0 0; font-size: 13px;">Resumo de equipes, carga horária e valores</p>
+        </div>
+
+        __EAP_CONTENT__
+    </div>
+
+    <!-- PÁGINA 4: Saúde Bucal (ESB e UOM) -->
+    <div class="page page-4" style="page-break-before: always;">
         <div class="theme-header">
-            <h2>🦷 Saúde Bucal - Detalhamento Completo</h2>
-            <p style="margin: 5px 0 0 0; font-size: 13px;">ESB, UOM, CEO e LRPD</p>
+            <h2>🦷 Saúde Bucal - ESB e UOM</h2>
+            <p style="margin: 5px 0 0 0; font-size: 13px;">Equipes de Saúde Bucal e UOM</p>
         </div>
 
         __SAUDE_BUCAL_CONTENT__
     </div>
 
-    <!-- PÁGINA 4: Equipes Multiprofissionais -->
-    <div class="page page-4" style="page-break-before: always;">
+    <!-- PÁGINA 5: CEO em página própria -->
+    <div class="page page-5" style="page-break-before: always;">
+        <div class="theme-header" style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">
+            <h2>🏥 CEO - Centro de Especialidades Odontológicas</h2>
+            <p style="margin: 5px 0 0 0; font-size: 13px;">Valores Municipal e Estadual</p>
+        </div>
+
+        __CEO_CONTENT__
+    </div>
+
+    <!-- PÁGINA 6: LRPD em página própria -->
+    <div class="page page-6" style="page-break-before: always;">
+        <div class="theme-header" style="background: linear-gradient(135deg, #10b981, #34d399);">
+            <h2>🧪 LRPD - Laboratório Regional de Prótese Dentária</h2>
+            <p style="margin: 5px 0 0 0; font-size: 13px;">Valores Municipal e Estadual</p>
+        </div>
+
+        __LRPD_CONTENT__
+    </div>
+
+    <!-- PÁGINA 7: Equipes Multiprofissionais -->
+    <div class="page page-7" style="page-break-before: always;">
         <div class="theme-header" style="background: linear-gradient(135deg, #22c55e, #16a34a);">
             <h2>🏥 Equipes Multiprofissionais (eMulti)</h2>
             <p style="margin: 5px 0 0 0; font-size: 13px;">Tipos, modalidades e atendimento remoto</p>
@@ -271,8 +298,8 @@
         __EMULTI_CONTENT__
     </div>
 
-    <!-- PÁGINA 5: Resumo Financeiro e Considerações -->
-    <div class="page page-5" style="page-break-before: always;">
+    <!-- PÁGINA 8: Resumo Financeiro e Considerações -->
+    <div class="page page-8" style="page-break-before: always;">
         <div class="theme-header" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
             <h2>💰 Resumo Financeiro Consolidado</h2>
         </div>
