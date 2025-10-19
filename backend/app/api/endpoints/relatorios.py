@@ -71,12 +71,22 @@ async def gerar_relatorio_pdf(request: RelatorioPDFRequest):
 async def gerar_relatorio_detalhado_pdf(request: RelatorioPDFRequest):
     """Gera e retorna o relatório financeiro DETALHADO em PDF para download."""
     try:
+        logger.info(
+            f"Iniciando geração de relatório detalhado - "
+            f"Município: {request.municipio_nome}/{request.uf}, "
+            f"Código IBGE: {request.codigo_ibge}, Competência: {request.competencia}"
+        )
+
         dados = await saude_api_client.consultar_financiamento(
             request.codigo_ibge,
             request.competencia
         )
 
         if not dados or not dados.get('resumosPlanosOrcamentarios'):
+            logger.warning(
+                f"Dados de financiamento não encontrados - "
+                f"Código IBGE: {request.codigo_ibge}, Competência: {request.competencia}"
+            )
             raise HTTPException(
                 status_code=404,
                 detail="Não foi possível localizar dados de financiamento para gerar o relatório"
@@ -84,6 +94,12 @@ async def gerar_relatorio_detalhado_pdf(request: RelatorioPDFRequest):
 
         resumos = dados.get('resumosPlanosOrcamentarios', [])
         pagamentos = dados.get('pagamentos', [])
+
+        if not pagamentos:
+            logger.warning(
+                f"Nenhum dado de pagamento encontrado nos dados da API - "
+                f"Código IBGE: {request.codigo_ibge}, Competência: {request.competencia}"
+            )
 
         editado = municipio_editado_service.get_editado(
             request.codigo_ibge,
@@ -104,6 +120,11 @@ async def gerar_relatorio_detalhado_pdf(request: RelatorioPDFRequest):
 
         file_name = f"relatorio_detalhado_{request.codigo_ibge}_{request.competencia}.pdf"
 
+        logger.info(
+            f"Relatório detalhado gerado com sucesso - "
+            f"Código IBGE: {request.codigo_ibge}, Arquivo: {file_name}"
+        )
+
         return StreamingResponse(
             BytesIO(pdf_bytes),
             media_type="application/pdf",
@@ -114,9 +135,22 @@ async def gerar_relatorio_detalhado_pdf(request: RelatorioPDFRequest):
 
     except HTTPException:
         raise
+    except ValueError as exc:
+        logger.error(
+            f"Erro de validação ao gerar relatório detalhado - "
+            f"Código IBGE: {request.codigo_ibge}: {exc}"
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Erro na validação dos dados: {str(exc)}"
+        )
     except Exception as exc:
-        logger.error(f"Erro ao gerar relatório PDF detalhado: {exc}")
+        logger.error(
+            f"Erro inesperado ao gerar relatório PDF detalhado - "
+            f"Código IBGE: {request.codigo_ibge}, Competência: {request.competencia}: {exc}",
+            exc_info=True
+        )
         raise HTTPException(
             status_code=500,
-            detail="Erro interno ao gerar o relatório PDF detalhado"
+            detail="Erro interno ao gerar o relatório PDF detalhado. Verifique os logs para mais detalhes."
         )

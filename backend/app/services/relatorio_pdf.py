@@ -10,6 +10,7 @@ import weasyprint
 from fpdf import FPDF
 
 from app.models.schemas import ResumoFinanceiro, DetalhamentoPrograma, ResumoDetalhado
+from app.utils.logger import logger
 
 
 def _sanitize_text(value: str) -> str:
@@ -983,7 +984,13 @@ def _processar_saude_familia_detalhado(pagamentos: List[Dict[str, Any]]) -> Opti
     if not pagamentos or len(pagamentos) == 0:
         return None
 
-    pagamento = pagamentos[0]  # Pegar primeiro pagamento
+    try:
+        pagamento = pagamentos[0]  # Pegar primeiro pagamento
+    except (IndexError, TypeError):
+        return None
+
+    if not isinstance(pagamento, dict):
+        return None
 
     esf = {
         'equipes': {
@@ -1045,14 +1052,27 @@ def _processar_saude_familia_detalhado(pagamentos: List[Dict[str, Any]]) -> Opti
     }
 
 
-def _gerar_html_saude_familia_detalhado(dados: Dict[str, Any]) -> str:
+def _gerar_html_saude_familia_detalhado(dados: Optional[Dict[str, Any]]) -> str:
     """Gera HTML para seção de Saúde da Família (eSF e eAP) detalhada."""
     if not dados:
-        return '<p>Sem dados de Saúde da Família disponíveis.</p>'
+        return '''
+        <div class="detail-section" style="background: #fef3c7; border-left-color: #f59e0b;">
+            <p style="color: #92400e; margin: 0;">
+                ⚠️ Nenhum dado de Saúde da Família (eSF/eAP) disponível para esta competência.
+                Isso pode ocorrer se o município não possui equipes cadastradas ou se os dados
+                ainda não foram processados pelo Ministério da Saúde.
+            </p>
+        </div>
+        '''
 
     esf = dados.get('esf', {})
     eap = dados.get('eap', {})
     totais = dados.get('totais', {})
+
+    # Escapar classificações antes de usar nas f-strings
+    equidade = html.escape(str(esf.get('classificacoes', {}).get('equidade', 'N/A')))
+    vinculo = html.escape(str(esf.get('classificacoes', {}).get('vinculo', 'N/A')))
+    qualidade = html.escape(str(esf.get('classificacoes', {}).get('qualidade', 'N/A')))
 
     resultado_html = f'''
     <div class="detail-section">
@@ -1098,15 +1118,15 @@ def _gerar_html_saude_familia_detalhado(dados: Dict[str, Any]) -> str:
         <div class="detail-grid">
             <div class="detail-item">
                 <span class="detail-label">Índice de Equidade</span>
-                <span class="detail-value">{html.escape(str(esf.get('classificacoes', {}).get('equidade', 'N/A')))}</span>
+                <span class="detail-value">{equidade}</span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">Classificação Vínculo</span>
-                <span class="detail-value">{html.escape(str(esf.get('classificacoes', {}).get('vinculo', 'N/A')))}</span>
+                <span class="detail-value">{vinculo}</span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">Classificação Qualidade</span>
-                <span class="detail-value">{html.escape(str(esf.get('classificacoes', {}).get('qualidade', 'N/A')))}</span>
+                <span class="detail-value">{qualidade}</span>
             </div>
         </div>
 
@@ -1244,7 +1264,13 @@ def _processar_saude_bucal_detalhado(pagamentos: List[Dict[str, Any]]) -> Option
     if not pagamentos or len(pagamentos) == 0:
         return None
 
-    pagamento = pagamentos[0]  # Pegar primeiro pagamento
+    try:
+        pagamento = pagamentos[0]  # Pegar primeiro pagamento
+    except (IndexError, TypeError):
+        return None
+
+    if not isinstance(pagamento, dict):
+        return None
 
     esb = {
         'modalidade40h': {
@@ -1325,10 +1351,18 @@ def _processar_saude_bucal_detalhado(pagamentos: List[Dict[str, Any]]) -> Option
     }
 
 
-def _gerar_html_saude_bucal_detalhado(dados: Dict[str, Any]) -> str:
+def _gerar_html_saude_bucal_detalhado(dados: Optional[Dict[str, Any]]) -> str:
     """Gera HTML para seção de Saúde Bucal detalhada."""
     if not dados:
-        return '<p>Sem dados de Saúde Bucal disponíveis.</p>'
+        return '''
+        <div class="detail-section" style="background: #dbeafe; border-left-color: #0ea5e9;">
+            <p style="color: #075985; margin: 0;">
+                ⚠️ Nenhum dado de Saúde Bucal disponível para esta competência.
+                Isso pode ocorrer se o município não possui Equipes de Saúde Bucal (ESB),
+                Unidades Odontológicas Móveis (UOM), CEO ou LRPD cadastrados.
+            </p>
+        </div>
+        '''
 
     esb = dados.get('esb', {})
     uom = dados.get('uom', {})
@@ -1336,7 +1370,7 @@ def _gerar_html_saude_bucal_detalhado(dados: Dict[str, Any]) -> str:
     lrpd = dados.get('lrpd', {})
     totais = dados.get('totais', {})
 
-    html = f'''
+    resultado_html = f'''
     <div class="detail-section">
         <h3 style="color: #0ea5e9; margin-top: 0;">ESB - Equipes de Saúde Bucal</h3>
 
@@ -1412,7 +1446,7 @@ def _gerar_html_saude_bucal_detalhado(dados: Dict[str, Any]) -> str:
 
     # UOM
     if uom.get('credenciadas', 0) > 0:
-        html += f'''
+        resultado_html += f'''
         <div class="detail-section" style="border-left-color: #8b5cf6;">
             <h3 style="color: #8b5cf6; margin-top: 0;">UOM - Unidade Odontológica Móvel</h3>
             <div class="detail-grid">
@@ -1438,7 +1472,7 @@ def _gerar_html_saude_bucal_detalhado(dados: Dict[str, Any]) -> str:
 
     # CEO
     if ceo.get('municipal', 0) > 0 or ceo.get('estadual', 0) > 0:
-        html += f'''
+        resultado_html += f'''
         <div class="detail-section" style="border-left-color: #3b82f6;">
             <h3 style="color: #3b82f6; margin-top: 0;">CEO - Centro de Especialidades Odontológicas</h3>
             <div class="detail-grid">
@@ -1456,7 +1490,7 @@ def _gerar_html_saude_bucal_detalhado(dados: Dict[str, Any]) -> str:
 
     # LRPD
     if lrpd.get('municipal', 0) > 0 or lrpd.get('estadual', 0) > 0:
-        html += f'''
+        resultado_html += f'''
         <div class="detail-section" style="border-left-color: #10b981;">
             <h3 style="color: #10b981; margin-top: 0;">LRPD - Laboratório Regional de Prótese Dentária</h3>
             <div class="detail-grid">
@@ -1473,7 +1507,7 @@ def _gerar_html_saude_bucal_detalhado(dados: Dict[str, Any]) -> str:
         '''
 
     # Totais
-    html += f'''
+    resultado_html += f'''
     <div class="highlight-box">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div>
@@ -1488,7 +1522,7 @@ def _gerar_html_saude_bucal_detalhado(dados: Dict[str, Any]) -> str:
     </div>
     '''
 
-    return html
+    return resultado_html
 
 
 def _processar_emulti_detalhado(pagamentos: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -1496,7 +1530,13 @@ def _processar_emulti_detalhado(pagamentos: List[Dict[str, Any]]) -> Optional[Di
     if not pagamentos or len(pagamentos) == 0:
         return None
 
-    pagamento = pagamentos[0]  # Pegar primeiro pagamento
+    try:
+        pagamento = pagamentos[0]  # Pegar primeiro pagamento
+    except (IndexError, TypeError):
+        return None
+
+    if not isinstance(pagamento, dict):
+        return None
 
     emulti = {
         'equipes': {
@@ -1533,15 +1573,26 @@ def _processar_emulti_detalhado(pagamentos: List[Dict[str, Any]]) -> Optional[Di
     }
 
 
-def _gerar_html_emulti_detalhado(dados: Dict[str, Any]) -> str:
+def _gerar_html_emulti_detalhado(dados: Optional[Dict[str, Any]]) -> str:
     """Gera HTML para seção de eMulti detalhada."""
     if not dados:
-        return '<p>Sem dados de Equipes Multiprofissionais disponíveis.</p>'
+        return '''
+        <div class="detail-section" style="background: #d1fae5; border-left-color: #22c55e;">
+            <p style="color: #065f46; margin: 0;">
+                ⚠️ Nenhum dado de Equipes Multiprofissionais (eMulti) disponível para esta competência.
+                Isso pode ocorrer se o município não possui equipes multiprofissionais cadastradas
+                ou se os dados ainda não foram processados.
+            </p>
+        </div>
+        '''
 
     emulti = dados.get('emulti', {})
     totais = dados.get('totais', {})
 
-    html = f'''
+    # Escapar classificação de qualidade antes de usar na f-string
+    classificacao_qualidade = html.escape(str(emulti.get('classificacao_qualidade', 'N/A')))
+
+    resultado_html = f'''
     <div class="detail-section">
         <h3 style="color: #22c55e; margin-top: 0;">eMulti - Equipes Multiprofissionais</h3>
 
@@ -1597,7 +1648,7 @@ def _gerar_html_emulti_detalhado(dados: Dict[str, Any]) -> str:
         <div class="detail-grid">
             <div class="detail-item">
                 <span class="detail-label">Classificação de Qualidade</span>
-                <span class="detail-value">{html.escape(str(emulti.get('classificacao_qualidade', 'N/A')))}</span>
+                <span class="detail-value">{classificacao_qualidade}</span>
             </div>
         </div>
 
@@ -1636,7 +1687,7 @@ def _gerar_html_emulti_detalhado(dados: Dict[str, Any]) -> str:
     '''
 
     # Totais
-    html += f'''
+    resultado_html += f'''
     <div class="highlight-box" style="background: #ecfdf5; border-color: #22c55e;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div>
@@ -1651,7 +1702,7 @@ def _gerar_html_emulti_detalhado(dados: Dict[str, Any]) -> str:
     </div>
     '''
 
-    return html
+    return resultado_html
 
 
 def create_detailed_pdf_report(
@@ -1690,17 +1741,37 @@ def create_detailed_pdf_report(
 
     html_template = template_path.read_text(encoding='utf-8')
 
+    # Validar e garantir que pagamentos seja uma lista válida
+    pagamentos_validos = pagamentos if pagamentos and isinstance(pagamentos, list) and len(pagamentos) > 0 else []
+
+    if not pagamentos_validos:
+        logger.warning(
+            f"Nenhum dado de pagamento disponível para relatório detalhado - "
+            f"Município: {municipio_nome}/{uf}, Competência: {competencia}"
+        )
+    else:
+        logger.info(
+            f"Gerando relatório detalhado - Município: {municipio_nome}/{uf}, "
+            f"Competência: {competencia}, Pagamentos: {len(pagamentos_validos)}"
+        )
+
     # Processar dados detalhados de Saúde Bucal
-    saude_bucal_dados = _processar_saude_bucal_detalhado(pagamentos or [])
+    saude_bucal_dados = _processar_saude_bucal_detalhado(pagamentos_validos)
     saude_bucal_html = _gerar_html_saude_bucal_detalhado(saude_bucal_dados)
+    if not saude_bucal_dados:
+        logger.debug("Nenhum dado de Saúde Bucal processado")
 
     # Processar dados detalhados de Saúde da Família (eSF/eAP)
-    saude_familia_dados = _processar_saude_familia_detalhado(pagamentos or [])
+    saude_familia_dados = _processar_saude_familia_detalhado(pagamentos_validos)
     saude_familia_html = _gerar_html_saude_familia_detalhado(saude_familia_dados)
+    if not saude_familia_dados:
+        logger.debug("Nenhum dado de Saúde da Família processado")
 
     # Processar dados detalhados de eMulti
-    emulti_dados = _processar_emulti_detalhado(pagamentos or [])
+    emulti_dados = _processar_emulti_detalhado(pagamentos_validos)
     emulti_html = _gerar_html_emulti_detalhado(emulti_dados)
+    if not emulti_dados:
+        logger.debug("Nenhum dado de eMulti processado")
 
     # Substituir variáveis básicas
     html_content = html_template.replace('{{ municipio_nome }}', municipio_nome or 'Município')
@@ -1742,11 +1813,21 @@ def create_detailed_pdf_report(
         pdf_bytes = html_doc.write_pdf()
 
         if not pdf_bytes or len(pdf_bytes) < 5000:
-            raise ValueError("PDF gerado está muito pequeno")
+            logger.error(f"PDF detalhado gerado é muito pequeno: {len(pdf_bytes) if pdf_bytes else 0} bytes")
+            raise ValueError("PDF gerado está muito pequeno, possível erro na geração")
 
+        logger.info(
+            f"PDF detalhado gerado com sucesso - Município: {municipio_nome}/{uf}, "
+            f"Tamanho: {len(pdf_bytes)} bytes"
+        )
         return pdf_bytes
+    except ValueError as e:
+        logger.error(f"Erro de validação ao gerar PDF detalhado: {e}")
+        raise
     except Exception as e:
-        print(f"❌ Erro ao gerar PDF detalhado: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(
+            f"Erro inesperado ao gerar PDF detalhado - "
+            f"Município: {municipio_nome}/{uf}, Competência: {competencia}: {e}",
+            exc_info=True
+        )
         raise
