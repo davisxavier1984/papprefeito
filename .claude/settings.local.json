@@ -1,11 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python test_pdf_detalhado.py)",
-      "Bash(python3 test_pdf_detalhado.py)",
-      "Bash(source venv/bin/activate)",
-      "Bash(source .venv/bin/activate)",
-      "Bash(curl -X POST http://localhost:8000/api/relatorios/pdf-detalhado -H \"Content-Type: application/json\" -d '{\"\"\"\"codigo_ibge\"\"\"\":\"\"\"\"261180\"\"\"\",\"\"\"\"municipio_nome\"\"\"\":\"\"\"\"Ribeirão\"\"\"\",\"\"\"\"uf\"\"\"\":\"\"\"\"PE\"\"\"\",\"\"\"\"competencia\"\"\"\":\"\"\"\"202509\"\"\"\"}' --output /home/davi/python/MG/papprefeito-dev/relatorio_detalhado_API_MARGENS.pdf)"
+      "Bash(pdfinfo /tmp/test_pap_prefeito.pdf)",
+      "Read(//tmp/**)",
+      "Bash(curl -X POST http://localhost:8000/api/relatorios/pdf-detalhado )",
+      "Read(//home/davi/python/MG/**)"
     ],
     "deny": [],
     "ask": []

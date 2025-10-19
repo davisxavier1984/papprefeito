@@ -677,7 +677,7 @@ def create_html_pdf_report(
             )
 
     # Carregar template HTML
-    template_path = templates_root / "relatorio_detalhado.html"
+    template_path = templates_root / "relatorio_base.html"
     html_content = ""
     if template_path.exists():
         html_template = template_path.read_text(encoding='utf-8')
@@ -762,25 +762,6 @@ def create_html_pdf_report(
             '{{ "{:.1f}mi".format(((resumo.total_recebido * 12) + resumo.total_diferenca_anual) / 1000000) }}',
             f"{max_value_millions:.1f}mi"
         )
-
-        # Processar Página 4: Detalhamento por Programa
-        if resumos_planos:
-            # Extrair competências dos dados
-            comp_cnes = resumos_planos[0].get('nuCompCnes', competencia) if resumos_planos else competencia
-            parcela_pgto = resumos_planos[0].get('nuParcela', competencia) if resumos_planos else competencia
-
-            # Substituir competências
-            html_content = html_content.replace('__COMPETENCIA_CNES__', str(comp_cnes))
-            html_content = html_content.replace('__PARCELA_PGTO__', str(parcela_pgto))
-
-            # Gerar HTML dos programas
-            programas_html = _gerar_paginas_por_card(resumos_planos, resumo, competencia)
-            html_content = html_content.replace('__PROGRAMAS_POR_CARD__', programas_html)
-        else:
-            # Se não houver dados de programas, remover placeholders
-            html_content = html_content.replace('__COMPETENCIA_CNES__', competencia)
-            html_content = html_content.replace('__PARCELA_PGTO__', competencia)
-            html_content = html_content.replace('__PROGRAMAS_POR_CARD__', '<p>Dados não disponíveis</p>')
 
     # Gerar PDF com WeasyPrint
     try:
