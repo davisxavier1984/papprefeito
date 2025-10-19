@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c \"\nfrom app.services.relatorio_pdf import create_detailed_pdf_report\nfrom app.models.schemas import ResumoFinanceiro\n\n# Criar um resumo financeiro de teste\nresumo = ResumoFinanceiro(\n    total_perca_mensal=1500.0,\n    total_diferenca_anual=18000.0,\n    percentual_perda_anual=12.5,\n    total_recebido=125000.0,\n)\n\n# Dados de pagamento COMPLETOS simulando resposta real da API\npagamentos_teste = [\n    {\n        ''qtEsfCredenciado'': 10,\n        ''qtEsfHomologado'': 8,\n        ''qtEsfTotalPgto'': 8,\n        ''vlTotalEsf'': 50000.0,\n        ''qtSb40hCredenciada'': 5,\n        ''qtEmultiCredenciadas'': 3,\n        ''vlTotalEmulti'': 15000.0,\n        ''dsFaixaIndiceEquidadeEsfEap'': ''Faixa 1'',\n        ''dsClassificacaoVinculoEsfEap'': ''Boa'',\n        ''dsClassificacaoQualidadeEsfEap'': ''Satisfatória'',\n        ''dsClassificacaoQualidadeEmulti'': ''Adequada'',\n    }\n]\n\nprint(''🔍 Testando geração de PDF detalhado com dados completos...'')\ntry:\n    pdf_bytes = create_detailed_pdf_report(\n        municipio_nome=''Recife'',\n        uf=''PE'',\n        competencia=''202509'',\n        resumo=resumo,\n        pagamentos=pagamentos_teste\n    )\n    print(f''✅ PDF gerado com sucesso: {len(pdf_bytes)} bytes'')\n    print(f''✅ Tamanho adequado: {len(pdf_bytes) > 5000}'')\n    print(f''✅ Formato correto: {pdf_bytes[:4] == b\"\"%PDF\"\"}'')\n    \n    # Salvar PDF para inspeção visual\n    with open(''/tmp/teste_relatorio_detalhado.pdf'', ''wb'') as f:\n        f.write(pdf_bytes)\n    print(f''✅ PDF salvo em /tmp/teste_relatorio_detalhado.pdf para inspeção'')\n    \nexcept Exception as e:\n    print(f''❌ Erro ao gerar PDF: {e}'')\n    import traceback\n    traceback.print_exc()\n\nprint(''\\n✅ Teste concluído com sucesso!'')\n\")"
+      "Bash(python test_pdf_detalhado.py)",
+      "Bash(python3 test_pdf_detalhado.py)",
+      "Bash(source venv/bin/activate)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(curl -X POST http://localhost:8000/api/relatorios/pdf-detalhado -H \"Content-Type: application/json\" -d '{\"\"\"\"codigo_ibge\"\"\"\":\"\"\"\"261180\"\"\"\",\"\"\"\"municipio_nome\"\"\"\":\"\"\"\"Ribeirão\"\"\"\",\"\"\"\"uf\"\"\"\":\"\"\"\"PE\"\"\"\",\"\"\"\"competencia\"\"\"\":\"\"\"\"202509\"\"\"\"}' --output /home/davi/python/MG/papprefeito-dev/relatorio_detalhado_API_MARGENS.pdf)"
     ],
     "deny": [],
     "ask": []
