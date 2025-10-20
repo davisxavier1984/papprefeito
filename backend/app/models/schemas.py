@@ -269,3 +269,102 @@ class ErrorResponse(BaseModel):
     message: str
     error_code: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
+
+
+# ==================== MODELOS DE AUTENTICAÇÃO ====================
+
+class UserBase(BaseModel):
+    """Schema base para usuário"""
+    email: str = Field(..., description="Email do usuário")
+    nome: str = Field(..., description="Nome completo do usuário")
+
+    @validator('email')
+    def validate_email(cls, v):
+        if '@' not in v or '.' not in v:
+            raise ValueError('Email inválido')
+        return v.lower()
+
+
+class UserCreate(UserBase):
+    """Schema para criação de usuário"""
+    password: str = Field(..., min_length=8, description="Senha do usuário (mínimo 8 caracteres)")
+
+    @validator('password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Senha deve ter no mínimo 8 caracteres')
+        if not any(c.isupper() for c in v):
+            raise ValueError('Senha deve conter ao menos uma letra maiúscula')
+        if not any(c.islower() for c in v):
+            raise ValueError('Senha deve conter ao menos uma letra minúscula')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Senha deve conter ao menos um número')
+        return v
+
+
+class UserUpdate(BaseModel):
+    """Schema para atualização de usuário"""
+    nome: Optional[str] = Field(None, description="Nome completo do usuário")
+    email: Optional[str] = Field(None, description="Email do usuário")
+
+    @validator('email')
+    def validate_email(cls, v):
+        if v and ('@' not in v or '.' not in v):
+            raise ValueError('Email inválido')
+        return v.lower() if v else v
+
+
+class UserPasswordChange(BaseModel):
+    """Schema para mudança de senha"""
+    current_password: str = Field(..., description="Senha atual")
+    new_password: str = Field(..., min_length=8, description="Nova senha")
+
+    @validator('new_password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Senha deve ter no mínimo 8 caracteres')
+        if not any(c.isupper() for c in v):
+            raise ValueError('Senha deve conter ao menos uma letra maiúscula')
+        if not any(c.islower() for c in v):
+            raise ValueError('Senha deve conter ao menos uma letra minúscula')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Senha deve conter ao menos um número')
+        return v
+
+
+class User(UserBase):
+    """Schema para usuário (resposta)"""
+    id: str = Field(..., description="ID do usuário")
+    is_active: bool = Field(default=True, description="Se o usuário está ativo")
+    is_superuser: bool = Field(default=False, description="Se o usuário é administrador")
+    created_at: datetime = Field(default_factory=datetime.now, description="Data de criação")
+    updated_at: Optional[datetime] = Field(None, description="Data da última atualização")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Token(BaseModel):
+    """Schema para resposta de token"""
+    access_token: str = Field(..., description="Token de acesso JWT")
+    refresh_token: str = Field(..., description="Token de renovação")
+    token_type: str = Field(default="bearer", description="Tipo do token")
+    expires_in: int = Field(..., description="Tempo de expiração em segundos")
+
+
+class TokenPayload(BaseModel):
+    """Schema para payload do token JWT"""
+    sub: str = Field(..., description="Subject (user ID)")
+    exp: int = Field(..., description="Expiration time")
+    iat: int = Field(..., description="Issued at time")
+    type: str = Field(default="access", description="Tipo do token: access ou refresh")
+
+
+class LoginRequest(BaseModel):
+    """Schema para requisição de login"""
+    email: str = Field(..., description="Email do usuário")
+    password: str = Field(..., description="Senha do usuário")
+
+
+class RefreshTokenRequest(BaseModel):
+    """Schema para requisição de refresh token"""
+    refresh_token: str = Field(..., description="Token de renovação")
