@@ -15,7 +15,7 @@ class EdicaoCreate(BaseModel):
     """Schema para criação/atualização de edição"""
     codigo_municipio: str = Field(..., description="Código IBGE do município")
     competencia: str = Field(..., description="Competência no formato AAAAMM", min_length=6, max_length=6)
-    perca_recurso_mensal: List[float] = Field(..., description="Lista de valores de perda mensal por recurso")
+    perda_recurso_mensal: List[float] = Field(..., description="Lista de valores de perda mensal por recurso")
     usuario_id: Optional[str] = Field(None, description="ID do usuário que fez a edição")
 
     class Config:
@@ -23,7 +23,7 @@ class EdicaoCreate(BaseModel):
             "example": {
                 "codigo_municipio": "3106200",
                 "competencia": "202409",
-                "perca_recurso_mensal": [0.0, 1500.50, 2000.00],
+                "perda_recurso_mensal": [0.0, 1500.50, 2000.00],
                 "usuario_id": "user_123"
             }
         }
@@ -34,7 +34,7 @@ class EdicaoResponse(BaseModel):
     id: str
     codigo_municipio: str
     competencia: str
-    perca_recurso_mensal: List[float]
+    perda_recurso_mensal: List[float]
     usuario_id: Optional[str]
     created_at: str
     updated_at: str
@@ -110,13 +110,13 @@ async def salvar_edicao(edicao: EdicaoCreate):
 
     - **codigo_municipio**: Código IBGE do município
     - **competencia**: Competência no formato AAAAMM
-    - **perca_recurso_mensal**: Array de valores de perda mensal
+    - **perda_recurso_mensal**: Array de valores de perda mensal
     - **usuario_id**: (Opcional) ID do usuário que fez a edição
     """
     result = await edicoes_service.salvar_edicao(
         codigo_municipio=edicao.codigo_municipio,
         competencia=edicao.competencia,
-        perca_recurso_mensal=edicao.perca_recurso_mensal,
+        perda_recurso_mensal=edicao.perda_recurso_mensal,
         usuario_id=edicao.usuario_id
     )
 

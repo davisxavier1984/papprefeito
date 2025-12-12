@@ -147,7 +147,7 @@ relatorio_5300108_202501.pdf (DF)
 ```python
 # Valores Mensais
 recurso_atual_mensal = resumo.total_recebido
-acrescimo_mensal = resumo.total_perca_mensal
+acrescimo_mensal = resumo.total_perda_mensal
 recurso_potencial_mensal = recurso_atual_mensal + acrescimo_mensal
 
 # Valores Anuais

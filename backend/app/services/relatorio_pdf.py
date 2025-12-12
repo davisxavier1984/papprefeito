@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import html
 import base64
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, List, Optional
 from pathlib import Path
 import weasyprint
 
 from fpdf import FPDF
 
-from app.models.schemas import ResumoFinanceiro
+from app.models.schemas import ResumoFinanceiro, DetalhamentoPrograma, ResumoDetalhado
+from app.utils.logger import logger
 
 
 def _sanitize_text(value: str) -> str:
@@ -19,8 +20,18 @@ def _sanitize_text(value: str) -> str:
 
 def _br_number(value: float, decimals: int = 2) -> str:
     """Formata números no padrão brasileiro (ponto como milhar e vírgula decimal)."""
-    pattern = f"{{:,.{decimals}f}}"
-    formatted = pattern.format(value)
+    # Converter para float e arredondar
+    value = float(value)
+
+    # Para valores monetários, sempre usar 2 decimais
+    if decimals == 2:
+        # Formato com separador de milhares e 2 decimais
+        formatted = f"{value:,.2f}"
+    else:
+        # Para outros casos, usar decimais especificados
+        formatted = f"{value:,.{decimals}f}"
+
+    # Converter para padrão brasileiro: . para milhares, , para decimais
     return formatted.replace(',', 'X').replace('.', ',').replace('X', '.')
 
 
@@ -38,29 +49,45 @@ def _safe_ratio(value: float, total: float) -> float:
     return max(0.0, min(1.0, ratio))
 
 
+def _mapear_programa_info(nome_programa: str) -> tuple[str, str, str]:
+    """Mapeia nome do programa para (nome_curto, ícone, cor_tema)."""
+    mapeamento = {
+        "Equipes de Saúde da Família - eSF e equipes de Atenção Primária - eAP": ("eSF/eAP", "👥", "warning"),
+        "Atenção à Saúde Bucal": ("Saúde Bucal", "🦷", "success"),
+        "Equipes Multiprofissionais - eMulti": ("eMulti", "🏥", "success"),
+        "Agentes Comunitários de Saúde": ("ACS", "🚶", "success"),
+        "Demais programas, serviços e equipes da Atenção Primária à Saúde": ("Demais", "⚙️", "muted"),
+        "Componente per capita de base populacional": ("Per Capita", "👨‍👩‍👧‍👦", "info"),
+    }
+    return mapeamento.get(nome_programa, (nome_programa[:20], "⚙️", "muted"))
+
+
+
+
+
 def compute_financial_summary(
     resumos: Iterable[Dict[str, Any]],
-    percas: Iterable[float]
+    perdas: Iterable[float]
 ) -> ResumoFinanceiro:
     """Calcula o resumo financeiro a partir dos resumos e perdas mensais."""
     resumos_list = list(resumos)
-    percas_list = list(percas)
+    perdas_list = list(perdas)
 
-    if len(percas_list) < len(resumos_list):
-        percas_list.extend([0.0] * (len(resumos_list) - len(percas_list)))
-    elif len(percas_list) > len(resumos_list):
-        percas_list = percas_list[:len(resumos_list)]
+    if len(perdas_list) < len(resumos_list):
+        perdas_list.extend([0.0] * (len(resumos_list) - len(perdas_list)))
+    elif len(perdas_list) > len(resumos_list):
+        perdas_list = perdas_list[:len(resumos_list)]
 
     monthly_received = [float(item.get('vlEfetivoRepasse') or 0.0) for item in resumos_list]
-    total_perca_mensal = float(sum(percas_list))
-    total_diferenca_anual = total_perca_mensal * 12.0
+    total_perda_mensal = float(sum(perdas_list))
+    total_diferenca_anual = total_perda_mensal * 12.0
     total_real_anual = float(sum(monthly_received)) * 12.0
     total_recebido = float(sum(monthly_received))
 
     percentual = (total_diferenca_anual / total_real_anual * 100.0) if total_real_anual else 0.0
 
     return ResumoFinanceiro(
-        total_perca_mensal=total_perca_mensal,
+        total_perda_mensal=total_perda_mensal,
         total_diferenca_anual=total_diferenca_anual,
         percentual_perda_anual=percentual,
         total_recebido=total_recebido,
@@ -123,18 +150,18 @@ def _draw_arrow(pdf: FPDF, start_x: float, end_x: float, y: float):
 def _draw_financial_cards(pdf: FPDF, resumo: ResumoFinanceiro):
     """Desenha cards em grade com visual aprimorado para a primeira página."""
 
-    potencial_mensal = resumo.total_recebido + resumo.total_perca_mensal
+    potencial_mensal = resumo.total_recebido + resumo.total_perda_mensal
     potencial_anual = potencial_mensal * 12
     percentual_perda = resumo.percentual_perda_anual
 
-    ratio_perda_mensal = _safe_ratio(resumo.total_perca_mensal, potencial_mensal)
+    ratio_perda_mensal = _safe_ratio(resumo.total_perda_mensal, potencial_mensal)
     ratio_diferenca_anual = _safe_ratio(resumo.total_diferenca_anual, potencial_anual)
     ratio_recebimento_atual = _safe_ratio(resumo.total_recebido, potencial_mensal)
 
     cards_data = [
         {
             'titulo': 'PERDA MENSAL',
-            'valor': f'R$ {_br_number(resumo.total_perca_mensal, 0)}',
+            'valor': f'R$ {_br_number(resumo.total_perda_mensal, 0)}',
             'descricao': 'recursos que poderiam melhorar a saúde',
             'detalhe': f'Equivalente a R$ {_br_number(resumo.total_diferenca_anual, 0)} por ano',
             'tag': 'Oportunidade',
@@ -353,7 +380,7 @@ def _create_page_2_infograficos(pdf: FPDF, municipio_label: str, resumo: ResumoF
 
     # Cálculos necessários
     recurso_atual_mensal = resumo.total_recebido
-    acrescimo_mensal = resumo.total_perca_mensal
+    acrescimo_mensal = resumo.total_perda_mensal
     recurso_potencial_mensal = recurso_atual_mensal + acrescimo_mensal
 
     recurso_atual_anual = recurso_atual_mensal * 12
@@ -551,19 +578,42 @@ def _create_page_3_impacto_conclusao(pdf: FPDF, resumo: ResumoFinanceiro):
     pdf.cell(0, 6, _sanitize_text('Alysson Ribeiro'), ln=True)
 
 
+def _get_badge_text(programa: DetalhamentoPrograma) -> str:
+    """Retorna o texto do badge baseado no status do programa."""
+    if not programa.ativo:
+        return "❌ Sem credenciamento"
+    elif programa.tem_desconto:
+        return "⚠️ Desconto aplicado"
+    elif programa.percentual_efetivacao >= 100:
+        return "✓ 100% recebido"
+    else:
+        return "✓ Ativo"
+
+
+
+
+
+
+
+
+
+
+
 def create_pdf_report(
     *,
     municipio_nome: Optional[str],
     uf: Optional[str],
     competencia: str,
     resumo: ResumoFinanceiro,
+    resumos_planos: Optional[List[Dict[str, Any]]] = None,
 ) -> bytes:
     """Cria o relatório em PDF usando templates HTML modernos."""
     return create_html_pdf_report(
         municipio_nome=municipio_nome,
         uf=uf,
         competencia=competencia,
-        resumo=resumo
+        resumo=resumo,
+        resumos_planos=resumos_planos
     )
 
 
@@ -601,6 +651,7 @@ def create_html_pdf_report(
     uf: Optional[str],
     competencia: str,
     resumo: ResumoFinanceiro,
+    resumos_planos: Optional[List[Dict[str, Any]]] = None,
 ) -> bytes:
     """Cria o relatório em PDF usando templates HTML modernos."""
 
@@ -638,10 +689,10 @@ def create_html_pdf_report(
         # Calcular valores necessários
         recurso_atual_anual = resumo.total_recebido * 12
         recurso_potencial_anual = recurso_atual_anual + resumo.total_diferenca_anual
-        recurso_potencial_mensal = resumo.total_recebido + resumo.total_perca_mensal
+        recurso_potencial_mensal = resumo.total_recebido + resumo.total_perda_mensal
 
         # Métricas complementares para os cards
-        ratio_perda_mensal = _safe_ratio(resumo.total_perca_mensal, recurso_potencial_mensal)
+        ratio_perda_mensal = _safe_ratio(resumo.total_perda_mensal, recurso_potencial_mensal)
         ratio_diferenca_anual = _safe_ratio(resumo.total_diferenca_anual, recurso_potencial_anual)
         ratio_recebimento_atual = _safe_ratio(resumo.total_recebido, recurso_potencial_mensal)
 
@@ -670,12 +721,12 @@ def create_html_pdf_report(
         # Processar todas as substituições de template
         replacements = {
             '{{ "%.2f"|format(resumo.percentual_perda_anual) }}': f"{resumo.percentual_perda_anual:.2f}",
-            '{{ "{:,.0f}".format(resumo.total_perca_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_perca_mensal, 0),
+            '{{ "{:,.0f}".format(resumo.total_perda_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_perda_mensal, 0),
             '{{ "{:,.0f}".format(resumo.total_diferenca_anual).replace(\',\', \'.\') }}': _br_number(resumo.total_diferenca_anual, 0),
             '{{ "{:,.0f}".format(resumo.total_recebido).replace(\',\', \'.\') }}': _br_number(resumo.total_recebido, 0),
             '{{ "{:,.0f}".format(resumo.total_recebido * 12).replace(\',\', \'.\') }}': _br_number(recurso_atual_anual, 0),
             '{{ "{:,.0f}".format((resumo.total_recebido * 12) + resumo.total_diferenca_anual).replace(\',\', \'.\') }}': _br_number(recurso_potencial_anual, 0),
-            '{{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perca_mensal).replace(\',\', \'.\') }}': _br_number(recurso_potencial_mensal, 0),
+            '{{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perda_mensal).replace(\',\', \'.\') }}': _br_number(recurso_potencial_mensal, 0),
             '__PERDA_BADGE__': html.escape('Oportunidade'),
             '__PERDA_DETALHE__': html.escape(perda_detalhe),
             '__PERDA_PROGRESS__': str(_progress_value(ratio_perda_mensal)),
@@ -733,4 +784,1258 @@ def create_html_pdf_report(
         print(f"❌ Erro ao gerar PDF com HTML-to-PDF: {e}")
         import traceback
         traceback.print_exc()
+        raise
+
+
+def _processar_saude_familia_detalhado(pagamentos: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Processa dados detalhados de Saúde da Família (eSF e eAP) a partir dos pagamentos."""
+    if not pagamentos or len(pagamentos) == 0:
+        return None
+
+    try:
+        pagamento = pagamentos[0]  # Pegar primeiro pagamento
+    except (IndexError, TypeError):
+        return None
+
+    if not isinstance(pagamento, dict):
+        return None
+
+    esf = {
+        'equipes': {
+            'credenciadas': pagamento.get('qtEsfCredenciado', 0) or 0,
+            'homologadas': pagamento.get('qtEsfHomologado', 0) or 0,
+            'total_pgto': pagamento.get('qtEsfTotalPgto', 0) or 0,
+        },
+        'pagamento_percentual': {
+            'pc100': pagamento.get('qtEsf100pcPgto', 0) or 0,
+            'pc75': pagamento.get('qtEsf75pcPgto', 0) or 0,
+            'pc50': pagamento.get('qtEsf50pcPgto', 0) or 0,
+            'pc25': pagamento.get('qtEsf25pcPgto', 0) or 0,
+        },
+        'valores': {
+            'fixo': float(pagamento.get('vlFixoEsf', 0) or 0),
+            'vinculo': float(pagamento.get('vlVinculoEsf', 0) or 0),
+            'qualidade': float(pagamento.get('vlQualidadeEsf', 0) or 0),
+            'total': float(pagamento.get('vlTotalEsf', 0) or 0),
+            'implantacao': float(pagamento.get('vlPagamentoImplantacaoEsf', 0) or 0),
+        },
+        'classificacoes': {
+            'equidade': pagamento.get('dsFaixaIndiceEquidadeEsfEap', 'Não informado'),
+            'vinculo': pagamento.get('dsClassificacaoVinculoEsfEap', 'Não informado'),
+            'qualidade': pagamento.get('dsClassificacaoQualidadeEsfEap', 'Não informado'),
+        }
+    }
+
+    eap = {
+        'equipes': {
+            'credenciadas': pagamento.get('qtEapCredenciadas', 0) or 0,
+            'homologadas': pagamento.get('qtEapHomologado', 0) or 0,
+            'total_pgto': pagamento.get('qtEapTotalPgto', 0) or 0,
+        },
+        'carga_horaria': {
+            'ch20_completas': pagamento.get('qtEap20hCompletas', 0) or 0,
+            'ch20_incompletas': pagamento.get('qtEap20hIncompletas', 0) or 0,
+            'ch30_completas': pagamento.get('qtEap30hCompletas', 0) or 0,
+            'ch30_incompletas': pagamento.get('qtEap30hIncompletas', 0) or 0,
+        },
+        'valores': {
+            'fixo': float(pagamento.get('vlFixoEap', 0) or 0),
+            'vinculo': float(pagamento.get('vlVinculoEap', 0) or 0),
+            'qualidade': float(pagamento.get('vlQualidadeEap', 0) or 0),
+            'total': float(pagamento.get('vlTotalEap', 0) or 0),
+            'implantacao': float(pagamento.get('vlPagamentoImplantacaoEap', 0) or 0),
+        }
+    }
+
+    vl_total = esf['valores']['total'] + eap['valores']['total']
+    qt_total_equipes = esf['equipes']['credenciadas'] + eap['equipes']['credenciadas']
+
+    return {
+        'esf': esf,
+        'eap': eap,
+        'totais': {
+            'vlTotal': vl_total,
+            'qtTotalEquipes': qt_total_equipes
+        }
+    }
+
+
+def _gerar_html_saude_familia_detalhado(dados: Optional[Dict[str, Any]]) -> str:
+    """Gera HTML para seção de Saúde da Família (eSF e eAP) detalhada."""
+    if not dados:
+        return '''
+        <div class="detail-section" style="background: #fef3c7; border-left-color: #f59e0b;">
+            <p style="color: #92400e; margin: 0;">
+                ⚠️ Nenhum dado de Saúde da Família (eSF/eAP) disponível para esta competência.
+                Isso pode ocorrer se o município não possui equipes cadastradas ou se os dados
+                ainda não foram processados pelo Ministério da Saúde.
+            </p>
+        </div>
+        '''
+
+    esf = dados.get('esf', {})
+    eap = dados.get('eap', {})
+    totais = dados.get('totais', {})
+
+    # Escapar classificações antes de usar nas f-strings
+    equidade = html.escape(str(esf.get('classificacoes', {}).get('equidade', 'N/A')))
+    vinculo = html.escape(str(esf.get('classificacoes', {}).get('vinculo', 'N/A')))
+    qualidade = html.escape(str(esf.get('classificacoes', {}).get('qualidade', 'N/A')))
+
+    resultado_html = f'''
+    <div class="mixed-grid-section">
+        <div class="mixed-grid-header" style="background: linear-gradient(135deg, #f59e0b, #fb923c);">
+            <span>eSF - Equipes de Saúde da Família</span>
+            <span>{esf.get('equipes', {}).get('total_pgto', 0)} equipes</span>
+        </div>
+        <div class="mixed-grid-body">
+            <div class="subsection-title">Equipes e Pagamento</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Credenciadas</span>
+                    <span class="detail-value">{esf.get('equipes', {}).get('credenciadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Homologadas</span>
+                    <span class="detail-value">{esf.get('equipes', {}).get('homologadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Total com Pagamento</span>
+                    <span class="detail-value">{esf.get('equipes', {}).get('total_pgto', 0)}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Pagamento por Percentual</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">100% do Valor</span>
+                    <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc100', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">75% do Valor</span>
+                    <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc75', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">50% do Valor</span>
+                    <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc50', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">25% do Valor</span>
+                    <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc25', 0)}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Classificações</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Índice de Equidade</span>
+                    <span class="detail-value">{equidade}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Classificação Vínculo</span>
+                    <span class="detail-value">{vinculo}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Classificação Qualidade</span>
+                    <span class="detail-value">{qualidade}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Valores Financeiros</div>
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>Valor Fixo</td>
+                        <td>Base</td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('fixo', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Valor Vínculo</td>
+                        <td>Desempenho</td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('vinculo', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Valor Qualidade</td>
+                        <td>Desempenho</td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('qualidade', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Implantação</td>
+                        <td>Incentivo</td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('implantacao', 0), 2)}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Total eSF</td>
+                        <td></td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('total', 0), 2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
+
+    # Seção eAP
+    if eap.get('equipes', {}).get('credenciadas', 0) > 0:
+        resultado_html += f'''
+        <div class="mixed-grid-section">
+            <div class="mixed-grid-header" style="background: linear-gradient(135deg, #fb923c, #f97316);">
+                <span>eAP - Equipes de Atenção Primária</span>
+                <span>{eap.get('equipes', {}).get('total_pgto', 0)} equipes</span>
+            </div>
+            <div class="mixed-grid-body">
+                <div class="subsection-title">Equipes</div>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Credenciadas</span>
+                        <span class="detail-value">{eap.get('equipes', {}).get('credenciadas', 0)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Homologadas</span>
+                        <span class="detail-value">{eap.get('equipes', {}).get('homologadas', 0)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Total com Pagamento</span>
+                        <span class="detail-value">{eap.get('equipes', {}).get('total_pgto', 0)}</span>
+                    </div>
+                </div>
+
+                <div class="subsection-title" style="margin-top: 16px;">Carga Horária</div>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">20h Completas</span>
+                        <span class="detail-value">{eap.get('carga_horaria', {}).get('ch20_completas', 0)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">20h Incompletas</span>
+                        <span class="detail-value">{eap.get('carga_horaria', {}).get('ch20_incompletas', 0)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">30h Completas</span>
+                        <span class="detail-value">{eap.get('carga_horaria', {}).get('ch30_completas', 0)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">30h Incompletas</span>
+                        <span class="detail-value">{eap.get('carga_horaria', {}).get('ch30_incompletas', 0)}</span>
+                    </div>
+                </div>
+
+                <div class="subsection-title" style="margin-top: 16px;">Valores Financeiros</div>
+                <table class="compact-table-3col">
+                    <tbody>
+                        <tr>
+                            <td>Valor Fixo</td>
+                            <td>Base</td>
+                            <td>R$ {_br_number(eap.get('valores', {}).get('fixo', 0), 2)}</td>
+                        </tr>
+                        <tr>
+                            <td>Valor Vínculo</td>
+                            <td>Desempenho</td>
+                            <td>R$ {_br_number(eap.get('valores', {}).get('vinculo', 0), 2)}</td>
+                        </tr>
+                        <tr>
+                            <td>Valor Qualidade</td>
+                            <td>Desempenho</td>
+                            <td>R$ {_br_number(eap.get('valores', {}).get('qualidade', 0), 2)}</td>
+                        </tr>
+                        <tr>
+                            <td>Implantação</td>
+                            <td>Incentivo</td>
+                            <td>R$ {_br_number(eap.get('valores', {}).get('implantacao', 0), 2)}</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td>Total eAP</td>
+                            <td></td>
+                            <td>R$ {_br_number(eap.get('valores', {}).get('total', 0), 2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        '''
+
+    # Totais
+    resultado_html += f'''
+    <div class="highlight-box">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">Total de Equipes (eSF + eAP)</p>
+                <div class="value" style="font-size: 32px; color: #f59e0b;">{totais.get('qtTotalEquipes', 0)}</div>
+            </div>
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">Valor Total eSF + eAP</p>
+                <div class="value" style="font-size: 28px;">R$ {_br_number(totais.get('vlTotal', 0), 2)}</div>
+            </div>
+        </div>
+    </div>
+    '''
+
+    return resultado_html
+
+
+def _gerar_html_esf_detalhado(dados: Optional[Dict[str, Any]]) -> str:
+    """Gera apenas a seção eSF em HTML para página própria."""
+    if not dados:
+        return '''
+        <div class="detail-section" style="background: #fef3c7; border-left-color: #f59e0b;">
+            <p style="color: #92400e; margin: 0;">
+                ⚠️ Nenhum dado de eSF disponível para esta competência.
+            </p>
+        </div>
+        '''
+
+    esf = dados.get('esf', {})
+
+    # Escapar classificações
+    equidade = html.escape(str(esf.get('classificacoes', {}).get('equidade', 'N/A')))
+    vinculo = html.escape(str(esf.get('classificacoes', {}).get('vinculo', 'N/A')))
+    qualidade = html.escape(str(esf.get('classificacoes', {}).get('qualidade', 'N/A')))
+
+    return f'''
+    <div class="mixed-grid-section">
+        <div class="mixed-grid-header" style="background: linear-gradient(135deg, #f59e0b, #fb923c);">
+            <span>eSF - Equipes de Saúde da Família</span>
+            <span>{esf.get('equipes', {}).get('total_pgto', 0)} equipes</span>
+        </div>
+        <div class="mixed-grid-body">
+            <div class="subsection-title">Equipes e Pagamento</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Credenciadas</span>
+                    <span class="detail-value">{esf.get('equipes', {}).get('credenciadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Homologadas</span>
+                    <span class="detail-value">{esf.get('equipes', {}).get('homologadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Total com Pagamento</span>
+                    <span class="detail-value">{esf.get('equipes', {}).get('total_pgto', 0)}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Pagamento por Percentual</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">100% do Valor</span>
+                    <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc100', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">75% do Valor</span>
+                    <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc75', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">50% do Valor</span>
+                    <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc50', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">25% do Valor</span>
+                    <span class="detail-value">{esf.get('pagamento_percentual', {}).get('pc25', 0)}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Classificações</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Índice de Equidade</span>
+                    <span class="detail-value">{equidade}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Classificação Vínculo</span>
+                    <span class="detail-value">{vinculo}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Classificação Qualidade</span>
+                    <span class="detail-value">{qualidade}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Valores Financeiros</div>
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>Valor Fixo</td>
+                        <td>Base</td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('fixo', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Valor Vínculo</td>
+                        <td>Desempenho</td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('vinculo', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Valor Qualidade</td>
+                        <td>Desempenho</td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('qualidade', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Implantação</td>
+                        <td>Incentivo</td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('implantacao', 0), 2)}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Total eSF</td>
+                        <td></td>
+                        <td>R$ {_br_number(esf.get('valores', {}).get('total', 0), 2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
+
+
+def _gerar_html_eap_detalhado(dados: Optional[Dict[str, Any]]) -> str:
+    """Gera apenas a seção eAP em HTML para página própria."""
+    if not dados:
+        return '''
+        <div class="detail-section" style="background: #ffedd5; border-left-color: #fb923c;">
+            <p style="color: #7c2d12; margin: 0;">
+                ⚠️ Nenhum dado de eAP disponível para esta competência.
+            </p>
+        </div>
+        '''
+
+    eap = dados.get('eap', {})
+    if (eap.get('equipes', {}) or {}).get('credenciadas', 0) <= 0 and (eap.get('equipes', {}) or {}).get('total_pgto', 0) <= 0:
+        return '''
+        <div class="detail-section" style="background: #ffedd5; border-left-color: #fb923c;">
+            <p style="color: #7c2d12; margin: 0;">
+                ⚠️ Nenhum dado de eAP disponível para esta competência.
+            </p>
+        </div>
+        '''
+
+    return f'''
+    <div class="mixed-grid-section">
+        <div class="mixed-grid-header" style="background: linear-gradient(135deg, #fb923c, #f97316);">
+            <span>eAP - Equipes de Atenção Primária</span>
+            <span>{eap.get('equipes', {}).get('total_pgto', 0)} equipes</span>
+        </div>
+        <div class="mixed-grid-body">
+            <div class="subsection-title">Equipes</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Credenciadas</span>
+                    <span class="detail-value">{eap.get('equipes', {}).get('credenciadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Homologadas</span>
+                    <span class="detail-value">{eap.get('equipes', {}).get('homologadas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Total com Pagamento</span>
+                    <span class="detail-value">{eap.get('equipes', {}).get('total_pgto', 0)}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Carga Horária</div>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">20h Completas</span>
+                    <span class="detail-value">{eap.get('carga_horaria', {}).get('ch20_completas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">20h Incompletas</span>
+                    <span class="detail-value">{eap.get('carga_horaria', {}).get('ch20_incompletas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">30h Completas</span>
+                    <span class="detail-value">{eap.get('carga_horaria', {}).get('ch30_completas', 0)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">30h Incompletas</span>
+                    <span class="detail-value">{eap.get('carga_horaria', {}).get('ch30_incompletas', 0)}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Valores Financeiros</div>
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>Valor Fixo</td>
+                        <td>Base</td>
+                        <td>R$ {_br_number(eap.get('valores', {}).get('fixo', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Valor Vínculo</td>
+                        <td>Desempenho</td>
+                        <td>R$ {_br_number(eap.get('valores', {}).get('vinculo', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Valor Qualidade</td>
+                        <td>Desempenho</td>
+                        <td>R$ {_br_number(eap.get('valores', {}).get('qualidade', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Implantação</td>
+                        <td>Incentivo</td>
+                        <td>R$ {_br_number(eap.get('valores', {}).get('implantacao', 0), 2)}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Total eAP</td>
+                        <td></td>
+                        <td>R$ {_br_number(eap.get('valores', {}).get('total', 0), 2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
+
+
+def _processar_saude_bucal_detalhado(pagamentos: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Processa dados detalhados de Saúde Bucal a partir dos pagamentos."""
+    if not pagamentos or len(pagamentos) == 0:
+        return None
+
+    try:
+        pagamento = pagamentos[0]  # Pegar primeiro pagamento
+    except (IndexError, TypeError):
+        return None
+
+    if not isinstance(pagamento, dict):
+        return None
+
+    esb = {
+        'modalidade40h': {
+            'credenciadas': pagamento.get('qtSb40hCredenciada', 0) or 0,
+            'homologadas': pagamento.get('qtSb40hHomologado', 0) or 0,
+            'modalidadeI': pagamento.get('qtSbPagamentoModalidadeI', 0) or 0,
+            'modalidadeII': pagamento.get('qtSbPagamentoModalidadeII', 0) or 0,
+        },
+        'chDiferenciada': {
+            'credenciadas': pagamento.get('qtSb40hDifCredenciada', 0) or 0,
+            'homologadas': pagamento.get('qtSbChDifHomologado', 0) or 0,
+            'modalidade20h': pagamento.get('qtSbPagamentoDifModalidade20Horas', 0) or 0,
+            'modalidade30h': pagamento.get('qtSbPagamentoDifModalidade30Horas', 0) or 0,
+        },
+        'quilombolasAssentamentos': {
+            'modalidadeI': pagamento.get('qtSbEqpQuilombAssentModalI', 0) or 0,
+            'modalidadeII': pagamento.get('qtSbEqpQuilombAssentModalII', 0) or 0,
+        },
+        'implantacao': pagamento.get('qtSbEquipeImplantacao', 0) or 0,
+        'valores': {
+            'pagamento': float(pagamento.get('vlPagamentoEsb40h', 0) or 0),
+            'qualidade': float(pagamento.get('vlPagamentoEsb40hQualidade', 0) or 0),
+            'chDiferenciada': float(pagamento.get('vlPagamentoEsbChDiferenciada', 0) or 0),
+            'implantacao': float(pagamento.get('vlPagamentoImplantacaoEsb40h', 0) or 0),
+        }
+    }
+
+    uom = {
+        'credenciadas': pagamento.get('qtUomCredenciada', 0) or 0,
+        'homologadas': pagamento.get('qtUomHomologado', 0) or 0,
+        'pagas': pagamento.get('qtUomPgto', 0) or 0,
+        'valores': {
+            'pagamento': float(pagamento.get('vlPagamentoUom', 0) or 0),
+            'implantacao': float(pagamento.get('vlPagamentoUomImplantacao', 0) or 0),
+        }
+    }
+
+    ceo = {
+        'municipal': float(pagamento.get('vlPagamentoCeoMunicipal', 0) or 0),
+        'estadual': float(pagamento.get('vlPagamentoCeoEstadual', 0) or 0),
+    }
+
+    lrpd = {
+        'municipal': float(pagamento.get('vlPagamentoLrpdMunicipal', 0) or 0),
+        'estadual': float(pagamento.get('vlPagamentoLrpdEstadual', 0) or 0),
+    }
+
+    vl_total = (
+        esb['valores']['pagamento'] +
+        esb['valores']['qualidade'] +
+        esb['valores']['chDiferenciada'] +
+        esb['valores']['implantacao'] +
+        uom['valores']['pagamento'] +
+        uom['valores']['implantacao'] +
+        ceo['municipal'] +
+        ceo['estadual'] +
+        lrpd['municipal'] +
+        lrpd['estadual']
+    )
+
+    qt_total_equipes = (
+        esb['modalidade40h']['credenciadas'] +
+        esb['chDiferenciada']['credenciadas'] +
+        esb['quilombolasAssentamentos']['modalidadeI'] +
+        esb['quilombolasAssentamentos']['modalidadeII'] +
+        uom['credenciadas']
+    )
+
+    return {
+        'esb': esb,
+        'uom': uom,
+        'ceo': ceo,
+        'lrpd': lrpd,
+        'totais': {
+            'vlTotal': vl_total,
+            'qtTotalEquipes': qt_total_equipes
+        }
+    }
+
+
+def _gerar_html_saude_bucal_detalhado(dados: Optional[Dict[str, Any]]) -> str:
+    """Gera HTML para seção de Saúde Bucal detalhada."""
+    if not dados:
+        return '''
+        <div class="detail-section" style="background: #dbeafe; border-left-color: #0ea5e9;">
+            <p style="color: #075985; margin: 0;">
+                ⚠️ Nenhum dado de Saúde Bucal disponível para esta competência.
+                Isso pode ocorrer se o município não possui Equipes de Saúde Bucal (ESB),
+                Unidades Odontológicas Móveis (UOM), CEO ou LRPD cadastrados.
+            </p>
+        </div>
+        '''
+
+    esb = dados.get('esb', {})
+    uom = dados.get('uom', {})
+    ceo = dados.get('ceo', {})
+    lrpd = dados.get('lrpd', {})
+    totais = dados.get('totais', {})
+
+    # Calcular total de equipes ESB
+    total_esb = (esb.get('modalidade40h', {}).get('credenciadas', 0) +
+                 esb.get('chDiferenciada', {}).get('credenciadas', 0))
+
+    resultado_html = f'''
+    <div class="mixed-grid-section">
+        <div class="mixed-grid-header" style="background: linear-gradient(135deg, #0ea5e9, #06b6d4);">
+            <span>ESB - Equipes de Saúde Bucal</span>
+            <span>{total_esb} equipes</span>
+        </div>
+        <div class="mixed-grid-body">
+            <div class="subsection-title">Modalidades ESB</div>
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>Modalidade 40h - Credenciadas</td>
+                        <td>Tipo I + II</td>
+                        <td>{esb.get('modalidade40h', {}).get('credenciadas', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>Modalidade 40h - Homologadas</td>
+                        <td>Tipo I + II</td>
+                        <td>{esb.get('modalidade40h', {}).get('homologadas', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>Modalidade I (CD + ASB)</td>
+                        <td>40h</td>
+                        <td>{esb.get('modalidade40h', {}).get('modalidadeI', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>Modalidade II (CD + ASB + TSB)</td>
+                        <td>40h</td>
+                        <td>{esb.get('modalidade40h', {}).get('modalidadeII', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>CH Diferenciada - Credenciadas</td>
+                        <td>20h/30h</td>
+                        <td>{esb.get('chDiferenciada', {}).get('credenciadas', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>CH Diferenciada - Homologadas</td>
+                        <td>20h/30h</td>
+                        <td>{esb.get('chDiferenciada', {}).get('homologadas', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>CH 20 horas</td>
+                        <td>Diferenciada</td>
+                        <td>{esb.get('chDiferenciada', {}).get('modalidade20h', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>CH 30 horas</td>
+                        <td>Diferenciada</td>
+                        <td>{esb.get('chDiferenciada', {}).get('modalidade30h', 0)} equipes</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="subsection-title" style="margin-top: 16px;">Valores Financeiros ESB</div>
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>Pagamento ESB 40h</td>
+                        <td>Base</td>
+                        <td>R$ {_br_number(esb.get('valores', {}).get('pagamento', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Qualidade</td>
+                        <td>Desempenho</td>
+                        <td>R$ {_br_number(esb.get('valores', {}).get('qualidade', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>CH Diferenciada</td>
+                        <td>Adicional</td>
+                        <td>R$ {_br_number(esb.get('valores', {}).get('chDiferenciada', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Implantação</td>
+                        <td>Incentivo</td>
+                        <td>R$ {_br_number(esb.get('valores', {}).get('implantacao', 0), 2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
+
+    # UOM
+    if uom.get('credenciadas', 0) > 0:
+        resultado_html += f'''
+        <div class="mixed-grid-section">
+            <div class="mixed-grid-header" style="background: linear-gradient(135deg, #8b5cf6, #a78bfa);">
+                <span>UOM - Unidade Odontológica Móvel</span>
+                <span>{uom.get('pagas', 0)} unidades</span>
+            </div>
+            <div class="mixed-grid-body">
+                <table class="compact-table-3col">
+                    <tbody>
+                        <tr>
+                            <td>Credenciadas</td>
+                            <td>Total</td>
+                            <td>{uom.get('credenciadas', 0)} unidades</td>
+                        </tr>
+                        <tr>
+                            <td>Homologadas</td>
+                            <td>Total</td>
+                            <td>{uom.get('homologadas', 0)} unidades</td>
+                        </tr>
+                        <tr>
+                            <td>Pagas</td>
+                            <td>Total</td>
+                            <td>{uom.get('pagas', 0)} unidades</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td>Valor Total UOM</td>
+                            <td></td>
+                            <td>R$ {_br_number(uom.get('valores', {}).get('pagamento', 0), 2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        '''
+
+    # CEO e LRPD movidos para páginas próprias
+
+    # Totais
+    resultado_html += f'''
+    <div class="highlight-box">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">Total de Equipes</p>
+                <div class="value" style="font-size: 32px; color: #0ea5e9;">{totais.get('qtTotalEquipes', 0)}</div>
+            </div>
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">Valor Total Saúde Bucal</p>
+                <div class="value" style="font-size: 28px;">R$ {_br_number(totais.get('vlTotal', 0), 2)}</div>
+            </div>
+        </div>
+    </div>
+    '''
+
+    return resultado_html
+
+
+def _gerar_html_ceo_detalhado(dados: Optional[Dict[str, Any]]) -> str:
+    """Gera HTML da seção CEO em página própria."""
+    if not dados:
+        return '''<div class="detail-section" style="background:#dbeafe;border-left-color:#3b82f6;"><p style="margin:0;color:#1e3a8a;">⚠️ Nenhum dado de CEO disponível.</p></div>'''
+
+    ceo = dados.get('ceo', {})
+    if (ceo.get('municipal', 0) or 0) <= 0 and (ceo.get('estadual', 0) or 0) <= 0:
+        return '''<div class="detail-section" style="background:#dbeafe;border-left-color:#3b82f6;"><p style="margin:0;color:#1e3a8a;">⚠️ Nenhum dado de CEO disponível.</p></div>'''
+
+    return f'''
+    <div class="mixed-grid-section">
+        <div class="mixed-grid-header" style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">
+            <span>CEO - Centro de Especialidades Odontológicas</span>
+        </div>
+        <div class="mixed-grid-body">
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>CEO Municipal</td>
+                        <td>Gestão</td>
+                        <td>R$ {_br_number(ceo.get('municipal', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>CEO Estadual</td>
+                        <td>Gestão</td>
+                        <td>R$ {_br_number(ceo.get('estadual', 0), 2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
+
+
+def _gerar_html_lrpd_detalhado(dados: Optional[Dict[str, Any]]) -> str:
+    """Gera HTML da seção LRPD em página própria."""
+    if not dados:
+        return '''<div class="detail-section" style="background:#ecfdf5;border-left-color:#10b981;"><p style="margin:0;color:#064e3b;">⚠️ Nenhum dado de LRPD disponível.</p></div>'''
+
+    lrpd = dados.get('lrpd', {})
+    if (lrpd.get('municipal', 0) or 0) <= 0 and (lrpd.get('estadual', 0) or 0) <= 0:
+        return '''<div class="detail-section" style="background:#ecfdf5;border-left-color:#10b981;"><p style="margin:0;color:#064e3b;">⚠️ Nenhum dado de LRPD disponível.</p></div>'''
+
+    return f'''
+    <div class="mixed-grid-section">
+        <div class="mixed-grid-header" style="background: linear-gradient(135deg, #10b981, #34d399);">
+            <span>LRPD - Laboratório Regional de Prótese Dentária</span>
+        </div>
+        <div class="mixed-grid-body">
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>LRPD Municipal</td>
+                        <td>Gestão</td>
+                        <td>R$ {_br_number(lrpd.get('municipal', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>LRPD Estadual</td>
+                        <td>Gestão</td>
+                        <td>R$ {_br_number(lrpd.get('estadual', 0), 2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
+
+
+def _processar_emulti_detalhado(pagamentos: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Processa dados detalhados de eMulti a partir dos pagamentos."""
+    if not pagamentos or len(pagamentos) == 0:
+        return None
+
+    try:
+        pagamento = pagamentos[0]  # Pegar primeiro pagamento
+    except (IndexError, TypeError):
+        return None
+
+    if not isinstance(pagamento, dict):
+        return None
+
+    emulti = {
+        'equipes': {
+            'credenciadas': pagamento.get('qtEmultiCredenciadas', 0) or 0,
+            'homologadas': pagamento.get('qtEmultiHomologado', 0) or 0,
+            'pagas': pagamento.get('qtEmultiPagas', 0) or 0,
+        },
+        'tipos': {
+            'ampliada': pagamento.get('qtEmultiPagamentoAmpliada', 0) or 0,
+            'intermunicipal': pagamento.get('qtEmultiPagamentoIntermunicipal', 0) or 0,
+            'complementar': pagamento.get('qtEmultiPagamentoComplementar', 0) or 0,
+            'estrategica': pagamento.get('qtEmultiPagamentoEstrategica', 0) or 0,
+        },
+        'atend_remoto': {
+            'equipes': pagamento.get('qtEmultiPagasAtendRemoto', 0) or 0,
+            'valor': float(pagamento.get('vlPagamentoEmultiAtendimentoRemoto', 0) or 0),
+        },
+        'valores': {
+            'custeio': float(pagamento.get('vlPagamentoEmultiCusteio', 0) or 0),
+            'qualidade': float(pagamento.get('vlPagamentoEmultiQualidade', 0) or 0),
+            'atend_remoto': float(pagamento.get('vlPagamentoEmultiAtendimentoRemoto', 0) or 0),
+            'implantacao': float(pagamento.get('vlPagamentoEmultiImplantacao', 0) or 0),
+            'total': float(pagamento.get('vlTotalEmulti', 0) or 0),
+        },
+        'classificacao_qualidade': pagamento.get('dsClassificacaoQualidadeEmulti', 'Não informado'),
+    }
+
+    return {
+        'emulti': emulti,
+        'totais': {
+            'vlTotal': emulti['valores']['total'],
+            'qtTotalEquipes': emulti['equipes']['credenciadas']
+        }
+    }
+
+
+def _gerar_html_emulti_detalhado(dados: Optional[Dict[str, Any]]) -> str:
+    """Gera HTML para seção de eMulti detalhada."""
+    if not dados:
+        return '''
+        <div class="detail-section" style="background: #d1fae5; border-left-color: #22c55e;">
+            <p style="color: #065f46; margin: 0;">
+                ⚠️ Nenhum dado de Equipes Multiprofissionais (eMulti) disponível para esta competência.
+                Isso pode ocorrer se o município não possui equipes multiprofissionais cadastradas
+                ou se os dados ainda não foram processados.
+            </p>
+        </div>
+        '''
+
+    emulti = dados.get('emulti', {})
+    totais = dados.get('totais', {})
+
+    # Escapar classificação de qualidade antes de usar na f-string
+    classificacao_qualidade = html.escape(str(emulti.get('classificacao_qualidade', 'N/A')))
+
+    resultado_html = f'''
+    <div class="mixed-grid-section">
+        <div class="mixed-grid-header" style="background: linear-gradient(135deg, #22c55e, #4ade80);">
+            <span>eMulti - Equipes Multiprofissionais</span>
+            <span>{emulti.get('equipes', {}).get('pagas', 0)} equipes</span>
+        </div>
+        <div class="mixed-grid-body">
+            <div class="subsection-title">Equipes e Tipos</div>
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>Credenciadas</td>
+                        <td>Total</td>
+                        <td>{emulti.get('equipes', {}).get('credenciadas', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>Homologadas</td>
+                        <td>Total</td>
+                        <td>{emulti.get('equipes', {}).get('homologadas', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>Pagas</td>
+                        <td>Total</td>
+                        <td>{emulti.get('equipes', {}).get('pagas', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>Ampliada</td>
+                        <td>Tipo</td>
+                        <td>{emulti.get('tipos', {}).get('ampliada', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>Intermunicipal</td>
+                        <td>Tipo</td>
+                        <td>{emulti.get('tipos', {}).get('intermunicipal', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>Complementar</td>
+                        <td>Tipo</td>
+                        <td>{emulti.get('tipos', {}).get('complementar', 0)} equipes</td>
+                    </tr>
+                    <tr>
+                        <td>Estratégica</td>
+                        <td>Tipo</td>
+                        <td>{emulti.get('tipos', {}).get('estrategica', 0)} equipes</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="subsection-title" style="margin-top: 16px;">Atendimento Remoto e Classificação</div>
+            <div class="definition-list">
+                <div class="definition-item">
+                    <span class="definition-label">Equipes com Atendimento Remoto</span>
+                    <span class="definition-value">{emulti.get('atend_remoto', {}).get('equipes', 0)} equipes</span>
+                </div>
+                <div class="definition-item">
+                    <span class="definition-label">Valor Atendimento Remoto</span>
+                    <span class="definition-value">R$ {_br_number(emulti.get('atend_remoto', {}).get('valor', 0), 2)}</span>
+                </div>
+                <div class="definition-item">
+                    <span class="definition-label">Classificação de Qualidade</span>
+                    <span class="definition-value">{classificacao_qualidade}</span>
+                </div>
+            </div>
+
+            <div class="subsection-title" style="margin-top: 16px;">Valores Financeiros</div>
+            <table class="compact-table-3col">
+                <tbody>
+                    <tr>
+                        <td>Custeio</td>
+                        <td>Base</td>
+                        <td>R$ {_br_number(emulti.get('valores', {}).get('custeio', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Qualidade</td>
+                        <td>Desempenho</td>
+                        <td>R$ {_br_number(emulti.get('valores', {}).get('qualidade', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Atendimento Remoto</td>
+                        <td>Adicional</td>
+                        <td>R$ {_br_number(emulti.get('valores', {}).get('atend_remoto', 0), 2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Implantação</td>
+                        <td>Incentivo</td>
+                        <td>R$ {_br_number(emulti.get('valores', {}).get('implantacao', 0), 2)}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Total eMulti</td>
+                        <td></td>
+                        <td>R$ {_br_number(emulti.get('valores', {}).get('total', 0), 2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
+
+    # Totais
+    resultado_html += f'''
+    <div class="highlight-box" style="background: #ecfdf5; border-color: #22c55e;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">Total de Equipes eMulti</p>
+                <div class="value" style="font-size: 32px; color: #22c55e;">{totais.get('qtTotalEquipes', 0)}</div>
+            </div>
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">Valor Total eMulti</p>
+                <div class="value" style="font-size: 28px; color: #22c55e;">R$ {_br_number(totais.get('vlTotal', 0), 2)}</div>
+            </div>
+        </div>
+    </div>
+    '''
+
+    return f'<div class="emulti-section">{resultado_html}</div>'
+
+
+def _gerar_paginas_por_card(
+    resumos_planos: List[Dict[str, Any]],
+    resumo: ResumoFinanceiro,
+    competencia: str
+) -> str:
+    """Gera HTML com uma página por 'card' de programa, alinhado ao frontend."""
+    saude_familia = _processar_saude_familia_detalhado(resumos_planos)
+    saude_bucal = _processar_saude_bucal_detalhado(resumos_planos)
+    emulti = _processar_emulti_detalhado(resumos_planos)
+
+    html_content = []
+
+    # 1) eSF + eAP
+    if saude_familia:
+        html_content.append(_gerar_html_saude_familia_detalhado(saude_familia))
+
+    # 2) Saúde Bucal
+    if saude_bucal:
+        html_content.append(_gerar_html_saude_bucal_detalhado(saude_bucal))
+
+    # 3) eMulti
+    if emulti:
+        html_content.append(_gerar_html_emulti_detalhado(emulti))
+
+    return "\n".join(html_content)
+    acs_pgto = int(pagamento0.get('qtAcsDiretoPgto', 0) or 0)
+    acs_teto = int(pagamento0.get('qtTetoAcs', 0) or 0)
+    acs_valor = float(pagamento0.get('vlTotalAcsDireto', 0) or 0)
+    if any([acs_cred, acs_pgto, acs_teto, acs_valor]):
+        inner = f'''
+        <div class="mixed-grid-section">
+          <div class="mixed-grid-header" style="background: linear-gradient(135deg, #22c55e, #16a34a);">
+            <span>🚶 ACS - Agentes Comunitários de Saúde</span>
+            <span>{acs_pgto} pagos</span>
+          </div>
+          <div class="mixed-grid-body">
+            <div class="definition-list">
+              <div class="definition-item">
+                <span class="definition-label">Agentes Credenciados</span>
+                <span class="definition-value">{acs_cred}</span>
+              </div>
+              <div class="definition-item">
+                <span class="definition-label">Agentes Pagos</span>
+                <span class="definition-value">{acs_pgto}</span>
+              </div>
+              <div class="definition-item">
+                <span class="definition-label">Teto de Agentes</span>
+                <span class="definition-value">{acs_teto}</span>
+              </div>
+              <div class="definition-item total">
+                <span class="definition-label">Valor Total ACS (Mensal)</span>
+                <span class="definition-value" style="color:#059669;">R$ {_br_number(acs_valor, 2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        '''
+        pages.append(page_wrapper("🚶 Agentes Comunitários de Saúde", "Quantidades e valor", "#22c55e, #16a34a", inner))
+
+    # 8) Per Capita - NOVO LAYOUT DEFINITION LIST
+    pop = int(pagamento0.get('qtPopulacao', 0) or 0)
+    perdapita_val = float(pagamento0.get('vlPagamentoIncentivoPopulacional', 0) or 0)
+    if pop > 0 or perdapita_val > 0:
+        perdapita_mensal = perdapita_val / pop if pop > 0 else 0.0
+        inner = f'''
+        <div class="mixed-grid-section">
+          <div class="mixed-grid-header" style="background: linear-gradient(135deg, #0ea5e9, #3b82f6);">
+            <span>👨‍👩‍👧‍👦 Componente per capita</span>
+            <span>{pop:,} hab.</span>
+          </div>
+          <div class="mixed-grid-body">
+            <div class="definition-list">
+              <div class="definition-item">
+                <span class="definition-label">População Cadastrada</span>
+                <span class="definition-value">{pop:,}</span>
+              </div>
+              <div class="definition-item">
+                <span class="definition-label">Valor per capita mensal</span>
+                <span class="definition-value">R$ {_br_number(perdapita_mensal, 2)}</span>
+              </div>
+              <div class="definition-item total">
+                <span class="definition-label">Valor Total Mensal</span>
+                <span class="definition-value" style="color:#0ea5e9;">R$ {_br_number(perdapita_val, 2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        '''
+        pages.append(page_wrapper("👨‍👩‍👧‍👦 Componente per capita", "População e valores", "#0ea5e9, #3b82f6", inner))
+
+    # 9) Demais Programas - NOVO LAYOUT COMPACTO
+    iaf_qt = int(pagamento0.get('qtIafCredenciado', 0) or 0)
+    iaf_vl = float(pagamento0.get('vlPagamentoIaf', 0) or 0)
+    acad_qt = int(pagamento0.get('qtAcademiaSaudeCredenciado', 0) or 0)
+    acad_vl = float(pagamento0.get('vlPagamentoAcademia', 0) or 0)
+    if any([iaf_qt, iaf_vl, acad_qt, acad_vl]):
+        inner = f'''
+        <div class="mixed-grid-section">
+          <div class="mixed-grid-header" style="background: linear-gradient(135deg, #64748b, #475569);">
+            <span>⚙️ Demais Programas e Serviços</span>
+          </div>
+          <div class="mixed-grid-body">
+            <table class="compact-table-3col">
+              <tr><td>IAF - Incentivo de Atenção às Famílias</td><td>{iaf_qt} cred.</td><td>R$ {_br_number(iaf_vl, 2)}</td></tr>
+              <tr><td>Academia da Saúde</td><td>{acad_qt} cred.</td><td>R$ {_br_number(acad_vl, 2)}</td></tr>
+              <tr class="total-row"><td>Total Demais Programas</td><td></td><td>R$ {_br_number(iaf_vl + acad_vl, 2)}</td></tr>
+            </table>
+          </div>
+        </div>
+        '''
+        pages.append(page_wrapper("⚙️ Demais Programas", "IAF, Academia, entre outros", "#64748b, #475569", inner))
+
+    return "\n".join(pages)
+
+
+def create_detailed_pdf_report(
+    *,
+    municipio_nome: Optional[str],
+    uf: Optional[str],
+    competencia: str,
+    resumo: ResumoFinanceiro,
+    pagamentos: Optional[List[Dict[str, Any]]] = None,
+) -> bytes:
+    """Cria relatório PDF detalhado com separação por temas e detalhamento de Saúde Bucal."""
+
+    templates_root = Path(__file__).resolve().parents[2] / "templates"
+
+    # Carregar CSS
+    css_path = templates_root / "css" / "modern-cards.css"
+    css_content = ""
+    if css_path.exists():
+        css_content = css_path.read_text(encoding='utf-8')
+
+    # Carregar imagem do timbrado e converter para base64
+    img_path = templates_root / "images" / "Imagem Timbrado.png"
+    if img_path.exists():
+        with open(img_path, "rb") as img_file:
+            img_data = img_file.read()
+            img_base64 = base64.b64encode(img_data).decode('utf-8')
+            css_content = css_content.replace(
+                "url('../images/Imagem Timbrado.png')",
+                f"url('data:image/png;base64,{img_base64}')"
+            )
+
+    # Carregar template HTML detalhado
+    template_path = templates_root / "relatorio_detalhado.html"
+    if not template_path.exists():
+        raise FileNotFoundError(f"Template HTML detalhado não encontrado: {template_path}")
+
+    html_template = template_path.read_text(encoding='utf-8')
+
+    # Validar e garantir que pagamentos seja uma lista válida
+    pagamentos_validos = pagamentos if pagamentos and isinstance(pagamentos, list) and len(pagamentos) > 0 else []
+
+    if not pagamentos_validos:
+        logger.warning(
+            f"Nenhum dado de pagamento disponível para relatório detalhado - "
+            f"Município: {municipio_nome}/{uf}, Competência: {competencia}"
+        )
+    else:
+        logger.info(
+            f"Gerando relatório detalhado - Município: {municipio_nome}/{uf}, "
+            f"Competência: {competencia}, Pagamentos: {len(pagamentos_validos)}"
+        )
+
+    # Processar dados detalhados de Saúde Bucal
+    saude_bucal_dados = _processar_saude_bucal_detalhado(pagamentos_validos)
+    saude_bucal_html = _gerar_html_saude_bucal_detalhado(saude_bucal_dados)
+    ceo_html = _gerar_html_ceo_detalhado(saude_bucal_dados)
+    lrpd_html = _gerar_html_lrpd_detalhado(saude_bucal_dados)
+    if not saude_bucal_dados:
+        logger.debug("Nenhum dado de Saúde Bucal processado")
+
+    # Processar dados detalhados de Saúde da Família (eSF/eAP)
+    saude_familia_dados = _processar_saude_familia_detalhado(pagamentos_validos)
+    esf_html = _gerar_html_esf_detalhado(saude_familia_dados)
+    eap_html = _gerar_html_eap_detalhado(saude_familia_dados)
+    if not saude_familia_dados:
+        logger.debug("Nenhum dado de Saúde da Família processado")
+
+    # Processar dados detalhados de eMulti
+    emulti_dados = _processar_emulti_detalhado(pagamentos_validos)
+    emulti_html = _gerar_html_emulti_detalhado(emulti_dados)
+    if not emulti_dados:
+        logger.debug("Nenhum dado de eMulti processado")
+
+    # Substituir variáveis básicas
+    html_content = html_template.replace('{{ municipio_nome }}', municipio_nome or 'Município')
+    html_content = html_content.replace('{{ uf }}', uf or '')
+    html_content = html_content.replace('{{ css_content }}', css_content)
+    html_content = html_content.replace('{{ img_base64 }}', img_base64)
+
+    # Substituir competências
+    if pagamentos and len(pagamentos) > 0:
+        comp_cnes = pagamentos[0].get('nuCompCnes', competencia)
+        parcela_pgto = pagamentos[0].get('nuParcela', competencia)
+    else:
+        comp_cnes = competencia
+        parcela_pgto = competencia
+
+    html_content = html_content.replace('__COMPETENCIA_CNES__', str(comp_cnes))
+    html_content = html_content.replace('__PARCELA_PGTO__', str(parcela_pgto))
+
+    # Substituir conteúdo das seções temáticas
+    html_content = html_content.replace('__ESF_CONTENT__', esf_html or '<p>Dados não disponíveis</p>')
+    html_content = html_content.replace('__EAP_CONTENT__', eap_html or '<p>Dados não disponíveis</p>')
+    html_content = html_content.replace('__SAUDE_BUCAL_CONTENT__', saude_bucal_html or '<p>Dados não disponíveis</p>')
+    html_content = html_content.replace('__CEO_CONTENT__', ceo_html or '<p>Dados não disponíveis</p>')
+    html_content = html_content.replace('__LRPD_CONTENT__', lrpd_html or '<p>Dados não disponíveis</p>')
+    html_content = html_content.replace('__EMULTI_CONTENT__', emulti_html or '<p>Dados não disponíveis</p>')
+
+    # Substituir valores do resumo financeiro
+    replacements = {
+        '{{ "{:,.0f}".format(resumo.total_recebido).replace(\',\', \'.\') }}': _br_number(resumo.total_recebido, 0),
+        '{{ "{:,.0f}".format(resumo.total_perda_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_perda_mensal, 0),
+        '{{ "{:,.0f}".format(resumo.total_diferenca_anual).replace(\',\', \'.\') }}': _br_number(resumo.total_diferenca_anual, 0),
+        '{{ "%.2f"|format(resumo.percentual_perda_anual) }}': f"{resumo.percentual_perda_anual:.2f}",
+        '{{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perda_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_recebido + resumo.total_perda_mensal, 0),
+    }
+
+    for old_pattern, new_value in replacements.items():
+        html_content = html_content.replace(old_pattern, new_value)
+
+    # Gerar PDF
+    try:
+        base_url = templates_root.as_uri() + '/'
+        html_doc = weasyprint.HTML(string=html_content, base_url=base_url)
+        pdf_bytes = html_doc.write_pdf()
+
+        if not pdf_bytes or len(pdf_bytes) < 5000:
+            logger.error(f"PDF detalhado gerado é muito pequeno: {len(pdf_bytes) if pdf_bytes else 0} bytes")
+            raise ValueError("PDF gerado está muito pequeno, possível erro na geração")
+
+        logger.info(
+            f"PDF detalhado gerado com sucesso - Município: {municipio_nome}/{uf}, "
+            f"Tamanho: {len(pdf_bytes)} bytes"
+        )
+        return pdf_bytes
+    except ValueError as e:
+        logger.error(f"Erro de validação ao gerar PDF detalhado: {e}")
+        raise
+    except Exception as e:
+        logger.error(
+            f"Erro inesperado ao gerar PDF detalhado - "
+            f"Município: {municipio_nome}/{uf}, Competência: {competencia}: {e}",
+            exc_info=True
+        )
         raise

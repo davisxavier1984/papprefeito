@@ -19,7 +19,7 @@ def test_pdf_generation():
 
     # Dados simulados
     resumo = ResumoFinanceiro(
-        total_perca_mensal=15000.00,
+        total_perda_mensal=15000.00,
         total_diferenca_anual=180000.00,
         percentual_perda_anual=12.5,
         total_recebido=120000.00

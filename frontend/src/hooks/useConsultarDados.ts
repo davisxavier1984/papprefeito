@@ -47,7 +47,7 @@ export const useConsultarDados = () => {
           editados = {
             codigo_ibge: selectedMunicipio.codigo_ibge,
             competencia: selectedCompetencia,
-            perca_recurso_mensal: zeros,
+            perda_recurso_mensal: zeros,
             data_edicao: new Date().toISOString(),
           };
         } else {

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório Detalhado de Financiamento - {{ municipio_nome }}/{{ uf }}</title>
+    <style>
+        {{ css_content }}
+
+        /* Estilos adicionais para relatório detalhado */
+        .detail-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #0ea5e9;
+        }
+
+        .detail-grid {
+            display: grid;
+            /* Aumenta para 3 colunas para condensar informações */
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .detail-item {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .detail-label {
+            font-size: 11px;
+            color: #6b7280;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .subsection-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #374151;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .valores-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            font-size: 11px;
+        }
+
+        .valores-table th {
+            background: #f3f4f6;
+            padding: 8px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #d1d5db;
+        }
+
+        .valores-table td {
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .theme-header {
+            background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .theme-header h2 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        .highlight-box {
+            background: #ecfdf5;
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .highlight-box .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        /* === CONFIGURAÇÃO DE PÁGINA E MARGENS (APENAS PDF DETALHADO) === */
+
+        /* Manter @page sem margens (o timbrado precisa disso) */
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        /* Ajustar padding da .page para criar margens internas */
+        /* 5,5cm topo (+1cm), 1,8cm laterais, 2,4cm inferior */
+        body > .page {
+            padding: 55mm 18mm 24mm 18mm !important;
+            background-position: top center !important;
+            background-size: 100% auto !important;
+            box-sizing: border-box;
+            width: 210mm;
+            min-height: 297mm;
+            page-break-after: always;
+            break-after: page;
+            position: relative;
+        }
+
+        /* Resetar margens dos filhos de .page que vêm do CSS base */
+        body > .page > * {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+
+        /* Exceto a última página */
+        body > .page:last-child {
+            page-break-after: avoid;
+            break-after: avoid;
+        }
+
+        /* Força quebra antes das páginas 2+ */
+        .page-2, .page-3, .page-4, .page-5, .page-6, .page-7, .page-8 {
+            page-break-before: always;
+            break-before: page;
+        }
+
+        /* Cards devem respeitar a largura máxima */
+        .mixed-grid-section {
+            max-width: 100%;
+            width: 100%;
+            margin: 0 0 12px 0;
+            box-sizing: border-box;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        /* Compactação e padronização tipográfica (legível ~10pt) */
+        .detail-grid { gap: 8px; }
+
+        /* Base textual das seções detalhadas */
+        .mixed-grid-section,
+        .mixed-grid-body,
+        .definition-list,
+        .definition-item,
+        .detail-item,
+        .compact-table-3col,
+        .valores-table {
+            font-size: 10pt;
+        }
+
+        .detail-item { padding: 6px 8px; }
+        .detail-label { font-size: 9pt; }
+        .detail-value { font-size: 10pt; }
+
+        .subsection-title {
+            font-size: 11pt;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .compact-table-3col td { padding: 4px 6px; }
+
+        .valores-table td,
+        .valores-table th { padding: 5px 6px; }
+
+        .theme-header {
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .theme-header h2 { font-size: 18px; }
+        .theme-header p { font-size: 11pt; }
+
+        /* Overrides específicos para cartões de programa no PDF detalhado */
+        .program-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        .program-card { padding: 12px; }
+
+        /* Permitir quebra dentro do bloco do eMulti para não estourar a página */
+        .emulti-section .mixed-grid-section {
+            page-break-inside: auto;
+            break-inside: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- PÁGINA 1: Capa -->
+    <div class="page page-1">
+        <div class="report-header" style="text-align: center; padding-top: 60px;">
+            <h1 style="font-size: 28px; color: #1e293b; margin-bottom: 20px;">
+                Relatório Detalhado de Financiamento APS
+            </h1>
+            <h2 style="font-size: 20px; color: #0ea5e9; margin-bottom: 10px;">
+                Município de {{ municipio_nome }}/{{ uf }}
+            </h2>
+            <p style="font-size: 14px; color: #64748b; margin-top: 40px;">
+                Competência: __COMPETENCIA_CNES__ | Parcela: __PARCELA_PGTO__
+            </p>
+
+            <div style="margin-top: 60px; padding: 30px; background: #f0f9ff; border-radius: 12px;">
+                <p style="font-size: 16px; color: #1e293b; line-height: 1.8;">
+                    Este relatório apresenta o detalhamento completo dos programas de financiamento da
+                    Atenção Primária à Saúde, organizado por temas:
+                </p>
+                <ul style="text-align: left; max-width: 600px; margin: 20px auto; color: #475569; font-size: 14px;">
+                    <li style="margin: 10px 0;">👥 Saúde da Família e eAP</li>
+                    <li style="margin: 10px 0;">🦷 Saúde Bucal (detalhamento expandido)</li>
+                    <li style="margin: 10px 0;">🏥 Equipes Multiprofissionais (eMulti)</li>
+                    <li style="margin: 10px 0;">⚙️ Demais Programas e Serviços</li>
+                </ul>
+            </div>
+
+            <div style="margin-top: 80px; color: #64748b; font-size: 12px;">
+                <p>Desenvolvido pela MAIS GESTOR - Saúde e Inovações Tecnológicas</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PÁGINA 2: Saúde da Família (eSF) -->
+    <div class="page page-2" style="page-break-before: always;">
+        <div class="theme-header" style="background: linear-gradient(135deg, #f59e0b, #fb923c);">
+            <h2>👥 Saúde da Família (eSF)</h2>
+            <p style="margin: 5px 0 0 0; font-size: 13px;">Equipes de Saúde da Família</p>
+        </div>
+
+        __ESF_CONTENT__
+    </div>
+
+    <!-- PÁGINA 3: eAP em página própria -->
+    <div class="page page-3" style="page-break-before: always;">
+        <div class="theme-header" style="background: linear-gradient(135deg, #fb923c, #f97316);">
+            <h2>🏥 eAP - Equipes de Atenção Primária</h2>
+            <p style="margin: 5px 0 0 0; font-size: 13px;">Resumo de equipes, carga horária e valores</p>
+        </div>
+
+        __EAP_CONTENT__
+    </div>
+
+    <!-- PÁGINA 4: Saúde Bucal (ESB e UOM) -->
+    <div class="page page-4" style="page-break-before: always;">
+        <div class="theme-header">
+            <h2>🦷 Saúde Bucal - ESB e UOM</h2>
+            <p style="margin: 5px 0 0 0; font-size: 13px;">Equipes de Saúde Bucal e UOM</p>
+        </div>
+
+        __SAUDE_BUCAL_CONTENT__
+    </div>
+
+    <!-- PÁGINA 5: CEO em página própria -->
+    <div class="page page-5" style="page-break-before: always;">
+        <div class="theme-header" style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">
+            <h2>🏥 CEO - Centro de Especialidades Odontológicas</h2>
+            <p style="margin: 5px 0 0 0; font-size: 13px;">Valores Municipal e Estadual</p>
+        </div>
+
+        __CEO_CONTENT__
+    </div>
+
+    <!-- PÁGINA 6: LRPD em página própria -->
+    <div class="page page-6" style="page-break-before: always;">
+        <div class="theme-header" style="background: linear-gradient(135deg, #10b981, #34d399);">
+            <h2>🧪 LRPD - Laboratório Regional de Prótese Dentária</h2>
+            <p style="margin: 5px 0 0 0; font-size: 13px;">Valores Municipal e Estadual</p>
+        </div>
+
+        __LRPD_CONTENT__
+    </div>
+
+    <!-- PÁGINA 7: Equipes Multiprofissionais -->
+    <div class="page page-7" style="page-break-before: always;">
+        <div class="theme-header" style="background: linear-gradient(135deg, #22c55e, #16a34a);">
+            <h2>🏥 Equipes Multiprofissionais (eMulti)</h2>
+            <p style="margin: 5px 0 0 0; font-size: 13px;">Tipos, modalidades e atendimento remoto</p>
+        </div>
+
+        __EMULTI_CONTENT__
+    </div>
+
+    <!-- PÁGINA 8: Resumo Financeiro e Considerações -->
+    <div class="page page-8" style="page-break-before: always;">
+        <div class="theme-header" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+            <h2>💰 Resumo Financeiro Consolidado</h2>
+        </div>
+
+        <div class="highlight-box">
+            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 13px;">Valor Total Recebido (Mensal)</p>
+            <div class="value">R$ {{ "{:,.0f}".format(resumo.total_recebido).replace(',', '.') }}</div>
+        </div>
+
+        <div class="detail-grid">
+            <div class="detail-item">
+                <span class="detail-label">Perda Mensal Estimada</span>
+                <span class="detail-value" style="color: #ef4444;">
+                    R$ {{ "{:,.0f}".format(resumo.total_perda_mensal).replace(',', '.') }}
+                </span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Impacto Anual</span>
+                <span class="detail-value" style="color: #f59e0b;">
+                    R$ {{ "{:,.0f}".format(resumo.total_diferenca_anual).replace(',', '.') }}
+                </span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Percentual de Perda</span>
+                <span class="detail-value" style="color: #ef4444;">
+                    {{ "%.2f"|format(resumo.percentual_perda_anual) }}%
+                </span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Recurso Potencial (Mensal)</span>
+                <span class="detail-value" style="color: #10b981;">
+                    R$ {{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perda_mensal).replace(',', '.') }}
+                </span>
+            </div>
+        </div>
+
+        <div class="subsection-title" style="margin-top: 30px;">Considerações Finais</div>
+        <p style="font-size: 12px; line-height: 1.6; color: #475569;">
+            O acompanhamento detalhado de cada programa permite à gestão municipal identificar
+            oportunidades de expansão, regularização de equipes e melhoria de indicadores de qualidade.
+            A organização por temas facilita a compreensão do financiamento e o planejamento estratégico.
+        </p>
+
+        <p style="font-size: 12px; line-height: 1.6; color: #475569; margin-top: 12px;">
+            O detalhamento da Saúde Bucal, incluindo ESB, UOM, CEO e LRPD, oferece uma visão
+            completa das modalidades e serviços odontológicos disponíveis, permitindo ações
+            direcionadas para ampliar o acesso e a qualidade do atendimento à população.
+        </p>
+
+        <div style="margin-top: 40px; border-top: 2px solid #e5e7eb; padding-top: 20px;">
+            <p style="font-size: 11px; margin: 5px 0;">Atenciosamente,</p>
+            <p style="font-size: 13px; font-weight: 700; margin: 5px 0;">Mais Gestor</p>
+            <p style="font-size: 12px; font-weight: 600; margin: 5px 0;">Alysson Ribeiro</p>
+        </div>
+    </div>
+</body>
+</html>

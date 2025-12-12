@@ -14,7 +14,7 @@ from app.services.relatorio_pdf import create_pdf_report
 def test_scenario_1():
     """Teste 1: Valores pequenos."""
     resumo = ResumoFinanceiro(
-        total_perca_mensal=100.0,
+        total_perda_mensal=100.0,
         total_diferenca_anual=1200.0,
         percentual_perda_anual=5.0,
         total_recebido=2000.0
@@ -35,7 +35,7 @@ def test_scenario_1():
 def test_scenario_2():
     """Teste 2: Valores grandes."""
     resumo = ResumoFinanceiro(
-        total_perca_mensal=50000.0,
+        total_perda_mensal=50000.0,
         total_diferenca_anual=600000.0,
         percentual_perda_anual=15.5,
         total_recebido=350000.0
@@ -56,7 +56,7 @@ def test_scenario_2():
 def test_scenario_3():
     """Teste 3: Nome longo."""
     resumo = ResumoFinanceiro(
-        total_perca_mensal=25000.0,
+        total_perda_mensal=25000.0,
         total_diferenca_anual=300000.0,
         percentual_perda_anual=8.7,
         total_recebido=120000.0
@@ -77,7 +77,7 @@ def test_scenario_3():
 def test_scenario_4():
     """Teste 4: Sem UF especificada."""
     resumo = ResumoFinanceiro(
-        total_perca_mensal=15000.0,
+        total_perda_mensal=15000.0,
         total_diferenca_anual=180000.0,
         percentual_perda_anual=12.3,
         total_recebido=75000.0

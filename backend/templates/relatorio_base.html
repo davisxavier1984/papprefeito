@@ -51,7 +51,7 @@
                     </div>
                 </div>
                 <div class="card-value">
-                    R$ {{ "{:,.0f}".format(resumo.total_perca_mensal).replace(',', '.') }}
+                    R$ {{ "{:,.0f}".format(resumo.total_perda_mensal).replace(',', '.') }}
                 </div>
                 <p class="card-description">
                     recursos perdidos mensalmente que poderiam melhorar significativamente a saúde pública
@@ -171,18 +171,18 @@
 
                 <div class="monthly-item">
                     <div class="monthly-label">Recurso Potencial</div>
-                    <div class="monthly-value">R$ {{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perca_mensal).replace(',', '.') }}</div>
+                    <div class="monthly-value">R$ {{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perda_mensal).replace(',', '.') }}</div>
                 </div>
 
                 <div class="monthly-item">
                     <div class="monthly-label success">Acréscimo</div>
-                    <div class="monthly-value success">R$ {{ "{:,.0f}".format(resumo.total_perca_mensal).replace(',', '.') }}</div>
+                    <div class="monthly-value success">R$ {{ "{:,.0f}".format(resumo.total_perda_mensal).replace(',', '.') }}</div>
                 </div>
             </div>
 
             <div class="monthly-highlight">
                 <div class="highlight-title">Acréscimo Mensal de Receita</div>
-                <div class="highlight-value">R$ {{ "{:,.0f}".format(resumo.total_perca_mensal).replace(',', '.') }}</div>
+                <div class="highlight-value">R$ {{ "{:,.0f}".format(resumo.total_perda_mensal).replace(',', '.') }}</div>
                 <div class="up-arrow">
                     <img src="../../frontend/src/assets/logo.png" alt="Mais Gestor" style="width: 60px; height: auto;">
                 </div>

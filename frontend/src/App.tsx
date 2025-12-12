@@ -3,12 +3,18 @@
  */
 
 import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, App as AntApp } from 'antd';
 import ptBR from 'antd/locale/pt_BR';
 import AppLayout from './components/Layout/AppLayout';
 import Dashboard from './pages/Dashboard';
+import { LoginForm } from './components/Auth/LoginForm';
+import { RegisterForm } from './components/Auth/RegisterForm';
+import { ProtectedRoute } from './components/Auth/ProtectedRoute';
+import { UserProfile } from './components/Auth/UserProfile';
+import { UserManagement } from './pages/Admin/UserManagement';
 import './App.css';
 
 // Configurar React Query Client
@@ -101,11 +107,59 @@ const App: React.FC = () => {
         locale={ptBR}
         theme={antdTheme}
       >
-        <AppLayout>
-          <Dashboard />
-        </AppLayout>
+        <AntApp>
+        <BrowserRouter>
+          <Routes>
+            {/* Rotas públicas de autenticação */}
+            <Route path="/login" element={<LoginForm />} />
+            <Route path="/register" element={<RegisterForm />} />
+
+            {/* Rotas protegidas */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Dashboard />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <UserProfile />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Rota administrativa - apenas para superusuários */}
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute requireSuperuser>
+                  <AppLayout>
+                    <UserManagement />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Redirecionar raiz para login */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
+
+            {/* Rota 404 - redireciona para login */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </BrowserRouter>
+
         {/* DevTools apenas em desenvolvimento */}
         {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+        </AntApp>
       </ConfigProvider>
     </QueryClientProvider>
   );

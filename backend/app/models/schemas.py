@@ -85,24 +85,24 @@ class MunicipioEditado(BaseModel):
     """Modelo para dados editados de município"""
     codigo_ibge: str = Field(..., description="Código IBGE do município")
     competencia: str = Field(..., description="Competência")
-    perca_recurso_mensal: List[float] = Field(default_factory=list, description="Lista de perdas mensais por recurso")
+    perda_recurso_mensal: List[float] = Field(default_factory=list, description="Lista de perdas mensais por recurso")
     data_edicao: datetime = Field(default_factory=datetime.now, description="Data da última edição")
 
 class MunicipioEditadoCreate(BaseModel):
     """Modelo para criação de dados editados"""
     codigo_ibge: str
     competencia: str
-    perca_recurso_mensal: List[float]
+    perda_recurso_mensal: List[float]
 
 class MunicipioEditadoUpdate(BaseModel):
     """Modelo para atualização de dados editados"""
-    perca_recurso_mensal: List[float]
+    perda_recurso_mensal: List[float]
 
 class DadosProcessados(BaseModel):
     """Modelo para dados processados com cálculos"""
     recurso: str
     recurso_real: float
-    perca_recurso_mensal: float
+    perda_recurso_mensal: float
     recurso_potencial: float
     recurso_real_anual: float
     recurso_potencial_anual: float
@@ -110,10 +110,122 @@ class DadosProcessados(BaseModel):
 
 class ResumoFinanceiro(BaseModel):
     """Modelo para resumo financeiro"""
-    total_perca_mensal: float
+    total_perda_mensal: float
     total_diferenca_anual: float
     percentual_perda_anual: float
     total_recebido: float
+
+
+class DetalhamentoPrograma(BaseModel):
+    """Modelo para detalhamento de um programa/plano orçamentário"""
+    nome: str = Field(..., description="Nome do programa")
+    nome_curto: str = Field(..., description="Nome abreviado do programa")
+    valor_integral: float = Field(..., description="Valor integral do programa")
+    valor_ajuste: float = Field(default=0.0, description="Valor de ajuste")
+    valor_desconto: float = Field(default=0.0, description="Valor de desconto (negativo)")
+    valor_efetivo: float = Field(..., description="Valor efetivamente recebido")
+    percentual_efetivacao: float = Field(..., description="Percentual do valor integral que foi efetivado")
+    tem_desconto: bool = Field(default=False, description="Indica se há desconto aplicado")
+    ativo: bool = Field(default=True, description="Indica se o programa está ativo (valor > 0)")
+    icone: str = Field(default="⚙️", description="Ícone do programa")
+    cor_tema: str = Field(default="success", description="Cor temática: success, warning, danger, muted")
+
+
+class ESBModalidade40h(BaseModel):
+    """Detalhamento de ESB Modalidade 40h"""
+    credenciadas: int = Field(default=0)
+    homologadas: int = Field(default=0)
+    modalidade_i: int = Field(default=0, alias="modalidadeI")
+    modalidade_ii: int = Field(default=0, alias="modalidadeII")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ESBCHDiferenciada(BaseModel):
+    """Detalhamento de ESB Carga Horária Diferenciada"""
+    credenciadas: int = Field(default=0)
+    homologadas: int = Field(default=0)
+    modalidade_20h: int = Field(default=0, alias="modalidade20h")
+    modalidade_30h: int = Field(default=0, alias="modalidade30h")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ESBQuilombolasAssentamentos(BaseModel):
+    """Equipes ESB em Quilombolas e Assentamentos"""
+    modalidade_i: int = Field(default=0, alias="modalidadeI")
+    modalidade_ii: int = Field(default=0, alias="modalidadeII")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ESBValores(BaseModel):
+    """Valores financeiros das ESB"""
+    pagamento: float = Field(default=0.0)
+    qualidade: float = Field(default=0.0)
+    ch_diferenciada: float = Field(default=0.0, alias="chDiferenciada")
+    implantacao: float = Field(default=0.0)
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ESBDetalhamento(BaseModel):
+    """Detalhamento completo de ESB"""
+    modalidade40h: ESBModalidade40h = Field(default_factory=ESBModalidade40h)
+    ch_diferenciada: ESBCHDiferenciada = Field(default_factory=ESBCHDiferenciada, alias="chDiferenciada")
+    quilombolas_assentamentos: ESBQuilombolasAssentamentos = Field(
+        default_factory=ESBQuilombolasAssentamentos,
+        alias="quilombolasAssentamentos"
+    )
+    implantacao: int = Field(default=0)
+    valores: ESBValores = Field(default_factory=ESBValores)
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class UOMValores(BaseModel):
+    """Valores financeiros de UOM"""
+    pagamento: float = Field(default=0.0)
+    implantacao: float = Field(default=0.0)
+
+
+class UOMDetalhamento(BaseModel):
+    """Detalhamento de Unidade Odontológica Móvel"""
+    credenciadas: int = Field(default=0)
+    homologadas: int = Field(default=0)
+    pagas: int = Field(default=0)
+    valores: UOMValores = Field(default_factory=UOMValores)
+
+
+class CEODetalhamento(BaseModel):
+    """Detalhamento de CEO (Centro Especialidades Odontológicas)"""
+    municipal: float = Field(default=0.0)
+    estadual: float = Field(default=0.0)
+
+
+class LRPDDetalhamento(BaseModel):
+    """Detalhamento de LRPD (Laboratório Regional Prótese Dentária)"""
+    municipal: float = Field(default=0.0)
+    estadual: float = Field(default=0.0)
+
+
+class TotaisSaudeBucal(BaseModel):
+    """Totais consolidados de Saúde Bucal"""
+    vl_total: float = Field(default=0.0, alias="vlTotal")
+    qt_total_equipes: int = Field(default=0, alias="qtTotalEquipes")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class DetalhamentoSaudeBucal(BaseModel):
+    """Detalhamento expandido de Saúde Bucal"""
+    esb: ESBDetalhamento = Field(default_factory=ESBDetalhamento)
+    uom: UOMDetalhamento = Field(default_factory=UOMDetalhamento)
+    ceo: CEODetalhamento = Field(default_factory=CEODetalhamento)
+    lrpd: LRPDDetalhamento = Field(default_factory=LRPDDetalhamento)
+    totais: TotaisSaudeBucal = Field(default_factory=TotaisSaudeBucal)
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ResumoDetalhado(ResumoFinanceiro):
+    """Modelo para resumo financeiro com detalhamento de programas"""
+    programas: List[DetalhamentoPrograma] = Field(default_factory=list, description="Detalhamento por programa")
+    total_valor_integral: float = Field(default=0.0, description="Soma de todos os valores integrais")
+    total_desconto: float = Field(default=0.0, description="Soma de todos os descontos")
 
 
 class RelatorioPDFRequest(BaseModel):
@@ -157,3 +269,189 @@ class ErrorResponse(BaseModel):
     message: str
     error_code: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
+
+
+# ==================== FUNÇÕES AUXILIARES DE UF ====================
+
+# Mapeamento de códigos IBGE de UF para siglas
+UF_CODES = {
+    "11": "RO", "12": "AC", "13": "AM", "14": "RR", "15": "PA",
+    "16": "AP", "17": "TO", "21": "MA", "22": "PI", "23": "CE",
+    "24": "RN", "25": "PB", "26": "PE", "27": "AL", "28": "SE",
+    "29": "BA", "31": "MG", "32": "ES", "33": "RJ", "35": "SP",
+    "41": "PR", "42": "SC", "43": "RS", "50": "MS", "51": "MT",
+    "52": "GO", "53": "DF"
+}
+
+# UFs permitidas no sistema (apenas BA e GO)
+ALLOWED_UFS = ["BA", "GO"]
+ALLOWED_UF_CODES = ["29", "52"]
+
+
+def get_uf_from_codigo_ibge(codigo_ibge: str) -> str:
+    """
+    Extrai a sigla da UF a partir do código IBGE do município.
+
+    Args:
+        codigo_ibge: Código IBGE do município (6 ou 7 dígitos)
+
+    Returns:
+        Sigla da UF (ex: "BA", "GO", "TO")
+
+    Raises:
+        ValueError: Se o código IBGE for inválido ou UF não encontrada
+    """
+    if not codigo_ibge or len(codigo_ibge) < 6:
+        raise ValueError("Código IBGE deve ter ao menos 6 dígitos")
+
+    uf_code = codigo_ibge[:2]
+    uf = UF_CODES.get(uf_code)
+
+    if not uf:
+        raise ValueError(f"Código de UF inválido: {uf_code}")
+
+    return uf
+
+
+def validate_uf_allowed(uf: str) -> bool:
+    """
+    Valida se a UF está na lista de UFs permitidas (BA ou GO).
+
+    Args:
+        uf: Sigla da UF
+
+    Returns:
+        True se a UF é permitida, False caso contrário
+    """
+    return uf.upper() in ALLOWED_UFS
+
+
+def validate_codigo_ibge_uf(codigo_ibge: str) -> bool:
+    """
+    Valida se o código IBGE pertence a uma UF permitida (BA ou GO).
+
+    Args:
+        codigo_ibge: Código IBGE do município
+
+    Returns:
+        True se a UF é permitida, False caso contrário
+    """
+    if not codigo_ibge or len(codigo_ibge) < 6:
+        return False
+
+    uf_code = codigo_ibge[:2]
+    return uf_code in ALLOWED_UF_CODES
+
+
+# ==================== MODELOS DE AUTENTICAÇÃO ====================
+
+class UserBase(BaseModel):
+    """Schema base para usuário"""
+    email: str = Field(..., description="Email do usuário")
+    nome: str = Field(..., description="Nome completo do usuário")
+
+    @validator('email')
+    def validate_email(cls, v):
+        if '@' not in v or '.' not in v:
+            raise ValueError('Email inválido')
+        return v.lower()
+
+
+class UserCreate(UserBase):
+    """Schema para criação de usuário"""
+    password: str = Field(..., min_length=8, description="Senha do usuário (mínimo 8 caracteres)")
+
+    @validator('password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Senha deve ter no mínimo 8 caracteres')
+        if not any(c.isupper() for c in v):
+            raise ValueError('Senha deve conter ao menos uma letra maiúscula')
+        if not any(c.islower() for c in v):
+            raise ValueError('Senha deve conter ao menos uma letra minúscula')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Senha deve conter ao menos um número')
+        return v
+
+
+class UserUpdate(BaseModel):
+    """Schema para atualização de usuário"""
+    nome: Optional[str] = Field(None, description="Nome completo do usuário")
+    email: Optional[str] = Field(None, description="Email do usuário")
+    is_active: Optional[bool] = Field(None, description="Se o usuário está ativo")
+    is_authorized: Optional[bool] = Field(None, description="Se o usuário foi autorizado")
+    is_superuser: Optional[bool] = Field(None, description="Se o usuário é administrador")
+
+    @validator('email')
+    def validate_email(cls, v):
+        if v and ('@' not in v or '.' not in v):
+            raise ValueError('Email inválido')
+        return v.lower() if v else v
+
+
+class UserPasswordChange(BaseModel):
+    """Schema para mudança de senha"""
+    current_password: str = Field(..., description="Senha atual")
+    new_password: str = Field(..., min_length=8, description="Nova senha")
+
+    @validator('new_password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Senha deve ter no mínimo 8 caracteres')
+        if not any(c.isupper() for c in v):
+            raise ValueError('Senha deve conter ao menos uma letra maiúscula')
+        if not any(c.islower() for c in v):
+            raise ValueError('Senha deve conter ao menos uma letra minúscula')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Senha deve conter ao menos um número')
+        return v
+
+
+class User(UserBase):
+    """Schema para usuário (resposta)"""
+    id: str = Field(..., description="ID do usuário")
+    is_active: bool = Field(default=True, description="Se o usuário está ativo")
+    is_authorized: bool = Field(default=False, description="Se o usuário foi autorizado por um administrador")
+    is_superuser: bool = Field(default=False, description="Se o usuário é administrador")
+    created_at: datetime = Field(default_factory=datetime.now, description="Data de criação")
+    updated_at: Optional[datetime] = Field(None, description="Data da última atualização")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Token(BaseModel):
+    """Schema para resposta de token"""
+    access_token: str = Field(..., description="Token de acesso JWT")
+    refresh_token: str = Field(..., description="Token de renovação")
+    token_type: str = Field(default="bearer", description="Tipo do token")
+    expires_in: int = Field(..., description="Tempo de expiração em segundos")
+
+
+class TokenPayload(BaseModel):
+    """Schema para payload do token JWT"""
+    sub: str = Field(..., description="Subject (user ID)")
+    exp: int = Field(..., description="Expiration time")
+    iat: int = Field(..., description="Issued at time")
+    type: str = Field(default="access", description="Tipo do token: access ou refresh")
+
+
+class LoginRequest(BaseModel):
+    """Schema para requisição de login"""
+    email: str = Field(..., description="Email do usuário")
+    password: str = Field(..., description="Senha do usuário")
+
+
+class RefreshTokenRequest(BaseModel):
+    """Schema para requisição de refresh token"""
+    refresh_token: str = Field(..., description="Token de renovação")
+
+
+class UserAuthorizationUpdate(BaseModel):
+    """Schema para atualização de autorização de usuário"""
+    is_authorized: bool = Field(..., description="Status de autorização")
+
+
+class UserListResponse(BaseModel):
+    """Schema para resposta de listagem de usuários"""
+    total: int = Field(..., description="Total de usuários")
+    users: List[User] = Field(..., description="Lista de usuários")

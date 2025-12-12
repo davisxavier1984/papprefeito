@@ -78,7 +78,7 @@ python backend/scripts/setup_appwrite.py
 3️⃣  Criando attributes...
   ✅ Attribute 'codigo_municipio' criado
   ✅ Attribute 'competencia' criado
-  ✅ Attribute 'perca_recurso_mensal' criado
+  ✅ Attribute 'perda_recurso_mensal' criado
   ...
 
 ✅ Setup do Appwrite concluído com sucesso!
@@ -131,7 +131,7 @@ Salva ou atualiza edição
 {
   "codigo_municipio": "3106200",
   "competencia": "202409",
-  "perca_recurso_mensal": [0.0, 1500.50, 2000.00],
+  "perda_recurso_mensal": [0.0, 1500.50, 2000.00],
   "usuario_id": "user_123"
 }
 ```
@@ -143,7 +143,7 @@ curl -X POST http://localhost:8000/api/edicoes \
   -d '{
     "codigo_municipio": "3106200",
     "competencia": "202409",
-    "perca_recurso_mensal": [0.0, 1500.50, 2000.00]
+    "perda_recurso_mensal": [0.0, 1500.50, 2000.00]
   }'
 ```
 
@@ -181,7 +181,7 @@ curl http://localhost:8000/api/edicoes/3106200/202409
 # Criar nova edição
 curl -X POST http://localhost:8000/api/edicoes \
   -H "Content-Type: application/json" \
-  -d '{"codigo_municipio":"3106200","competencia":"202409","perca_recurso_mensal":[100,200,300]}'
+  -d '{"codigo_municipio":"3106200","competencia":"202409","perda_recurso_mensal":[100,200,300]}'
 ```
 
 ## 🗂️ Estrutura de Arquivos Criados
@@ -221,7 +221,7 @@ backend/
 |-------|------|-------------|-----------|
 | `codigo_municipio` | string(128) | ✅ | Código IBGE do município |
 | `competencia` | string(6) | ✅ | Competência (AAAAMM) |
-| `perca_recurso_mensal` | string(10000) | ✅ | JSON array com valores |
+| `perda_recurso_mensal` | string(10000) | ✅ | JSON array com valores |
 | `usuario_id` | string(128) | ❌ | ID do usuário |
 | `created_at` | datetime | ✅ | Data de criação |
 | `updated_at` | datetime | ✅ | Última atualização |

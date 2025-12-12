@@ -1,6 +1,6 @@
 {
   "261120_202508": {
-    "perca_recurso_mensal": [
+    "perda_recurso_mensal": [
       21.0,
       0.0,
       0.0,
@@ -12,7 +12,7 @@
     "data_edicao": "2025-09-28T17:08:42.449244"
   },
   "290010_202508": {
-    "perca_recurso_mensal": [
+    "perda_recurso_mensal": [
       1200.0,
       0.0,
       0.0,
@@ -23,7 +23,7 @@
     "data_edicao": "2025-09-28T17:19:59.540035"
   },
   "261180_202508": {
-    "perca_recurso_mensal": [
+    "perda_recurso_mensal": [
       500.0,
       50000.0,
       3.0035,
@@ -34,7 +34,7 @@
     "data_edicao": "2025-09-29T12:03:12.441434"
   },
   "430367_202508": {
-    "perca_recurso_mensal": [
+    "perda_recurso_mensal": [
       0.0,
       0.0,
       0.0,
@@ -46,7 +46,7 @@
     "data_edicao": "2025-09-28T17:49:13.927597"
   },
   "261160_202508": {
-    "perca_recurso_mensal": [
+    "perda_recurso_mensal": [
       0.0,
       0.0,
       0.0,
@@ -60,7 +60,7 @@
     "data_edicao": "2025-09-28T17:53:22.585336"
   },
   "291750_202508": {
-    "perca_recurso_mensal": [
+    "perda_recurso_mensal": [
       250.0,
       125.0,
       33.0,
@@ -71,7 +71,7 @@
     "data_edicao": "2025-09-28T18:02:23.960670"
   },
   "291320_202508": {
-    "perca_recurso_mensal": [
+    "perda_recurso_mensal": [
       0.0,
       40000.0,
       40000.0,
@@ -83,7 +83,7 @@
     "data_edicao": "2025-09-30T10:45:05.970138"
   },
   "270020_202508": {
-    "perca_recurso_mensal": [
+    "perda_recurso_mensal": [
       15000.0,
       3600.0,
       1500000.0,
@@ -94,7 +94,7 @@
     "data_edicao": "2025-09-28T20:27:18.407871"
   },
   "110130_202508": {
-    "perca_recurso_mensal": [
+    "perda_recurso_mensal": [
       3000.0,
       6000.0,
       250.0,
@@ -105,7 +105,7 @@
     "data_edicao": "2025-09-29T01:30:33.125202"
   },
   "130006_202508": {
-    "perca_recurso_mensal": [
+    "perda_recurso_mensal": [
       50000.0,
       0.0,
       0.0,
@@ -116,7 +116,7 @@
     "data_edicao": "2025-09-29T01:41:47.365380"
   },
   "293317_202508": {
-    "perca_recurso_mensal": [
+    "perda_recurso_mensal": [
       12000.0,
       38000.0,
       36000.0,
@@ -128,7 +128,7 @@
     "data_edicao": "2025-09-30T01:21:17.581105"
   },
   "270030_202508": {
-    "perca_recurso_mensal": [
+    "perda_recurso_mensal": [
       100000.0,
       50000.0,
       36000.0,

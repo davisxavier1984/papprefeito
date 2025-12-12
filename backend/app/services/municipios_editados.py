@@ -8,7 +8,13 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from app.core.config import settings
-from app.models.schemas import MunicipioEditado, MunicipioEditadoCreate, MunicipioEditadoUpdate
+from app.models.schemas import (
+    MunicipioEditado,
+    MunicipioEditadoCreate,
+    MunicipioEditadoUpdate,
+    get_uf_from_codigo_ibge,
+    validate_codigo_ibge_uf
+)
 from app.utils.logger import logger
 
 
@@ -60,7 +66,7 @@ class MunicipioEditadoService:
                     editados.append(MunicipioEditado(
                         codigo_ibge=codigo_ibge,
                         competencia=competencia,
-                        perca_recurso_mensal=value.get('perca_recurso_mensal', []),
+                        perda_recurso_mensal=value.get('perda_recurso_mensal', []),
                         data_edicao=datetime.fromisoformat(
                             value.get('data_edicao', datetime.now().isoformat())
                         )
@@ -92,7 +98,7 @@ class MunicipioEditadoService:
                 return MunicipioEditado(
                     codigo_ibge=codigo_ibge,
                     competencia=competencia,
-                    perca_recurso_mensal=value.get('perca_recurso_mensal', []),
+                    perda_recurso_mensal=value.get('perda_recurso_mensal', []),
                     data_edicao=datetime.fromisoformat(
                         value.get('data_edicao', datetime.now().isoformat())
                     )
@@ -115,6 +121,20 @@ class MunicipioEditadoService:
             MunicipioEditado: Dados criados ou None em caso de erro
         """
         try:
+            # Validar UF do município
+            if not validate_codigo_ibge_uf(municipio_data.codigo_ibge):
+                try:
+                    uf_real = get_uf_from_codigo_ibge(municipio_data.codigo_ibge)
+                    logger.warning(
+                        f"Tentativa de criar dados editados para município de UF não permitida - "
+                        f"Código IBGE: {municipio_data.codigo_ibge}, UF: {uf_real}"
+                    )
+                except ValueError:
+                    logger.warning(
+                        f"Tentativa de criar dados editados com código IBGE inválido: "
+                        f"{municipio_data.codigo_ibge}"
+                    )
+
             data = self._load_data()
             key = self._get_municipio_key(municipio_data.codigo_ibge, municipio_data.competencia)
 
@@ -126,7 +146,7 @@ class MunicipioEditadoService:
             # Criar novos dados
             now = datetime.now()
             data[key] = {
-                'perca_recurso_mensal': municipio_data.perca_recurso_mensal,
+                'perda_recurso_mensal': municipio_data.perda_recurso_mensal,
                 'data_edicao': now.isoformat()
             }
 
@@ -134,7 +154,7 @@ class MunicipioEditadoService:
                 return MunicipioEditado(
                     codigo_ibge=municipio_data.codigo_ibge,
                     competencia=municipio_data.competencia,
-                    perca_recurso_mensal=municipio_data.perca_recurso_mensal,
+                    perda_recurso_mensal=municipio_data.perda_recurso_mensal,
                     data_edicao=now
                 )
 
@@ -172,7 +192,7 @@ class MunicipioEditadoService:
             # Atualizar dados
             now = datetime.now()
             data[key].update({
-                'perca_recurso_mensal': update_data.perca_recurso_mensal,
+                'perda_recurso_mensal': update_data.perda_recurso_mensal,
                 'data_edicao': now.isoformat()
             })
 
@@ -180,7 +200,7 @@ class MunicipioEditadoService:
                 return MunicipioEditado(
                     codigo_ibge=codigo_ibge,
                     competencia=competencia,
-                    perca_recurso_mensal=update_data.perca_recurso_mensal,
+                    perda_recurso_mensal=update_data.perda_recurso_mensal,
                     data_edicao=now
                 )
 
@@ -227,13 +247,27 @@ class MunicipioEditadoService:
             MunicipioEditado: Dados salvos ou None em caso de erro
         """
         try:
+            # Validar UF do município
+            if not validate_codigo_ibge_uf(municipio_data.codigo_ibge):
+                try:
+                    uf_real = get_uf_from_codigo_ibge(municipio_data.codigo_ibge)
+                    logger.warning(
+                        f"Tentativa de upsert para município de UF não permitida - "
+                        f"Código IBGE: {municipio_data.codigo_ibge}, UF: {uf_real}"
+                    )
+                except ValueError:
+                    logger.warning(
+                        f"Tentativa de upsert com código IBGE inválido: "
+                        f"{municipio_data.codigo_ibge}"
+                    )
+
             data = self._load_data()
             key = self._get_municipio_key(municipio_data.codigo_ibge, municipio_data.competencia)
 
             # Criar ou atualizar dados
             now = datetime.now()
             data[key] = {
-                'perca_recurso_mensal': municipio_data.perca_recurso_mensal,
+                'perda_recurso_mensal': municipio_data.perda_recurso_mensal,
                 'data_edicao': now.isoformat()
             }
 
@@ -241,7 +275,7 @@ class MunicipioEditadoService:
                 return MunicipioEditado(
                     codigo_ibge=municipio_data.codigo_ibge,
                     competencia=municipio_data.competencia,
-                    perca_recurso_mensal=municipio_data.perca_recurso_mensal,
+                    perda_recurso_mensal=municipio_data.perda_recurso_mensal,
                     data_edicao=now
                 )
 

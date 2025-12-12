@@ -180,10 +180,10 @@ if 'dados_api' in st.session_state and 'municipio_info' in st.session_state:
             return df
 
         # Inicializar session state para este município se não existir
-        session_key = f"perca_{municipio_key}"
+        session_key = f"perda_{municipio_key}"
         if session_key not in st.session_state:
             if municipio_key in edited_data:
-                st.session_state[session_key] = edited_data[municipio_key].get('perca_recurso_mensal', [0.0] * len(df_exibicao))
+                st.session_state[session_key] = edited_data[municipio_key].get('perda_recurso_mensal', [0.0] * len(df_exibicao))
             else:
                 st.session_state[session_key] = [0.0] * len(df_exibicao)
 
@@ -257,7 +257,7 @@ if 'dados_api' in st.session_state and 'municipio_info' in st.session_state:
 
             # Salvar dados editados
             edited_data[municipio_key] = {
-                'perca_recurso_mensal': valores_atuais
+                'perda_recurso_mensal': valores_atuais
             }
             save_edited_data(edited_data)
 
@@ -269,10 +269,10 @@ if 'dados_api' in st.session_state and 'municipio_info' in st.session_state:
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            total_perca = df_final['Perca Recurso Mensal'].sum()
+            total_perda = df_final['Perca Recurso Mensal'].sum()
             st.metric(
                 "💸 Total Perca Mensal",
-                format_currency(total_perca),
+                format_currency(total_perda),
                 help="Soma total das perdas mensais"
             )
 

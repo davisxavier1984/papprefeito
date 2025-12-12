@@ -89,7 +89,7 @@ frontend/
 interface TableRow {
   recurso: string;                    // Somente leitura
   recurso_real: number;              // Somente leitura
-  perca_recurso_mensal: number;      // ✏️ EDITÁVEL
+  perda_recurso_mensal: number;      // ✏️ EDITÁVEL
   recurso_potencial: number;         // Calculado
   recurso_real_anual: number;        // Calculado
   recurso_potencial_anual: number;   // Calculado
@@ -108,7 +108,7 @@ interface TableRow {
 ```typescript
 // Componente: Metrics/MetricsCards.tsx
 interface MetricsData {
-  total_perca_mensal: number;        // 💸 Total Perca Mensal
+  total_perda_mensal: number;        // 💸 Total Perca Mensal
   total_diferenca_anual: number;     // 📊 Diferença Anual Total
   percentual_perda_anual: number;    // 📈 % Perda Anual
   total_recebido: number;            // 💰 Valor Total Recebido

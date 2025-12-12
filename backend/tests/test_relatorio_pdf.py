@@ -8,11 +8,11 @@ def test_compute_financial_summary_basic():
         {"vlEfetivoRepasse": 1000.0},
         {"vlEfetivoRepasse": 500.0},
     ]
-    percas = [100.0, 50.0]
+    perdas = [100.0, 50.0]
 
-    resumo = compute_financial_summary(resumos, percas)
+    resumo = compute_financial_summary(resumos, perdas)
 
-    assert resumo.total_perca_mensal == 150.0
+    assert resumo.total_perda_mensal == 150.0
     assert resumo.total_diferenca_anual == 1800.0
     assert resumo.total_recebido == 1500.0
     assert resumo.percentual_perda_anual == 10.0
@@ -24,17 +24,17 @@ def test_compute_financial_summary_aligns_missing_losses():
         {"vlEfetivoRepasse": 200.0},
         {"vlEfetivoRepasse": 100.0},
     ]
-    percas = [10.0]
+    perdas = [10.0]
 
-    resumo = compute_financial_summary(resumos, percas)
+    resumo = compute_financial_summary(resumos, perdas)
 
-    assert resumo.total_perca_mensal == 10.0
+    assert resumo.total_perda_mensal == 10.0
     assert resumo.total_diferenca_anual == 120.0
 
 
 def test_create_pdf_report_returns_pdf_bytes():
     resumo = ResumoFinanceiro(
-        total_perca_mensal=150.0,
+        total_perda_mensal=150.0,
         total_diferenca_anual=1800.0,
         percentual_perda_anual=10.0,
         total_recebido=1500.0,

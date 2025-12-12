@@ -1,7 +1,7 @@
 /**
  * Componente: FinancialTable
  * - Tabela editável de financiamento
- * - Coluna "Perca Recurso Mensal" editável
+ * - Coluna "Perda Recurso Mensal" editável
  * - Cálculos reativos
  * - Auto-save com debounce
  */
@@ -9,7 +9,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Table, Typography, Space, Tag, Card, Row, Col, Statistic, Divider } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useMunicipioStore, useUpdatePercaRecurso } from '../../stores/municipioStore';
+import { useMunicipioStore, useUpdatePerdaRecurso } from '../../stores/municipioStore';
 import type { DadosProcessados } from '../../types';
 import useAutoSave from '../../hooks/useAutoSave';
 import CurrencyInput from '../inputs/CurrencyInput';
@@ -26,7 +26,7 @@ const formatCurrency = (value: number) => currencyFormatter.format(value);
 
 const FinancialTable: React.FC = () => {
   const { dadosProcessados, isLoading } = useMunicipioStore();
-  const updatePerca = useUpdatePercaRecurso();
+  const updatePerca = useUpdatePerdaRecurso();
   const { triggerSave, status, isSaving, isSaved, isError } = useAutoSave(2000);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -58,16 +58,16 @@ const FinancialTable: React.FC = () => {
       render: (value: number) => <Text>{formatCurrency(value)}</Text>,
     },
     {
-      title: 'Perca Recurso Mensal',
-      dataIndex: 'perca_recurso_mensal',
-      key: 'perca_recurso_mensal',
+      title: 'Perda Recurso Mensal',
+      dataIndex: 'perda_recurso_mensal',
+      key: 'perda_recurso_mensal',
       align: 'right',
       width: 240,
       render: (_value: number, _record, index) => (
         <CurrencyInput
-          id={`perca-recurso-${index}`}
-          name={`perca_recurso_mensal_${index}`}
-          value={dadosProcessados[index]?.perca_recurso_mensal ?? 0}
+          id={`perda-recurso-${index}`}
+          name={`perda_recurso_mensal_${index}`}
+          value={dadosProcessados[index]?.perda_recurso_mensal ?? 0}
           onCommit={(val) => {
             const sanitized = Number.isFinite(val) && val >= 0 ? val : 0;
             updatePerca(index, sanitized);
@@ -163,13 +163,13 @@ const FinancialTable: React.FC = () => {
 
             <div>
               <Text type="secondary" style={{ fontSize: '13px', fontWeight: 500 }}>
-                Perca Recurso Mensal:
+                Perda Recurso Mensal:
               </Text>
               <div style={{ marginTop: '4px' }}>
                 <CurrencyInput
-                  id={`perca-recurso-mobile-${index}`}
-                  name={`perca_recurso_mensal_mobile_${index}`}
-                  value={item.perca_recurso_mensal ?? 0}
+                  id={`perda-recurso-mobile-${index}`}
+                  name={`perda_recurso_mensal_mobile_${index}`}
+                  value={item.perda_recurso_mensal ?? 0}
                   onCommit={(val) => {
                     const sanitized = Number.isFinite(val) && val >= 0 ? val : 0;
                     updatePerca(index, sanitized);

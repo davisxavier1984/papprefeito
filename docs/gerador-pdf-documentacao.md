@@ -60,7 +60,7 @@ def create_pdf_report(
 ```python
 def compute_financial_summary(
     resumos: Iterable[Dict[str, Any]],
-    percas: Iterable[float]
+    perdas: Iterable[float]
 ) -> ResumoFinanceiro
 ```
 
@@ -109,7 +109,7 @@ def create_html_pdf_report(
    ```python
    recurso_atual_anual = resumo.total_recebido * 12
    recurso_potencial_anual = recurso_atual_anual + resumo.total_diferenca_anual
-   recurso_potencial_mensal = resumo.total_recebido + resumo.total_perca_mensal
+   recurso_potencial_mensal = resumo.total_recebido + resumo.total_perda_mensal
    ```
 
 4. **Métricas de Cards (Página 1)**
@@ -235,7 +235,7 @@ def create_fpdf_report(
    - Ícone: ⚠ (alerta)
    - Trend: ↓ (queda)
    - Badge: "Oportunidade"
-   - Valor: `R$ {total_perca_mensal}`
+   - Valor: `R$ {total_perda_mensal}`
    - Descrição: "recursos perdidos mensalmente..."
    - Detalhe: "Equivalente a R$ {...} por ano"
    - Barra de progresso: % do potencial mensal
@@ -433,7 +433,7 @@ box-shadow: 0 4px 16px rgba(cor-tematica, 0.3);
 ##### Valores e Tipografia
 
 **Hierarquia de Texto:**
-1. **`.card-title`** (10px, uppercase, 800 weight) - cinza
+1. **`.card-title`** (10px, upperdase, 800 weight) - cinza
 2. **`.card-value`** (28px, 900 weight) - cor temática com gradiente
 3. **`.card-description`** (10px, 500 weight) - cinza médio
 4. **`.card-detail`** (9px, 500 weight) - cinza claro
@@ -575,16 +575,16 @@ resumos = [
     {"vlEfetivoRepasse": 152000.00, ...},
     # ... 12 meses
 ]
-percas = [5000.00, 5200.00, ...]  # Perdas mensais
+perdas = [5000.00, 5200.00, ...]  # Perdas mensais
 ```
 
 ### 2. Processamento
 ```python
 # Cálculo de métricas
-resumo = compute_financial_summary(resumos, percas)
+resumo = compute_financial_summary(resumos, perdas)
 # ResumoFinanceiro(
 #     total_recebido=151000.00,         # Média mensal
-#     total_perca_mensal=5100.00,
+#     total_perda_mensal=5100.00,
 #     total_diferenca_anual=61200.00,   # 5100 × 12
 #     percentual_perda_anual=3.34       # (61200 / 1830000) × 100
 # )
@@ -687,8 +687,8 @@ fpdf2>=2.7           # [LEGADO] Geração FPDF
 
 **Arrays Desalinhados:**
 - `compute_financial_summary()` normaliza tamanhos:
-  - Preenche percas com zeros se `len(percas) < len(resumos)`
-  - Trunca percas se `len(percas) > len(resumos)`
+  - Preenche perdas com zeros se `len(perdas) < len(resumos)`
+  - Trunca perdas se `len(perdas) > len(resumos)`
 
 **Valores Nulos:**
 - `float(item.get('vlEfetivoRepasse') or 0.0)` trata `None` como 0
@@ -941,10 +941,10 @@ def test_safe_ratio():
 
 def test_compute_financial_summary():
     resumos = [{"vlEfetivoRepasse": 100000}] * 12
-    percas = [5000] * 12
-    result = compute_financial_summary(resumos, percas)
+    perdas = [5000] * 12
+    result = compute_financial_summary(resumos, perdas)
     assert result.total_recebido == 100000
-    assert result.total_perca_mensal == 5000 * 12
+    assert result.total_perda_mensal == 5000 * 12
 ```
 
 ### Testes de Integração
@@ -953,7 +953,7 @@ def test_compute_financial_summary():
 def test_pdf_generation():
     resumo = ResumoFinanceiro(
         total_recebido=150000,
-        total_perca_mensal=5000,
+        total_perda_mensal=5000,
         total_diferenca_anual=60000,
         percentual_perda_anual=3.3
     )

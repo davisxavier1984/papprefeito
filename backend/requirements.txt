@@ -6,6 +6,7 @@ httpx==0.25.0
 python-multipart==0.0.6
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+bcrypt>=4.1.0,<5.0.0  # Versão compatível com passlib (evita bcrypt 5.x)
 sqlalchemy==2.0.23
 asyncpg==0.29.0
 alembic==1.12.1

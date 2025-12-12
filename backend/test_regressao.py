@@ -57,17 +57,17 @@ def test_compute_financial_summary():
         {'vlEfetivoRepasse': 15000.00},
         {'vlEfetivoRepasse': 12000.00}
     ]
-    percas = [1000.00, 1500.00, 1200.00]
+    perdas = [1000.00, 1500.00, 1200.00]
 
-    resultado = compute_financial_summary(resumos, percas)
+    resultado = compute_financial_summary(resumos, perdas)
 
     # Validações
     assert resultado.total_recebido == 37000.00, f"❌ Total recebido errado: {resultado.total_recebido}"
-    assert resultado.total_perca_mensal == 3700.00, f"❌ Perda mensal errada: {resultado.total_perca_mensal}"
+    assert resultado.total_perda_mensal == 3700.00, f"❌ Perda mensal errada: {resultado.total_perda_mensal}"
     assert resultado.total_diferenca_anual == 44400.00, f"❌ Diferença anual errada: {resultado.total_diferenca_anual}"
 
     print(f"   Total Recebido: R$ {resultado.total_recebido:,.2f} ✅")
-    print(f"   Perda Mensal: R$ {resultado.total_perca_mensal:,.2f} ✅")
+    print(f"   Perda Mensal: R$ {resultado.total_perda_mensal:,.2f} ✅")
     print(f"   Diferença Anual: R$ {resultado.total_diferenca_anual:,.2f} ✅")
     print(f"   Percentual: {resultado.percentual_perda_anual:.2f}% ✅")
 
@@ -82,7 +82,7 @@ def test_geracao_fpdf_legado():
     print("="*60)
 
     resumo = ResumoFinanceiro(
-        total_perca_mensal=10000.00,
+        total_perda_mensal=10000.00,
         total_diferenca_anual=120000.00,
         percentual_perda_anual=10.0,
         total_recebido=100000.00
@@ -116,7 +116,7 @@ def test_geracao_html_pdf():
     print("="*60)
 
     resumo = ResumoFinanceiro(
-        total_perca_mensal=15000.00,
+        total_perda_mensal=15000.00,
         total_diferenca_anual=180000.00,
         percentual_perda_anual=12.0,
         total_recebido=125000.00
@@ -152,7 +152,7 @@ def test_funcao_principal_create_pdf():
     print("="*60)
 
     resumo = ResumoFinanceiro(
-        total_perca_mensal=20000.00,
+        total_perda_mensal=20000.00,
         total_diferenca_anual=240000.00,
         percentual_perda_anual=15.0,
         total_recebido=160000.00
@@ -205,10 +205,10 @@ def test_compatibilidade_com_dados_reais():
         {'vlEfetivoRepasse': 275000.00}
     ]
 
-    percas_simuladas = [25000.00, 18000.00, 32000.00, 27500.00]
+    perdas_simuladas = [25000.00, 18000.00, 32000.00, 27500.00]
 
     try:
-        resumo = compute_financial_summary(resumos_simulados, percas_simuladas)
+        resumo = compute_financial_summary(resumos_simulados, perdas_simuladas)
 
         pdf_bytes = create_pdf_report(
             municipio_nome="Município de Grande Porte",
@@ -220,7 +220,7 @@ def test_compatibilidade_com_dados_reais():
         assert len(pdf_bytes) > 5000, "❌ PDF com dados reais muito pequeno!"
 
         print(f"   Total Recebido: R$ {resumo.total_recebido:,.2f}")
-        print(f"   Perda Mensal: R$ {resumo.total_perca_mensal:,.2f}")
+        print(f"   Perda Mensal: R$ {resumo.total_perda_mensal:,.2f}")
         print(f"   Diferença Anual: R$ {resumo.total_diferenca_anual:,.2f}")
         print(f"   PDF validado: {len(pdf_bytes):,} bytes (memória)")
 
