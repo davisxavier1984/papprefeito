@@ -112,6 +112,7 @@ class UserService:
                 "nome": user_data.nome,
                 "hashed_password": hashed_password,
                 "is_active": True,
+                "is_authorized": False,  # Novo usuário precisa de autorização
                 "is_superuser": False,
                 "created_at": now,
                 "updated_at": now
@@ -170,6 +171,12 @@ class UserService:
                 update_data["nome"] = user_data.nome
             if user_data.email is not None:
                 update_data["email"] = user_data.email.lower()
+            if user_data.is_active is not None:
+                update_data["is_active"] = user_data.is_active
+            if user_data.is_authorized is not None:
+                update_data["is_authorized"] = user_data.is_authorized
+            if user_data.is_superuser is not None:
+                update_data["is_superuser"] = user_data.is_superuser
 
             update_data["updated_at"] = datetime.utcnow().isoformat()
 
@@ -265,6 +272,9 @@ class UserService:
 
         Returns:
             User se autenticado com sucesso, None caso contrário
+
+        Raises:
+            HTTPException: Se o usuário não estiver autorizado
         """
         user_doc = await self._get_user_document_by_email(email)
         if not user_doc:
@@ -274,7 +284,140 @@ class UserService:
         if not verify_password(password, user_doc.get("hashed_password", "")):
             return None
 
-        return self._document_to_user(user_doc)
+        user = self._document_to_user(user_doc)
+
+        # Verifica se o usuário está autorizado
+        if not user.is_authorized:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Usuário aguardando autorização do administrador. Entre em contato com o suporte."
+            )
+
+        return user
+
+    async def authorize_user(
+        self,
+        user_id: str,
+        is_authorized: bool
+    ) -> User:
+        """
+        Autoriza ou revoga autorização de um usuário
+
+        Args:
+            user_id: ID do usuário
+            is_authorized: True para autorizar, False para revogar
+
+        Returns:
+            Usuário atualizado
+
+        Raises:
+            HTTPException: Se o usuário não for encontrado
+        """
+        # Verifica se o usuário existe
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuário não encontrado"
+            )
+
+        try:
+            # Atualiza autorização no Appwrite
+            doc = self.databases.update_document(
+                database_id=self.database_id,
+                collection_id=self.collection_id,
+                document_id=user_id,
+                data={
+                    "is_authorized": is_authorized,
+                    "updated_at": datetime.utcnow().isoformat()
+                }
+            )
+
+            action = "autorizado" if is_authorized else "revogado"
+            logger.info(f"Usuário {action}: {user.email}")
+            return self._document_to_user(doc)
+
+        except AppwriteException as e:
+            logger.error(f"Erro ao autorizar usuário: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Erro ao atualizar autorização do usuário"
+            )
+
+    async def set_superuser(
+        self,
+        user_id: str,
+        is_superuser: bool
+    ) -> User:
+        """
+        Define ou remove permissões de superusuário
+
+        Args:
+            user_id: ID do usuário
+            is_superuser: True para tornar superuser, False para remover
+
+        Returns:
+            Usuário atualizado
+
+        Raises:
+            HTTPException: Se o usuário não for encontrado
+        """
+        # Verifica se o usuário existe
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuário não encontrado"
+            )
+
+        try:
+            # Atualiza permissão de superuser no Appwrite
+            doc = self.databases.update_document(
+                database_id=self.database_id,
+                collection_id=self.collection_id,
+                document_id=user_id,
+                data={
+                    "is_superuser": is_superuser,
+                    "updated_at": datetime.utcnow().isoformat()
+                }
+            )
+
+            action = "promovido a superusuário" if is_superuser else "removido de superusuário"
+            logger.info(f"Usuário {action}: {user.email}")
+            return self._document_to_user(doc)
+
+        except AppwriteException as e:
+            logger.error(f"Erro ao atualizar permissões de superusuário: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Erro ao atualizar permissões de superusuário"
+            )
+
+    async def list_pending_users(self) -> List[User]:
+        """
+        Lista usuários pendentes de autorização
+
+        Returns:
+            Lista de usuários não autorizados
+        """
+        try:
+            result = self.databases.list_documents(
+                database_id=self.database_id,
+                collection_id=self.collection_id,
+                queries=[
+                    Query.equal("is_authorized", False),
+                    Query.limit(100)
+                ]
+            )
+
+            return [self._document_to_user(doc) for doc in result['documents']]
+
+        except AppwriteException as e:
+            logger.error(f"Erro ao listar usuários pendentes: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Erro ao listar usuários pendentes"
+            )
 
     async def delete_user(self, user_id: str) -> bool:
         """
@@ -310,29 +453,54 @@ class UserService:
     async def list_users(
         self,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
+        search: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        is_superuser: Optional[bool] = None
     ) -> List[User]:
         """
-        Lista usuários com paginação
+        Lista usuários com paginação e filtros
 
         Args:
             skip: Número de registros a pular
             limit: Número máximo de registros
+            search: Buscar por nome ou email
+            is_active: Filtrar por status ativo
+            is_superuser: Filtrar por superusuário
 
         Returns:
             Lista de usuários
         """
         try:
+            queries = [
+                Query.offset(skip),
+                Query.limit(limit)
+            ]
+
+            # Adicionar filtros se especificados
+            if is_active is not None:
+                queries.append(Query.equal("is_active", is_active))
+
+            if is_superuser is not None:
+                queries.append(Query.equal("is_superuser", is_superuser))
+
             result = self.databases.list_documents(
                 database_id=self.database_id,
                 collection_id=self.collection_id,
-                queries=[
-                    Query.offset(skip),
-                    Query.limit(limit)
-                ]
+                queries=queries
             )
 
-            return [self._document_to_user(doc) for doc in result['documents']]
+            users = [self._document_to_user(doc) for doc in result['documents']]
+
+            # Filtro de busca por nome ou email (feito em memória pois Appwrite não suporta busca full-text bem)
+            if search:
+                search_lower = search.lower()
+                users = [
+                    u for u in users
+                    if search_lower in u.nome.lower() or search_lower in u.email.lower()
+                ]
+
+            return users
 
         except AppwriteException as e:
             logger.error(f"Erro ao listar usuários: {e}")
@@ -375,6 +543,7 @@ class UserService:
             email=doc.get('email', ''),
             nome=doc.get('nome', ''),
             is_active=doc.get('is_active', True),
+            is_authorized=doc.get('is_authorized', False),
             is_superuser=doc.get('is_superuser', False),
             created_at=datetime.fromisoformat(doc.get('created_at', datetime.utcnow().isoformat())),
             updated_at=datetime.fromisoformat(doc.get('updated_at')) if doc.get('updated_at') else None

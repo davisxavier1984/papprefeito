@@ -4,7 +4,11 @@ from io import BytesIO
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from app.models.schemas import RelatorioPDFRequest
+from app.models.schemas import (
+    RelatorioPDFRequest,
+    get_uf_from_codigo_ibge,
+    validate_codigo_ibge_uf
+)
 from app.services.api_client import saude_api_client
 from app.services.municipios_editados import municipio_editado_service
 from app.services.relatorio_pdf import compute_financial_summary, create_pdf_report, create_detailed_pdf_report
@@ -18,6 +22,19 @@ router = APIRouter()
 async def gerar_relatorio_pdf(request: RelatorioPDFRequest):
     """Gera e retorna o relatório financeiro em PDF para download."""
     try:
+        # Validar se o município pertence a uma UF permitida (BA ou GO)
+        if not validate_codigo_ibge_uf(request.codigo_ibge):
+            uf_real = get_uf_from_codigo_ibge(request.codigo_ibge)
+            logger.warning(
+                f"Tentativa de gerar relatório para município de UF não permitida - "
+                f"Código IBGE: {request.codigo_ibge}, UF: {uf_real}"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"Este sistema só atende municípios da Bahia (BA) e Goiás (GO). "
+                       f"O município informado pertence a {uf_real}."
+            )
+
         dados = await saude_api_client.consultar_financiamento(
             request.codigo_ibge,
             request.competencia
@@ -34,9 +51,9 @@ async def gerar_relatorio_pdf(request: RelatorioPDFRequest):
             request.codigo_ibge,
             request.competencia
         )
-        percas = editado.perca_recurso_mensal if editado else [0.0] * len(resumos)
+        perdas = editado.perda_recurso_mensal if editado else [0.0] * len(resumos)
 
-        resumo = compute_financial_summary(resumos, percas)
+        resumo = compute_financial_summary(resumos, perdas)
 
         # Passar também os resumos de planos orçamentários para a página 4
         pdf_bytes = create_pdf_report(
@@ -71,6 +88,19 @@ async def gerar_relatorio_pdf(request: RelatorioPDFRequest):
 async def gerar_relatorio_detalhado_pdf(request: RelatorioPDFRequest):
     """Gera e retorna o relatório financeiro DETALHADO em PDF para download."""
     try:
+        # Validar se o município pertence a uma UF permitida (BA ou GO)
+        if not validate_codigo_ibge_uf(request.codigo_ibge):
+            uf_real = get_uf_from_codigo_ibge(request.codigo_ibge)
+            logger.warning(
+                f"Tentativa de gerar relatório detalhado para município de UF não permitida - "
+                f"Código IBGE: {request.codigo_ibge}, UF: {uf_real}"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"Este sistema só atende municípios da Bahia (BA) e Goiás (GO). "
+                       f"O município informado pertence a {uf_real}."
+            )
+
         logger.info(
             f"Iniciando geração de relatório detalhado - "
             f"Município: {request.municipio_nome}/{request.uf}, "
@@ -105,9 +135,9 @@ async def gerar_relatorio_detalhado_pdf(request: RelatorioPDFRequest):
             request.codigo_ibge,
             request.competencia
         )
-        percas = editado.perca_recurso_mensal if editado else [0.0] * len(resumos)
+        perdas = editado.perda_recurso_mensal if editado else [0.0] * len(resumos)
 
-        resumo = compute_financial_summary(resumos, percas)
+        resumo = compute_financial_summary(resumos, perdas)
 
         # Gerar PDF detalhado com dados de pagamento
         pdf_bytes = create_detailed_pdf_report(

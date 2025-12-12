@@ -91,9 +91,9 @@ def migrate_data():
         competencia = parts[-1]
 
         # Extrair dados
-        perca_recurso = value.get('perca_recurso_mensal', [])
+        perda_recurso = value.get('perda_recurso_mensal', [])
 
-        if not isinstance(perca_recurso, list):
+        if not isinstance(perda_recurso, list):
             print(f"  ⚠️  Formato inválido para {key}, pulando...")
             skip_count += 1
             continue
@@ -103,7 +103,7 @@ def migrate_data():
         document_data = {
             'codigo_municipio': codigo_municipio,
             'competencia': competencia,
-            'perca_recurso_mensal': json.dumps(perca_recurso),
+            'perda_recurso_mensal': json.dumps(perda_recurso),
             'created_at': now,
             'updated_at': now
         }

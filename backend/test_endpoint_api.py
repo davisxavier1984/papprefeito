@@ -27,7 +27,7 @@ def test_endpoint_simulation():
 
     # Simular resumo financeiro (normalmente viria da API)
     resumo = ResumoFinanceiro(
-        total_perca_mensal=45000.00,
+        total_perda_mensal=45000.00,
         total_diferenca_anual=540000.00,
         percentual_perda_anual=18.5,
         total_recebido=290000.00
@@ -40,7 +40,7 @@ def test_endpoint_simulation():
 
     print(f"\n💰 Resumo Financeiro:")
     print(f"   Recebido: R$ {resumo.total_recebido:,.2f}")
-    print(f"   Perda Mensal: R$ {resumo.total_perca_mensal:,.2f}")
+    print(f"   Perda Mensal: R$ {resumo.total_perda_mensal:,.2f}")
     print(f"   Diferença Anual: R$ {resumo.total_diferenca_anual:,.2f}")
     print(f"   Percentual: {resumo.percentual_perda_anual:.2f}%")
 
@@ -125,7 +125,7 @@ def test_diferentes_municipios():
     ]
 
     resumo = ResumoFinanceiro(
-        total_perca_mensal=30000.00,
+        total_perda_mensal=30000.00,
         total_diferenca_anual=360000.00,
         percentual_perda_anual=14.0,
         total_recebido=215000.00

@@ -15,6 +15,27 @@ import type {
 } from '../types';
 import { processarProgramas } from '../utils/processarProgramas';
 
+// UFs permitidas no sistema
+const ALLOWED_UFS = ['BA', 'GO'];
+
+/**
+ * Valida se a UF do município é permitida no sistema
+ */
+const validateMunicipioUF = (municipio: Municipio | null): boolean => {
+  if (!municipio) return true;
+
+  const isValid = ALLOWED_UFS.includes(municipio.uf.toUpperCase());
+
+  if (!isValid) {
+    console.warn(
+      `⚠️ Município de UF não permitida detectado: ${municipio.nome} - ${municipio.uf}. ` +
+      `Este sistema só atende municípios da Bahia (BA) e Goiás (GO).`
+    );
+  }
+
+  return isValid;
+};
+
 // Estado inicial
 const initialState = {
   // Seleções atuais
@@ -67,6 +88,9 @@ export const useMunicipioStore = create<AppStore>()(
         },
 
         setSelectedMunicipio: (municipio: Municipio | null) => {
+          // Validar UF do município
+          validateMunicipioUF(municipio);
+
           set(() => ({
             selectedMunicipio: municipio,
             // Limpar dados quando muda município
@@ -166,16 +190,16 @@ export const useMunicipioStore = create<AppStore>()(
           }
 
           const dadosProcessados: DadosProcessados[] = dadosFinanciamento.resumosPlanosOrcamentarios.map((resumo, index) => {
-            const percaMensal = dadosEditados?.perca_recurso_mensal?.[index] || 0;
+            const perdaMensal = dadosEditados?.perda_recurso_mensal?.[index] || 0;
 
             return {
               recurso: resumo.dsPlanoOrcamentario,
               recurso_real: resumo.vlEfetivoRepasse,
-              perca_recurso_mensal: percaMensal,
-              recurso_potencial: resumo.vlEfetivoRepasse + percaMensal,
+              perda_recurso_mensal: perdaMensal,
+              recurso_potencial: resumo.vlEfetivoRepasse + perdaMensal,
               recurso_real_anual: resumo.vlEfetivoRepasse * 12,
-              recurso_potencial_anual: (resumo.vlEfetivoRepasse + percaMensal) * 12,
-              diferenca: (resumo.vlEfetivoRepasse + percaMensal) * 12 - resumo.vlEfetivoRepasse * 12
+              recurso_potencial_anual: (resumo.vlEfetivoRepasse + perdaMensal) * 12,
+              diferenca: (resumo.vlEfetivoRepasse + perdaMensal) * 12 - resumo.vlEfetivoRepasse * 12
             };
           });
 
@@ -191,7 +215,7 @@ export const useMunicipioStore = create<AppStore>()(
             return;
           }
 
-          const totalPercaMensal = dadosProcessados.reduce((sum, item) => sum + item.perca_recurso_mensal, 0);
+          const totalPerdaMensal = dadosProcessados.reduce((sum, item) => sum + item.perda_recurso_mensal, 0);
           const totalDiferencaAnual = dadosProcessados.reduce((sum, item) => sum + item.diferenca, 0);
           const totalRecebido = dadosProcessados.reduce((sum, item) => sum + item.recurso_real, 0);
           const totalRealAnual = dadosProcessados.reduce((sum, item) => sum + item.recurso_real_anual, 0);
@@ -199,7 +223,7 @@ export const useMunicipioStore = create<AppStore>()(
           const percentualPerdaAnual = totalRealAnual > 0 ? (totalDiferencaAnual / totalRealAnual) * 100 : 0;
 
           const resumo: ResumoFinanceiro = {
-            total_perca_mensal: totalPercaMensal,
+            total_perda_mensal: totalPerdaMensal,
             total_diferenca_anual: totalDiferencaAnual,
             percentual_perda_anual: percentualPerdaAnual,
             total_recebido: totalRecebido
@@ -289,21 +313,21 @@ export const useMunicipioInfo = () => {
 };
 
 /**
- * Hook para atualizar perca de recurso de um item específico
+ * Hook para atualizar perda de recurso de um item específico
  */
-export const useUpdatePercaRecurso = () => {
+export const useUpdatePerdaRecurso = () => {
   const { dadosEditados, setDadosEditados, dadosProcessados } = useMunicipioStore();
 
   return (index: number, novoValor: number) => {
     // Atualizar dados editados
-    const percasAtuais = dadosEditados?.perca_recurso_mensal || Array(dadosProcessados.length).fill(0);
-    const novasPercas = [...percasAtuais];
-    novasPercas[index] = novoValor;
+    const perdasAtuais = dadosEditados?.perda_recurso_mensal || Array(dadosProcessados.length).fill(0);
+    const novasPerdas = [...perdasAtuais];
+    novasPerdas[index] = novoValor;
 
     const novosEditados: MunicipioEditado = {
       codigo_ibge: dadosEditados?.codigo_ibge || '',
       competencia: dadosEditados?.competencia || '',
-      perca_recurso_mensal: novasPercas,
+      perda_recurso_mensal: novasPerdas,
       data_edicao: new Date().toISOString()
     };
 

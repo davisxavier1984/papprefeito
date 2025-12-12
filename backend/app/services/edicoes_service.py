@@ -51,7 +51,7 @@ class EdicoesService:
                     'id': doc['$id'],
                     'codigo_municipio': doc['codigo_municipio'],
                     'competencia': doc['competencia'],
-                    'perca_recurso_mensal': json.loads(doc['perca_recurso_mensal']),
+                    'perda_recurso_mensal': json.loads(doc['perda_recurso_mensal']),
                     'usuario_id': doc.get('usuario_id'),
                     'created_at': doc['$createdAt'],
                     'updated_at': doc['$updatedAt']
@@ -66,7 +66,7 @@ class EdicoesService:
         self,
         codigo_municipio: str,
         competencia: str,
-        perca_recurso_mensal: List[float],
+        perda_recurso_mensal: List[float],
         usuario_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
@@ -75,7 +75,7 @@ class EdicoesService:
         Args:
             codigo_municipio: Código IBGE do município
             competencia: Competência no formato AAAAMM
-            perca_recurso_mensal: Lista de valores de perda mensal por recurso
+            perda_recurso_mensal: Lista de valores de perda mensal por recurso
             usuario_id: ID do usuário que fez a edição (opcional)
 
         Returns:
@@ -88,7 +88,7 @@ class EdicoesService:
             data = {
                 'codigo_municipio': codigo_municipio,
                 'competencia': competencia,
-                'perca_recurso_mensal': json.dumps(perca_recurso_mensal),
+                'perda_recurso_mensal': json.dumps(perda_recurso_mensal),
                 'updated_at': datetime.utcnow().isoformat()
             }
 
@@ -122,7 +122,7 @@ class EdicoesService:
                 'data': {
                     'codigo_municipio': result['codigo_municipio'],
                     'competencia': result['competencia'],
-                    'perca_recurso_mensal': json.loads(result['perca_recurso_mensal']),
+                    'perda_recurso_mensal': json.loads(result['perda_recurso_mensal']),
                     'updated_at': result['$updatedAt']
                 }
             }
@@ -172,7 +172,7 @@ class EdicoesService:
                     'id': doc['$id'],
                     'codigo_municipio': doc['codigo_municipio'],
                     'competencia': doc['competencia'],
-                    'perca_recurso_mensal': json.loads(doc['perca_recurso_mensal']),
+                    'perda_recurso_mensal': json.loads(doc['perda_recurso_mensal']),
                     'usuario_id': doc.get('usuario_id'),
                     'created_at': doc['$createdAt'],
                     'updated_at': doc['$updatedAt']

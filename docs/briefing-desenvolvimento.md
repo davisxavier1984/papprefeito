@@ -77,7 +77,7 @@ def create_pdf_report(...) -> bytes:
 ```python
 # Teste 1: Valores pequenos
 resumo = ResumoFinanceiro(
-    total_perca_mensal=100.0,
+    total_perda_mensal=100.0,
     total_diferenca_anual=1200.0,
     percentual_perda_anual=5.0,
     total_recebido=2000.0
@@ -85,7 +85,7 @@ resumo = ResumoFinanceiro(
 
 # Teste 2: Valores grandes
 resumo = ResumoFinanceiro(
-    total_perca_mensal=50000.0,
+    total_perda_mensal=50000.0,
     total_diferenca_anual=600000.0,
     percentual_perda_anual=15.5,
     total_recebido=350000.0

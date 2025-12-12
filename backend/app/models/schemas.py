@@ -85,24 +85,24 @@ class MunicipioEditado(BaseModel):
     """Modelo para dados editados de município"""
     codigo_ibge: str = Field(..., description="Código IBGE do município")
     competencia: str = Field(..., description="Competência")
-    perca_recurso_mensal: List[float] = Field(default_factory=list, description="Lista de perdas mensais por recurso")
+    perda_recurso_mensal: List[float] = Field(default_factory=list, description="Lista de perdas mensais por recurso")
     data_edicao: datetime = Field(default_factory=datetime.now, description="Data da última edição")
 
 class MunicipioEditadoCreate(BaseModel):
     """Modelo para criação de dados editados"""
     codigo_ibge: str
     competencia: str
-    perca_recurso_mensal: List[float]
+    perda_recurso_mensal: List[float]
 
 class MunicipioEditadoUpdate(BaseModel):
     """Modelo para atualização de dados editados"""
-    perca_recurso_mensal: List[float]
+    perda_recurso_mensal: List[float]
 
 class DadosProcessados(BaseModel):
     """Modelo para dados processados com cálculos"""
     recurso: str
     recurso_real: float
-    perca_recurso_mensal: float
+    perda_recurso_mensal: float
     recurso_potencial: float
     recurso_real_anual: float
     recurso_potencial_anual: float
@@ -110,7 +110,7 @@ class DadosProcessados(BaseModel):
 
 class ResumoFinanceiro(BaseModel):
     """Modelo para resumo financeiro"""
-    total_perca_mensal: float
+    total_perda_mensal: float
     total_diferenca_anual: float
     percentual_perda_anual: float
     total_recebido: float
@@ -271,6 +271,78 @@ class ErrorResponse(BaseModel):
     details: Optional[Dict[str, Any]] = None
 
 
+# ==================== FUNÇÕES AUXILIARES DE UF ====================
+
+# Mapeamento de códigos IBGE de UF para siglas
+UF_CODES = {
+    "11": "RO", "12": "AC", "13": "AM", "14": "RR", "15": "PA",
+    "16": "AP", "17": "TO", "21": "MA", "22": "PI", "23": "CE",
+    "24": "RN", "25": "PB", "26": "PE", "27": "AL", "28": "SE",
+    "29": "BA", "31": "MG", "32": "ES", "33": "RJ", "35": "SP",
+    "41": "PR", "42": "SC", "43": "RS", "50": "MS", "51": "MT",
+    "52": "GO", "53": "DF"
+}
+
+# UFs permitidas no sistema (apenas BA e GO)
+ALLOWED_UFS = ["BA", "GO"]
+ALLOWED_UF_CODES = ["29", "52"]
+
+
+def get_uf_from_codigo_ibge(codigo_ibge: str) -> str:
+    """
+    Extrai a sigla da UF a partir do código IBGE do município.
+
+    Args:
+        codigo_ibge: Código IBGE do município (6 ou 7 dígitos)
+
+    Returns:
+        Sigla da UF (ex: "BA", "GO", "TO")
+
+    Raises:
+        ValueError: Se o código IBGE for inválido ou UF não encontrada
+    """
+    if not codigo_ibge or len(codigo_ibge) < 6:
+        raise ValueError("Código IBGE deve ter ao menos 6 dígitos")
+
+    uf_code = codigo_ibge[:2]
+    uf = UF_CODES.get(uf_code)
+
+    if not uf:
+        raise ValueError(f"Código de UF inválido: {uf_code}")
+
+    return uf
+
+
+def validate_uf_allowed(uf: str) -> bool:
+    """
+    Valida se a UF está na lista de UFs permitidas (BA ou GO).
+
+    Args:
+        uf: Sigla da UF
+
+    Returns:
+        True se a UF é permitida, False caso contrário
+    """
+    return uf.upper() in ALLOWED_UFS
+
+
+def validate_codigo_ibge_uf(codigo_ibge: str) -> bool:
+    """
+    Valida se o código IBGE pertence a uma UF permitida (BA ou GO).
+
+    Args:
+        codigo_ibge: Código IBGE do município
+
+    Returns:
+        True se a UF é permitida, False caso contrário
+    """
+    if not codigo_ibge or len(codigo_ibge) < 6:
+        return False
+
+    uf_code = codigo_ibge[:2]
+    return uf_code in ALLOWED_UF_CODES
+
+
 # ==================== MODELOS DE AUTENTICAÇÃO ====================
 
 class UserBase(BaseModel):
@@ -306,6 +378,9 @@ class UserUpdate(BaseModel):
     """Schema para atualização de usuário"""
     nome: Optional[str] = Field(None, description="Nome completo do usuário")
     email: Optional[str] = Field(None, description="Email do usuário")
+    is_active: Optional[bool] = Field(None, description="Se o usuário está ativo")
+    is_authorized: Optional[bool] = Field(None, description="Se o usuário foi autorizado")
+    is_superuser: Optional[bool] = Field(None, description="Se o usuário é administrador")
 
     @validator('email')
     def validate_email(cls, v):
@@ -336,6 +411,7 @@ class User(UserBase):
     """Schema para usuário (resposta)"""
     id: str = Field(..., description="ID do usuário")
     is_active: bool = Field(default=True, description="Se o usuário está ativo")
+    is_authorized: bool = Field(default=False, description="Se o usuário foi autorizado por um administrador")
     is_superuser: bool = Field(default=False, description="Se o usuário é administrador")
     created_at: datetime = Field(default_factory=datetime.now, description="Data de criação")
     updated_at: Optional[datetime] = Field(None, description="Data da última atualização")
@@ -368,3 +444,14 @@ class LoginRequest(BaseModel):
 class RefreshTokenRequest(BaseModel):
     """Schema para requisição de refresh token"""
     refresh_token: str = Field(..., description="Token de renovação")
+
+
+class UserAuthorizationUpdate(BaseModel):
+    """Schema para atualização de autorização de usuário"""
+    is_authorized: bool = Field(..., description="Status de autorização")
+
+
+class UserListResponse(BaseModel):
+    """Schema para resposta de listagem de usuários"""
+    total: int = Field(..., description="Total de usuários")
+    users: List[User] = Field(..., description="Lista de usuários")

@@ -111,7 +111,7 @@ def setup_appwrite():
             "description": "Competência no formato AAAAMM"
         },
         {
-            "name": "perca_recurso_mensal",
+            "name": "perda_recurso_mensal",
             "type": "string",
             "size": 10000,
             "required": True,

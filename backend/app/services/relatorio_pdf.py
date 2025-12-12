@@ -67,27 +67,27 @@ def _mapear_programa_info(nome_programa: str) -> tuple[str, str, str]:
 
 def compute_financial_summary(
     resumos: Iterable[Dict[str, Any]],
-    percas: Iterable[float]
+    perdas: Iterable[float]
 ) -> ResumoFinanceiro:
     """Calcula o resumo financeiro a partir dos resumos e perdas mensais."""
     resumos_list = list(resumos)
-    percas_list = list(percas)
+    perdas_list = list(perdas)
 
-    if len(percas_list) < len(resumos_list):
-        percas_list.extend([0.0] * (len(resumos_list) - len(percas_list)))
-    elif len(percas_list) > len(resumos_list):
-        percas_list = percas_list[:len(resumos_list)]
+    if len(perdas_list) < len(resumos_list):
+        perdas_list.extend([0.0] * (len(resumos_list) - len(perdas_list)))
+    elif len(perdas_list) > len(resumos_list):
+        perdas_list = perdas_list[:len(resumos_list)]
 
     monthly_received = [float(item.get('vlEfetivoRepasse') or 0.0) for item in resumos_list]
-    total_perca_mensal = float(sum(percas_list))
-    total_diferenca_anual = total_perca_mensal * 12.0
+    total_perda_mensal = float(sum(perdas_list))
+    total_diferenca_anual = total_perda_mensal * 12.0
     total_real_anual = float(sum(monthly_received)) * 12.0
     total_recebido = float(sum(monthly_received))
 
     percentual = (total_diferenca_anual / total_real_anual * 100.0) if total_real_anual else 0.0
 
     return ResumoFinanceiro(
-        total_perca_mensal=total_perca_mensal,
+        total_perda_mensal=total_perda_mensal,
         total_diferenca_anual=total_diferenca_anual,
         percentual_perda_anual=percentual,
         total_recebido=total_recebido,
@@ -150,18 +150,18 @@ def _draw_arrow(pdf: FPDF, start_x: float, end_x: float, y: float):
 def _draw_financial_cards(pdf: FPDF, resumo: ResumoFinanceiro):
     """Desenha cards em grade com visual aprimorado para a primeira página."""
 
-    potencial_mensal = resumo.total_recebido + resumo.total_perca_mensal
+    potencial_mensal = resumo.total_recebido + resumo.total_perda_mensal
     potencial_anual = potencial_mensal * 12
     percentual_perda = resumo.percentual_perda_anual
 
-    ratio_perda_mensal = _safe_ratio(resumo.total_perca_mensal, potencial_mensal)
+    ratio_perda_mensal = _safe_ratio(resumo.total_perda_mensal, potencial_mensal)
     ratio_diferenca_anual = _safe_ratio(resumo.total_diferenca_anual, potencial_anual)
     ratio_recebimento_atual = _safe_ratio(resumo.total_recebido, potencial_mensal)
 
     cards_data = [
         {
             'titulo': 'PERDA MENSAL',
-            'valor': f'R$ {_br_number(resumo.total_perca_mensal, 0)}',
+            'valor': f'R$ {_br_number(resumo.total_perda_mensal, 0)}',
             'descricao': 'recursos que poderiam melhorar a saúde',
             'detalhe': f'Equivalente a R$ {_br_number(resumo.total_diferenca_anual, 0)} por ano',
             'tag': 'Oportunidade',
@@ -380,7 +380,7 @@ def _create_page_2_infograficos(pdf: FPDF, municipio_label: str, resumo: ResumoF
 
     # Cálculos necessários
     recurso_atual_mensal = resumo.total_recebido
-    acrescimo_mensal = resumo.total_perca_mensal
+    acrescimo_mensal = resumo.total_perda_mensal
     recurso_potencial_mensal = recurso_atual_mensal + acrescimo_mensal
 
     recurso_atual_anual = recurso_atual_mensal * 12
@@ -689,10 +689,10 @@ def create_html_pdf_report(
         # Calcular valores necessários
         recurso_atual_anual = resumo.total_recebido * 12
         recurso_potencial_anual = recurso_atual_anual + resumo.total_diferenca_anual
-        recurso_potencial_mensal = resumo.total_recebido + resumo.total_perca_mensal
+        recurso_potencial_mensal = resumo.total_recebido + resumo.total_perda_mensal
 
         # Métricas complementares para os cards
-        ratio_perda_mensal = _safe_ratio(resumo.total_perca_mensal, recurso_potencial_mensal)
+        ratio_perda_mensal = _safe_ratio(resumo.total_perda_mensal, recurso_potencial_mensal)
         ratio_diferenca_anual = _safe_ratio(resumo.total_diferenca_anual, recurso_potencial_anual)
         ratio_recebimento_atual = _safe_ratio(resumo.total_recebido, recurso_potencial_mensal)
 
@@ -721,12 +721,12 @@ def create_html_pdf_report(
         # Processar todas as substituições de template
         replacements = {
             '{{ "%.2f"|format(resumo.percentual_perda_anual) }}': f"{resumo.percentual_perda_anual:.2f}",
-            '{{ "{:,.0f}".format(resumo.total_perca_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_perca_mensal, 0),
+            '{{ "{:,.0f}".format(resumo.total_perda_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_perda_mensal, 0),
             '{{ "{:,.0f}".format(resumo.total_diferenca_anual).replace(\',\', \'.\') }}': _br_number(resumo.total_diferenca_anual, 0),
             '{{ "{:,.0f}".format(resumo.total_recebido).replace(\',\', \'.\') }}': _br_number(resumo.total_recebido, 0),
             '{{ "{:,.0f}".format(resumo.total_recebido * 12).replace(\',\', \'.\') }}': _br_number(recurso_atual_anual, 0),
             '{{ "{:,.0f}".format((resumo.total_recebido * 12) + resumo.total_diferenca_anual).replace(\',\', \'.\') }}': _br_number(recurso_potencial_anual, 0),
-            '{{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perca_mensal).replace(\',\', \'.\') }}': _br_number(recurso_potencial_mensal, 0),
+            '{{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perda_mensal).replace(\',\', \'.\') }}': _br_number(recurso_potencial_mensal, 0),
             '__PERDA_BADGE__': html.escape('Oportunidade'),
             '__PERDA_DETALHE__': html.escape(perda_detalhe),
             '__PERDA_PROGRESS__': str(_progress_value(ratio_perda_mensal)),
@@ -1852,9 +1852,9 @@ def _gerar_paginas_por_card(
 
     # 8) Per Capita - NOVO LAYOUT DEFINITION LIST
     pop = int(pagamento0.get('qtPopulacao', 0) or 0)
-    percapita_val = float(pagamento0.get('vlPagamentoIncentivoPopulacional', 0) or 0)
-    if pop > 0 or percapita_val > 0:
-        percapita_mensal = percapita_val / pop if pop > 0 else 0.0
+    perdapita_val = float(pagamento0.get('vlPagamentoIncentivoPopulacional', 0) or 0)
+    if pop > 0 or perdapita_val > 0:
+        perdapita_mensal = perdapita_val / pop if pop > 0 else 0.0
         inner = f'''
         <div class="mixed-grid-section">
           <div class="mixed-grid-header" style="background: linear-gradient(135deg, #0ea5e9, #3b82f6);">
@@ -1869,11 +1869,11 @@ def _gerar_paginas_por_card(
               </div>
               <div class="definition-item">
                 <span class="definition-label">Valor per capita mensal</span>
-                <span class="definition-value">R$ {_br_number(percapita_mensal, 2)}</span>
+                <span class="definition-value">R$ {_br_number(perdapita_mensal, 2)}</span>
               </div>
               <div class="definition-item total">
                 <span class="definition-label">Valor Total Mensal</span>
-                <span class="definition-value" style="color:#0ea5e9;">R$ {_br_number(percapita_val, 2)}</span>
+                <span class="definition-value" style="color:#0ea5e9;">R$ {_br_number(perdapita_val, 2)}</span>
               </div>
             </div>
           </div>
@@ -2005,10 +2005,10 @@ def create_detailed_pdf_report(
     # Substituir valores do resumo financeiro
     replacements = {
         '{{ "{:,.0f}".format(resumo.total_recebido).replace(\',\', \'.\') }}': _br_number(resumo.total_recebido, 0),
-        '{{ "{:,.0f}".format(resumo.total_perca_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_perca_mensal, 0),
+        '{{ "{:,.0f}".format(resumo.total_perda_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_perda_mensal, 0),
         '{{ "{:,.0f}".format(resumo.total_diferenca_anual).replace(\',\', \'.\') }}': _br_number(resumo.total_diferenca_anual, 0),
         '{{ "%.2f"|format(resumo.percentual_perda_anual) }}': f"{resumo.percentual_perda_anual:.2f}",
-        '{{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perca_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_recebido + resumo.total_perca_mensal, 0),
+        '{{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perda_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_recebido + resumo.total_perda_mensal, 0),
     }
 
     for old_pattern, new_value in replacements.items():

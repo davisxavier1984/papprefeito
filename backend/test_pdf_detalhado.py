@@ -39,8 +39,8 @@ async def main_async():
         print(f"Dados encontrados: {len(resumos)} resumos, {len(pagamentos)} pagamentos")
 
         # Calcular resumo financeiro
-        percas = [0.0] * len(resumos)  # Sem dados de perda para teste
-        resumo = compute_financial_summary(resumos, percas)
+        perdas = [0.0] * len(resumos)  # Sem dados de perda para teste
+        resumo = compute_financial_summary(resumos, perdas)
 
         print(f"Resumo: Total recebido R$ {resumo.total_recebido:,.2f}")
 

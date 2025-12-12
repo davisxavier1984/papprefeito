@@ -13,7 +13,9 @@ from app.models.schemas import (
     User,
     UserUpdate,
     UserPasswordChange,
-    ResponseBase
+    ResponseBase,
+    UserAuthorizationUpdate,
+    UserListResponse
 )
 from app.services.user_service import UserService
 from app.core.security import create_access_token, create_refresh_token
@@ -337,3 +339,181 @@ async def logout(
         success=True,
         message="Logout realizado com sucesso"
     )
+
+
+# ==================== ENDPOINTS DE ADMINISTRAÇÃO ====================
+
+
+@router.get(
+    "/admin/users",
+    response_model=UserListResponse,
+    summary="Listar todos os usuários",
+    description="Lista todos os usuários cadastrados (somente administradores)"
+)
+async def list_all_users(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(get_current_superuser),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    Lista todos os usuários cadastrados no sistema.
+
+    Requer permissões de administrador.
+
+    - **skip**: Número de registros a pular (paginação)
+    - **limit**: Número máximo de registros (máx: 100)
+    """
+    try:
+        users = await user_service.list_users(skip=skip, limit=min(limit, 100))
+        logger.info(f"Admin {current_user.email} listou usuários")
+        return UserListResponse(
+            total=len(users),
+            users=users
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao listar usuários: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao listar usuários"
+        )
+
+
+@router.get(
+    "/admin/users/pending",
+    response_model=UserListResponse,
+    summary="Listar usuários pendentes de autorização",
+    description="Lista usuários aguardando autorização (somente administradores)"
+)
+async def list_pending_users(
+    current_user: User = Depends(get_current_superuser),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    Lista usuários que estão aguardando autorização de um administrador.
+
+    Requer permissões de administrador.
+    """
+    try:
+        users = await user_service.list_pending_users()
+        logger.info(f"Admin {current_user.email} listou usuários pendentes")
+        return UserListResponse(
+            total=len(users),
+            users=users
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao listar usuários pendentes: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao listar usuários pendentes"
+        )
+
+
+@router.put(
+    "/admin/users/{user_id}/authorize",
+    response_model=User,
+    summary="Autorizar usuário",
+    description="Autoriza um usuário a acessar o sistema (somente administradores)"
+)
+async def authorize_user(
+    user_id: str,
+    current_user: User = Depends(get_current_superuser),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    Autoriza um usuário a acessar o sistema.
+
+    Requer permissões de administrador.
+
+    - **user_id**: ID do usuário a ser autorizado
+    """
+    try:
+        user = await user_service.authorize_user(user_id, is_authorized=True)
+        logger.info(f"Admin {current_user.email} autorizou usuário {user.email}")
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao autorizar usuário: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao autorizar usuário"
+        )
+
+
+@router.put(
+    "/admin/users/{user_id}/revoke",
+    response_model=User,
+    summary="Revogar autorização do usuário",
+    description="Remove a autorização de acesso de um usuário (somente administradores)"
+)
+async def revoke_user_authorization(
+    user_id: str,
+    current_user: User = Depends(get_current_superuser),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    Revoga a autorização de acesso de um usuário.
+
+    Requer permissões de administrador.
+
+    - **user_id**: ID do usuário
+    """
+    try:
+        user = await user_service.authorize_user(user_id, is_authorized=False)
+        logger.info(f"Admin {current_user.email} revogou autorização de {user.email}")
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao revogar autorização: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao revogar autorização"
+        )
+
+
+@router.put(
+    "/admin/users/{user_id}/superuser",
+    response_model=User,
+    summary="Promover/rebaixar superusuário",
+    description="Concede ou remove permissões de superusuário (somente administradores)"
+)
+async def set_superuser_status(
+    user_id: str,
+    is_superuser: bool,
+    current_user: User = Depends(get_current_superuser),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    Define ou remove permissões de superusuário.
+
+    Requer permissões de administrador.
+
+    - **user_id**: ID do usuário
+    - **is_superuser**: True para promover, False para remover
+    """
+    # Impede que admin remova seu próprio status de superuser
+    if user_id == current_user.id and not is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Você não pode remover suas próprias permissões de administrador"
+        )
+
+    try:
+        user = await user_service.set_superuser(user_id, is_superuser)
+        action = "promoveu" if is_superuser else "removeu"
+        logger.info(f"Admin {current_user.email} {action} {user.email} como superusuário")
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao atualizar permissões: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao atualizar permissões de superusuário"
+        )

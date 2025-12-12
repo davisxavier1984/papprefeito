@@ -2,7 +2,7 @@
  * Componente de perfil do usuário
  */
 import { useState } from 'react';
-import { Card, Form, Input, Button, message, Tabs, Modal, Typography, Space, Divider } from 'antd';
+import { Card, Form, Input, Button, App, Tabs, Modal, Typography, Space, Divider } from 'antd';
 import { UserOutlined, MailOutlined, LockOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
@@ -12,6 +12,7 @@ const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
 export const UserProfile = () => {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const { user, updateUser, logout } = useAuthStore();
   const [loadingProfile, setLoadingProfile] = useState(false);

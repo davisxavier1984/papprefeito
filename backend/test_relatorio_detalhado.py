@@ -10,7 +10,7 @@ async def main():
     uf = "MG"
     competencia = "202401"
     resumo = ResumoFinanceiro(
-        total_perca_mensal=10000,
+        total_perda_mensal=10000,
         total_diferenca_anual=120000,
         percentual_perda_anual=10,
         total_recebido=100000,

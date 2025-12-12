@@ -18,7 +18,7 @@ def test_calculos():
 
     # Cenário de teste
     resumo = ResumoFinanceiro(
-        total_perca_mensal=15000.00,
+        total_perda_mensal=15000.00,
         total_diferenca_anual=180000.00,
         percentual_perda_anual=12.5,
         total_recebido=120000.00
@@ -26,7 +26,7 @@ def test_calculos():
 
     # Cálculos esperados
     recurso_atual_mensal = resumo.total_recebido
-    acrescimo_mensal = resumo.total_perca_mensal
+    acrescimo_mensal = resumo.total_perda_mensal
     recurso_potencial_mensal = recurso_atual_mensal + acrescimo_mensal
 
     recurso_atual_anual = recurso_atual_mensal * 12
@@ -59,7 +59,7 @@ def test_pdf_geracao(output_name='teste_validacao.pdf'):
     print("="*60)
 
     resumo = ResumoFinanceiro(
-        total_perca_mensal=25000.00,
+        total_perda_mensal=25000.00,
         total_diferenca_anual=300000.00,
         percentual_perda_anual=15.75,
         total_recebido=190000.00
@@ -100,7 +100,7 @@ def test_cenarios_extremos():
         {
             'nome': 'Valores Pequenos',
             'resumo': ResumoFinanceiro(
-                total_perca_mensal=500.00,
+                total_perda_mensal=500.00,
                 total_diferenca_anual=6000.00,
                 percentual_perda_anual=2.5,
                 total_recebido=20000.00
@@ -109,7 +109,7 @@ def test_cenarios_extremos():
         {
             'nome': 'Valores Grandes',
             'resumo': ResumoFinanceiro(
-                total_perca_mensal=500000.00,
+                total_perda_mensal=500000.00,
                 total_diferenca_anual=6000000.00,
                 percentual_perda_anual=25.0,
                 total_recebido=2000000.00
@@ -118,7 +118,7 @@ def test_cenarios_extremos():
         {
             'nome': 'Valores Zero',
             'resumo': ResumoFinanceiro(
-                total_perca_mensal=0.00,
+                total_perda_mensal=0.00,
                 total_diferenca_anual=0.00,
                 percentual_perda_anual=0.0,
                 total_recebido=50000.00
@@ -153,7 +153,7 @@ def test_fallback_fpdf():
     print("="*60)
 
     resumo = ResumoFinanceiro(
-        total_perca_mensal=18000.00,
+        total_perda_mensal=18000.00,
         total_diferenca_anual=216000.00,
         percentual_perda_anual=10.5,
         total_recebido=170000.00
@@ -192,7 +192,7 @@ def test_nomes_municipios_longos():
     ]
 
     resumo = ResumoFinanceiro(
-        total_perca_mensal=12000.00,
+        total_perda_mensal=12000.00,
         total_diferenca_anual=144000.00,
         percentual_perda_anual=8.0,
         total_recebido=150000.00

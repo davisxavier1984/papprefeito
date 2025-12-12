@@ -38,10 +38,10 @@ html_content = html_content.replace("__EMULTI_CONTENT__", '<div class="detail-se
 
 # Valores de resumo
 html_content = html_content.replace("{{ \"{:,.0f}\".format(resumo.total_recebido).replace(',', '.') }}", "120.000")
-html_content = html_content.replace("{{ \"{:,.0f}\".format(resumo.total_perca_mensal).replace(',', '.') }}", "15.000")
+html_content = html_content.replace("{{ \"{:,.0f}\".format(resumo.total_perda_mensal).replace(',', '.') }}", "15.000")
 html_content = html_content.replace("{{ \"{:,.0f}\".format(resumo.total_diferenca_anual).replace(',', '.') }}", "180.000")
 html_content = html_content.replace('{{ "%.2f"|format(resumo.percentual_perda_anual) }}', "12.50")
-html_content = html_content.replace("{{ \"{:,.0f}\".format(resumo.total_recebido + resumo.total_perca_mensal).replace(',', '.') }}", "135.000")
+html_content = html_content.replace("{{ \"{:,.0f}\".format(resumo.total_recebido + resumo.total_perda_mensal).replace(',', '.') }}", "135.000")
 
 # Salvar HTML
 output_path = Path("teste_detalhado_visual.html")

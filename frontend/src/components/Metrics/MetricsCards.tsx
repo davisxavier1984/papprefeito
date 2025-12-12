@@ -26,7 +26,7 @@ const MetricsCards: React.FC = () => {
   if (!resumoFinanceiro) return null;
 
   const {
-    total_perca_mensal,
+    total_perda_mensal,
     total_diferenca_anual,
     percentual_perda_anual,
     total_recebido,
@@ -65,11 +65,11 @@ const MetricsCards: React.FC = () => {
                 <ArrowDownOutlined style={{ color: '#fff', fontSize: '14px' }} />
               </div>
               <span style={{ fontSize: '14px', fontWeight: 500, color: '#7f1d1d' }}>
-                Perca Mensal Total
+                Perda Mensal Total
               </span>
             </div>
             <Statistic
-              value={Number(total_perca_mensal) || 0}
+              value={Number(total_perda_mensal) || 0}
               formatter={(v) => <span style={{ color: '#dc2626', fontWeight: 700 }}>{currencyFormatter.format(Number(v))}</span>}
               style={{ margin: 0 }}
             />

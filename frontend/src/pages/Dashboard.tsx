@@ -3,7 +3,7 @@
  */
 
 import React, { useState } from 'react';
-import { Typography, Space, Divider, Empty, Button, message } from 'antd';
+import { Typography, Space, Divider, Empty, Button, App } from 'antd';
 import FinancialTable from '../components/DataTable/FinancialTable';
 import MetricsCards from '../components/Metrics/MetricsCards';
 import { ProgramasCards } from '../components/Programas/ProgramasCards';
@@ -15,6 +15,7 @@ import { apiClient } from '../services/api';
 const { Title, Text } = Typography;
 
 const Dashboard: React.FC = () => {
+  const { message } = App.useApp();
   const hasDados = useHasDados();
   const municipioInfo = useMunicipioInfo();
   const { resumoFinanceiro, dadosProgramas } = useMunicipioStore();
@@ -156,7 +157,7 @@ const Dashboard: React.FC = () => {
                   { step: '2', title: 'Selecione o município', desc: 'Escolha o município após selecionar a UF' },
                   { step: '3', title: 'Informe a competência', desc: 'Digite no formato AAAAMM (ex: 202401)' },
                   { step: '4', title: 'Consulte os dados', desc: 'Clique em "Consultar Dados" para buscar as informações' },
-                  { step: '5', title: 'Edite valores', desc: 'Modifique os valores de "Perca Recurso Mensal"' },
+                  { step: '5', title: 'Edite valores', desc: 'Modifique os valores de "Perda Recurso Mensal"' },
                   { step: '6', title: 'Acompanhe os cálculos', desc: 'Visualize as métricas atualizadas automaticamente' }
                 ].map((item) => (
                   <div key={item.step} style={{

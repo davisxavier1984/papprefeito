@@ -20,7 +20,7 @@ export const ProgramasCards: React.FC = () => {
   const saudeFamilia = dadosProgramas.filter((p) => ['esf-eap', 'acs'].includes(p.codigo));
   const saudeBucal = dadosProgramas.filter((p) => ['esb', 'ceo', 'sesb', 'lrpd'].includes(p.codigo));
   const emulti = dadosProgramas.filter((p) => p.codigo === 'emulti');
-  const outros = dadosProgramas.filter((p) => ['demais', 'percapita'].includes(p.codigo));
+  const outros = dadosProgramas.filter((p) => ['demais', 'perdapita'].includes(p.codigo));
 
   const renderSecao = (titulo: string, icone: string, programas: DetalhamentoPrograma[], cor: string) => {
     if (programas.length === 0) return null;

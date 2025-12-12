@@ -69,7 +69,7 @@ export const ProgramaCard: React.FC<ProgramaCardProps> = ({ programa }) => {
         borderLeft: `4px solid ${programa.cor}`,
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
       }}
-      bodyStyle={{ padding: '20px' }}
+      styles={{ body: { padding: '20px' } }}
     >
       {/* Header: Nome + Ícone + Badge */}
       <div style={{ marginBottom: '16px' }}>

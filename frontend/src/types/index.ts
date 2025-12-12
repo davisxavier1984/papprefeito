@@ -194,25 +194,25 @@ export interface DadosFinanciamento {
 export interface MunicipioEditado {
   codigo_ibge: string;
   competencia: string;
-  perca_recurso_mensal: number[];
+  perda_recurso_mensal: number[];
   data_edicao: string;
 }
 
 export interface MunicipioEditadoCreate {
   codigo_ibge: string;
   competencia: string;
-  perca_recurso_mensal: number[];
+  perda_recurso_mensal: number[];
 }
 
 export interface MunicipioEditadoUpdate {
-  perca_recurso_mensal: number[];
+  perda_recurso_mensal: number[];
 }
 
 // Tipos para dados processados (frontend)
 export interface DadosProcessados {
   recurso: string;
   recurso_real: number;
-  perca_recurso_mensal: number;
+  perda_recurso_mensal: number;
   recurso_potencial: number;
   recurso_real_anual: number;
   recurso_potencial_anual: number;
@@ -220,7 +220,7 @@ export interface DadosProcessados {
 }
 
 export interface ResumoFinanceiro {
-  total_perca_mensal: number;
+  total_perda_mensal: number;
   total_diferenca_anual: number;
   percentual_perda_anual: number;
   total_recebido: number;
@@ -244,7 +244,7 @@ export interface QuantidadesPrograma {
 }
 
 export interface DetalhamentoPrograma {
-  codigo: string; // Identificador único (esf, sb, emulti, acs, demais, percapita)
+  codigo: string; // Identificador único (esf, sb, emulti, acs, demais, perdapita)
   nome: string;
   icone: string;
   cor: string;

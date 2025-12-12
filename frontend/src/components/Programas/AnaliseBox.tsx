@@ -51,7 +51,7 @@ export const AnaliseBox: React.FC<AnaliseBoxProps> = ({ programas }) => {
           borderRadius: '12px',
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
         }}
-        bodyStyle={{ padding: '24px' }}
+        styles={{ body: { padding: '24px' } }}
       >
         <Title level={5} style={{ marginBottom: '16px' }}>
           📈 Análise Consolidada

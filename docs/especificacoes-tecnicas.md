@@ -40,7 +40,7 @@ no cenário atual e projeções futuras."
 Banner vermelho: "QUANTO EU DEIXO DE RECEBER ANUALMENTE?"
 Percentual: {percentual_perda_anual}% (fonte 46px)
 Resumo:
-• Perda mensal estimada: R$ {total_perca_mensal}
+• Perda mensal estimada: R$ {total_perda_mensal}
 • Diferença anual estimada: R$ {total_diferenca_anual}
 • Total recebido mensalmente: R$ {total_recebido}
 ```
@@ -178,7 +178,7 @@ backend/templates/
 
 **Tipografia Moderna:**
 ```css
-.card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; }
+.card-title { font-size: 12px; font-weight: 700; text-transform: upperdase; }
 .card-value { font-size: 24px; font-weight: 800; }
 .card-description { font-size: 10px; color: var(--color-text-muted); }
 .percentage-large { font-size: 48px; font-weight: 900; }
@@ -200,7 +200,7 @@ backend/templates/
 ```python
 # Valores mensais (base)
 recurso_atual_mensal = resumo.total_recebido
-acrescimo_mensal = resumo.total_perca_mensal
+acrescimo_mensal = resumo.total_perda_mensal
 recurso_potencial_mensal = recurso_atual_mensal + acrescimo_mensal
 
 # Valores anuais (página 2)

@@ -34,7 +34,7 @@ def create_working_pdf(
     # Calcular valores necessários
     recurso_atual_anual = resumo.total_recebido * 12
     recurso_potencial_anual = recurso_atual_anual + resumo.total_diferenca_anual
-    recurso_potencial_mensal = resumo.total_recebido + resumo.total_perca_mensal
+    recurso_potencial_mensal = resumo.total_recebido + resumo.total_perda_mensal
 
     # Substituições básicas
     html_content = html_template.replace('{{ municipio_nome }}', municipio_nome)
@@ -44,12 +44,12 @@ def create_working_pdf(
     # Todas as substituições
     replacements = {
         '{{ "%.2f"|format(resumo.percentual_perda_anual) }}': f"{resumo.percentual_perda_anual:.2f}",
-        '{{ "{:,.0f}".format(resumo.total_perca_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_perca_mensal, 0),
+        '{{ "{:,.0f}".format(resumo.total_perda_mensal).replace(\',\', \'.\') }}': _br_number(resumo.total_perda_mensal, 0),
         '{{ "{:,.0f}".format(resumo.total_diferenca_anual).replace(\',\', \'.\') }}': _br_number(resumo.total_diferenca_anual, 0),
         '{{ "{:,.0f}".format(resumo.total_recebido).replace(\',\', \'.\') }}': _br_number(resumo.total_recebido, 0),
         '{{ "{:,.0f}".format(resumo.total_recebido * 12).replace(\',\', \'.\') }}': _br_number(recurso_atual_anual, 0),
         '{{ "{:,.0f}".format((resumo.total_recebido * 12) + resumo.total_diferenca_anual).replace(\',\', \'.\') }}': _br_number(recurso_potencial_anual, 0),
-        '{{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perca_mensal).replace(\',\', \'.\') }}': _br_number(recurso_potencial_mensal, 0),
+        '{{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perda_mensal).replace(\',\', \'.\') }}': _br_number(recurso_potencial_mensal, 0),
     }
 
     for old, new in replacements.items():
@@ -80,7 +80,7 @@ def create_working_pdf(
 
 # Teste
 resumo = ResumoFinanceiro(
-    total_perca_mensal=15000.00,
+    total_perda_mensal=15000.00,
     total_diferenca_anual=180000.00,
     percentual_perda_anual=12.5,
     total_recebido=120000.00

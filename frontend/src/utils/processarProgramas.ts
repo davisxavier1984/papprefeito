@@ -455,7 +455,7 @@ export function processarProgramas(
       qtPopulacao > 0 ? perCapitaResumo.vlEfetivoRepasse / qtPopulacao : 0;
 
     programas.push({
-      codigo: 'percapita',
+      codigo: 'perdapita',
       nome: 'Componente per capita',
       icone: '👨‍👩‍👧‍👦',
       cor: '#0ea5e9',

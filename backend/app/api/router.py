@@ -3,7 +3,7 @@ Router principal da API que inclui todos os endpoints
 """
 from fastapi import APIRouter
 
-from app.api.endpoints import municipios, financiamento, municipios_editados, relatorios, edicoes, auth
+from app.api.endpoints import municipios, financiamento, municipios_editados, relatorios, edicoes, auth, users
 
 # Router principal
 api_router = APIRouter()
@@ -45,4 +45,11 @@ api_router.include_router(
     auth.router,
     prefix="/auth",
     tags=["Autenticação"]
+)
+
+# Endpoints de gestão de usuários (CRUD completo)
+api_router.include_router(
+    users.router,
+    prefix="/users",
+    tags=["Gestão de Usuários"]
 )

@@ -34,7 +34,7 @@ export const useAutoSave = (debounceMs = 2000) => {
         const optimistic: MunicipioEditado = {
           codigo_ibge: payload.codigo_ibge,
           competencia: payload.competencia,
-          perca_recurso_mensal: payload.perca_recurso_mensal,
+          perda_recurso_mensal: payload.perda_recurso_mensal,
           data_edicao: new Date().toISOString(),
         };
         queryClient.setQueryData(
@@ -69,15 +69,15 @@ export const useAutoSave = (debounceMs = 2000) => {
 
   // Debounced trigger
   const triggerSave = useCallback(
-    (overridePercas?: number[]) => {
+    (overridePerdas?: number[]) => {
       if (!selectedMunicipio?.codigo_ibge || !selectedCompetencia) return;
-      const percas = overridePercas ?? dadosEditados?.perca_recurso_mensal;
-      if (!percas) return;
+      const perdas = overridePerdas ?? dadosEditados?.perda_recurso_mensal;
+      if (!perdas) return;
 
       const payload: MunicipioEditadoCreate = {
         codigo_ibge: selectedMunicipio.codigo_ibge,
         competencia: selectedCompetencia,
-        perca_recurso_mensal: percas,
+        perda_recurso_mensal: perdas,
       };
 
       // Clear existing timer
@@ -89,7 +89,7 @@ export const useAutoSave = (debounceMs = 2000) => {
         mutation.mutate(payload);
       }, debounceMs);
     },
-    [debounceMs, dadosEditados?.perca_recurso_mensal, mutation, selectedCompetencia, selectedMunicipio?.codigo_ibge]
+    [debounceMs, dadosEditados?.perda_recurso_mensal, mutation, selectedCompetencia, selectedMunicipio?.codigo_ibge]
   );
 
   // Cleanup timer on unmount

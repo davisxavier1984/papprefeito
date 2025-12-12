@@ -313,7 +313,7 @@
             <div class="detail-item">
                 <span class="detail-label">Perda Mensal Estimada</span>
                 <span class="detail-value" style="color: #ef4444;">
-                    R$ {{ "{:,.0f}".format(resumo.total_perca_mensal).replace(',', '.') }}
+                    R$ {{ "{:,.0f}".format(resumo.total_perda_mensal).replace(',', '.') }}
                 </span>
             </div>
             <div class="detail-item">
@@ -331,7 +331,7 @@
             <div class="detail-item">
                 <span class="detail-label">Recurso Potencial (Mensal)</span>
                 <span class="detail-value" style="color: #10b981;">
-                    R$ {{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perca_mensal).replace(',', '.') }}
+                    R$ {{ "{:,.0f}".format(resumo.total_recebido + resumo.total_perda_mensal).replace(',', '.') }}
                 </span>
             </div>
         </div>
