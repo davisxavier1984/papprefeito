@@ -15,25 +15,12 @@ import type {
 } from '../types';
 import { processarProgramas } from '../utils/processarProgramas';
 
-// UFs permitidas no sistema
-const ALLOWED_UFS = ['BA', 'GO'];
-
 /**
  * Valida se a UF do município é permitida no sistema
+ * Atualmente todas as UFs do Brasil são permitidas
  */
-const validateMunicipioUF = (municipio: Municipio | null): boolean => {
-  if (!municipio) return true;
-
-  const isValid = ALLOWED_UFS.includes(municipio.uf.toUpperCase());
-
-  if (!isValid) {
-    console.warn(
-      `⚠️ Município de UF não permitida detectado: ${municipio.nome} - ${municipio.uf}. ` +
-      `Este sistema só atende municípios da Bahia (BA) e Goiás (GO).`
-    );
-  }
-
-  return isValid;
+const validateMunicipioUF = (_municipio: Municipio | null): boolean => {
+  return true; // Todas as UFs são permitidas
 };
 
 // Estado inicial

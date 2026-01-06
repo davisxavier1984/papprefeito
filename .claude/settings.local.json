@@ -56,7 +56,14 @@
       "Bash(uvicorn:*)",
       "Bash(ps:*)",
       "Bash(pip show:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(tmux list-sessions:*)",
+      "Bash(tmux capture-pane:*)",
+      "Bash(tmux kill-session:*)",
+      "Bash(tmux new-session:*)",
+      "Bash(tmux send-keys:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

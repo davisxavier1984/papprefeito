@@ -283,9 +283,9 @@ UF_CODES = {
     "52": "GO", "53": "DF"
 }
 
-# UFs permitidas no sistema (apenas BA e GO)
-ALLOWED_UFS = ["BA", "GO"]
-ALLOWED_UF_CODES = ["29", "52"]
+# UFs permitidas no sistema (todos os estados brasileiros)
+ALLOWED_UFS = list(UF_CODES.values())  # Todas as 27 UFs
+ALLOWED_UF_CODES = list(UF_CODES.keys())  # Todos os códigos
 
 
 def get_uf_from_codigo_ibge(codigo_ibge: str) -> str:
@@ -315,7 +315,7 @@ def get_uf_from_codigo_ibge(codigo_ibge: str) -> str:
 
 def validate_uf_allowed(uf: str) -> bool:
     """
-    Valida se a UF está na lista de UFs permitidas (BA ou GO).
+    Valida se a UF está na lista de UFs permitidas.
 
     Args:
         uf: Sigla da UF
@@ -328,7 +328,7 @@ def validate_uf_allowed(uf: str) -> bool:
 
 def validate_codigo_ibge_uf(codigo_ibge: str) -> bool:
     """
-    Valida se o código IBGE pertence a uma UF permitida (BA ou GO).
+    Valida se o código IBGE pertence a uma UF permitida.
 
     Args:
         codigo_ibge: Código IBGE do município
