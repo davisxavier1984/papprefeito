@@ -176,7 +176,11 @@ export const useMunicipioStore = create<AppStore>()(
             return;
           }
 
-          const dadosProcessados: DadosProcessados[] = dadosFinanciamento.resumosPlanosOrcamentarios.map((resumo, index) => {
+          // Filtrar apenas recursos municipais (ignorar estaduais)
+          const resumosMunicipais = dadosFinanciamento.resumosPlanosOrcamentarios
+            .filter(r => !r.dsEsferaAdministrativa || r.dsEsferaAdministrativa === 'MUNICIPAL');
+
+          const dadosProcessados: DadosProcessados[] = resumosMunicipais.map((resumo, index) => {
             const perdaMensal = dadosEditados?.perda_recurso_mensal?.[index] || 0;
 
             return {

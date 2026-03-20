@@ -31,6 +31,7 @@ export interface RelatorioPDFRequest {
 
 export interface ResumoPlanoOrcamentario {
   dsPlanoOrcamentario: string;
+  dsEsferaAdministrativa?: string;
   vlIntegral?: number;
   vlAjuste?: number;
   vlDesconto?: number;

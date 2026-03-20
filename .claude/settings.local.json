@@ -63,7 +63,10 @@
       "Bash(tmux kill-session:*)",
       "Bash(tmux new-session:*)",
       "Bash(tmux send-keys:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(tmux kill-server:*)",
+      "Bash(timeout 10 python:*)",
+      "Bash(pip3 install:*)"
     ],
     "deny": [],
     "ask": []
