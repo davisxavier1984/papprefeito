@@ -33,11 +33,10 @@ api_router.include_router(
     tags=["Relatórios"]
 )
 
-# Novo endpoint Appwrite
 api_router.include_router(
     edicoes.router,
     prefix="",
-    tags=["Edições Appwrite"]
+    tags=["Edições"]
 )
 
 # Endpoints de autenticação

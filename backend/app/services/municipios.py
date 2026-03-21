@@ -9,6 +9,15 @@ from app.models.schemas import UF, Municipio
 from app.utils.logger import logger
 
 
+# Mapeamento de municípios com nomes duplicados em diferentes UFs
+# Formato: (nome_upper, uf_upper) -> codigo_ibge_7_digitos
+MUNICIPIOS_DUPLICADOS = {
+    ('FILADÉLFIA', 'BA'): '2910859',
+    ('FILADÉLFIA', 'TO'): '1707702',
+    # Adicionar outros conforme necessário
+}
+
+
 class MunicipioService:
     """Serviço para consulta de municípios e UFs"""
 
@@ -119,7 +128,7 @@ class MunicipioService:
 
             for municipio_nome in sorted(municipios_list):
                 try:
-                    codigo_ibge = self.get_codigo_ibge(municipio_nome)
+                    codigo_ibge = self.get_codigo_ibge(municipio_nome, uf_sigla)
                     if codigo_ibge:
                         municipios_data.append(Municipio(
                             codigo_ibge=codigo_ibge,
@@ -135,21 +144,65 @@ class MunicipioService:
             logger.error(f"Erro ao buscar municípios da UF {uf_sigla}: {str(e)}")
             return []
 
-    def get_codigo_ibge(self, municipio_nome: str) -> Optional[str]:
+    def _get_codigo_uf(self, uf_sigla: str) -> str:
+        """
+        Retorna código IBGE da UF (2 dígitos)
+
+        Args:
+            uf_sigla: Sigla da UF (ex: 'BA', 'GO')
+
+        Returns:
+            str: Código IBGE da UF (2 dígitos)
+        """
+        uf_codes = {
+            'AC': '12', 'AL': '27', 'AP': '16', 'AM': '13', 'BA': '29',
+            'CE': '23', 'DF': '53', 'ES': '32', 'GO': '52', 'MA': '21',
+            'MT': '51', 'MS': '50', 'MG': '31', 'PA': '15', 'PB': '25',
+            'PR': '41', 'PE': '26', 'PI': '22', 'RJ': '33', 'RN': '24',
+            'RS': '43', 'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35',
+            'SE': '28', 'TO': '17'
+        }
+        return uf_codes.get(uf_sigla.upper(), '')
+
+    def get_codigo_ibge(self, municipio_nome: str, uf_sigla: str = None) -> Optional[str]:
         """
         Obtém código IBGE do município
 
         Args:
             municipio_nome: Nome do município
+            uf_sigla: Sigla da UF para validação (ex: 'BA', 'GO')
 
         Returns:
             str: Código IBGE (6 dígitos) ou None se não encontrado
         """
         try:
+            # Primeiro: verificar se é município com nome duplicado
+            if uf_sigla:
+                key = (municipio_nome.upper(), uf_sigla.upper())
+                if key in MUNICIPIOS_DUPLICADOS:
+                    codigo = MUNICIPIOS_DUPLICADOS[key]
+                    # Remover último dígito (verificador) se tiver 7
+                    resultado = codigo[:-1] if len(codigo) == 7 else codigo
+                    logger.info(f"Município duplicado encontrado: {municipio_nome}/{uf_sigla} -> {resultado}")
+                    return resultado
+
+            # Segundo: buscar via pyUFbr
             cidade = ufbr.get_cidade(municipio_nome)
             if cidade and hasattr(cidade, 'codigo'):
-                # Remove último dígito conforme lógica original
+                # Remove último dígito conforme lógica original (pyUFbr retorna 7 dígitos)
                 codigo_ibge = str(int(float(cidade.codigo)))[:-1]
+
+                # Validar se código pertence à UF esperada
+                if uf_sigla:
+                    codigo_uf = codigo_ibge[:2]
+                    uf_esperada = self._get_codigo_uf(uf_sigla)
+                    if codigo_uf != uf_esperada:
+                        logger.warning(
+                            f"Código IBGE {codigo_ibge} não pertence a {uf_sigla}. "
+                            f"Esperado: {uf_esperada}, Recebido: {codigo_uf}"
+                        )
+                        return None
+
                 return codigo_ibge
             return None
 

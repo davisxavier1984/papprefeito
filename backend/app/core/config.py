@@ -33,18 +33,11 @@ class Settings(BaseSettings):
     CACHE_TTL: int = 3600  # 1 hora
 
     # Database Configuration
-    DATABASE_URL: str = "postgresql://user:password@localhost/papprefeito"
+    SQLITE_URL: str = "sqlite+aiosqlite:///papprefeito.db"
 
     # JSON Data Files (compatibilidade com sistema atual)
     DATA_CACHE_FILE: str = "data_cache_papprefeito.json"
     EDITED_DATA_FILE: str = "municipios_editados.json"
-
-    # Appwrite Configuration
-    APPWRITE_ENDPOINT: str = "https://cloud.appwrite.io/v1"
-    APPWRITE_PROJECT_ID: str = "68dc49bf000cebd54b85"
-    APPWRITE_API_KEY: Optional[str] = None
-    APPWRITE_DATABASE_ID: str = "papprefeito_db"
-    APPWRITE_COLLECTION_EDICOES_ID: str = "edicoes_municipios"
 
     # Paginação
     DEFAULT_PAGE_SIZE: int = 50
@@ -59,6 +52,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
 
 # Instância global das configurações

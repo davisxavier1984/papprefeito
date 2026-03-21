@@ -1,6 +1,7 @@
 """
 FastAPI backend para o sistema MaisPAP
 """
+from contextlib import asynccontextmanager
 from typing import List
 
 from fastapi import FastAPI
@@ -10,6 +11,7 @@ import uvicorn
 
 from app.api.router import api_router
 from app.core.config import settings
+from app.core.database import init_db
 
 
 def _sanitize_origins(origins: List[str]) -> List[str]:
@@ -25,13 +27,20 @@ DEFAULT_CORS_ORIGINS = {
     "http://127.0.0.1:5174",
 }
 
-# Criar instância do FastAPI
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+
 app = FastAPI(
     title="papprefeito API",
     description="API REST para consulta de dados de financiamento APS",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Configurar CORS
