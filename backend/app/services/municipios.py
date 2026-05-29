@@ -124,19 +124,25 @@ class MunicipioService:
         """
         try:
             municipios_data = []
-            municipios_list = ufbr.list_cidades(uf_sigla)
+            # Usa nt_cidades (namedtuples codigo/nome DA UF) em vez de get_cidade(nome),
+            # que faz busca nacional e retorna a UF errada para nomes duplicados
+            # (ex.: SANTANA retornaria Santana-AP em vez de Santana-BA).
+            cidades = ufbr.nt_cidades(sigla=uf_sigla)
+            if not isinstance(cidades, list):  # lib retorna 'Inexistente' para UF inválida
+                logger.error(f"UF inválida ou sem municípios: {uf_sigla}")
+                return []
 
-            for municipio_nome in sorted(municipios_list):
+            for m in sorted(cidades, key=lambda c: c.nome):
                 try:
-                    codigo_ibge = self.get_codigo_ibge(municipio_nome, uf_sigla)
-                    if codigo_ibge:
-                        municipios_data.append(Municipio(
-                            codigo_ibge=codigo_ibge,
-                            nome=municipio_nome,
-                            uf=uf_sigla.upper()
-                        ))
+                    # Remove último dígito verificador (pyUFbr retorna 7 dígitos)
+                    codigo_ibge = str(int(float(m.codigo)))[:-1]
+                    municipios_data.append(Municipio(
+                        codigo_ibge=codigo_ibge,
+                        nome=m.nome,
+                        uf=uf_sigla.upper()
+                    ))
                 except Exception as e:
-                    logger.warning(f"Erro ao processar município {municipio_nome}: {str(e)}")
+                    logger.warning(f"Erro ao processar município {m.nome}: {str(e)}")
 
             return municipios_data
 
