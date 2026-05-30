@@ -3,12 +3,19 @@ Configurações da aplicação
 """
 import os
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from pydantic_settings import BaseSettings
+
+# Valor placeholder inseguro — proibido em produção (ver validador abaixo)
+INSECURE_SECRET_KEY = "your-secret-key-here-change-in-production"
 
 
 class Settings(BaseSettings):
     """Configurações da aplicação usando pydantic"""
+
+    # Environment
+    ENVIRONMENT: str = "development"
+    DEBUG: bool = True
 
     # API Configuration
     API_V1_STR: str = "/api/v1"
@@ -44,10 +51,21 @@ class Settings(BaseSettings):
     MAX_PAGE_SIZE: int = 100
 
     # Authentication / Security
-    SECRET_KEY: str = "your-secret-key-here-change-in-production"
+    SECRET_KEY: str = INSECURE_SECRET_KEY
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def _enforce_secure_secret_key(cls, v: str, info) -> str:
+        """Falha-rápido: proíbe a SECRET_KEY placeholder em produção."""
+        env = str(info.data.get("ENVIRONMENT", "development")).lower()
+        if env == "production" and (not v or v == INSECURE_SECRET_KEY):
+            raise ValueError(
+                "SECRET_KEY insegura em produção. Defina SECRET_KEY no .env/ambiente."
+            )
+        return v
 
     class Config:
         env_file = ".env"

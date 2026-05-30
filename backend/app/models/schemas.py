@@ -389,6 +389,18 @@ class UserUpdate(BaseModel):
         return v.lower() if v else v
 
 
+class UserSelfUpdate(BaseModel):
+    """Schema para o próprio usuário atualizar o perfil (SEM campos de privilégio)"""
+    nome: Optional[str] = Field(None, description="Nome completo do usuário")
+    email: Optional[str] = Field(None, description="Email do usuário")
+
+    @validator('email')
+    def validate_email(cls, v):
+        if v and ('@' not in v or '.' not in v):
+            raise ValueError('Email inválido')
+        return v.lower() if v else v
+
+
 class UserPasswordChange(BaseModel):
     """Schema para mudança de senha"""
     current_password: str = Field(..., description="Senha atual")

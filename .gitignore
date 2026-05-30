@@ -110,3 +110,14 @@ backend/test_output*.pdf
 
 # Pasta de testes temporários
 backend/temp/
+
+# Estado de runtime gerado/escrito pela aplicação — não versionar
+# (evita churn de diffs e perda de dados em prod via git pull/checkout)
+backend/data_cache_papprefeito.json
+backend/municipios_editados.json
+backend/*.backup.*
+backend/*.json.backup.*
+
+# Configuração local da máquina (não deve propagar via VCS)
+.claude/settings.local.json
+.claude/settings.json

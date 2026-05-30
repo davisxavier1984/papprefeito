@@ -12,6 +12,10 @@ from app.models.schemas import User, UserCreate, UserUpdate
 from app.models.db_models import UserDB
 from app.utils.logger import logger
 
+# Hash bcrypt fixo para comparação em tempo ~constante quando o e-mail não existe
+# (mitiga enumeração de usuários por timing no login)
+_DUMMY_PASSWORD_HASH = get_password_hash("invalid-timing-equalizer")
+
 
 class UserService:
     """Serviço para operações de usuários"""
@@ -137,6 +141,8 @@ class UserService:
         )
         row = result.scalar_one_or_none()
         if not row:
+            # Verificação dummy em tempo ~constante (evita enumeração por timing)
+            verify_password(password, _DUMMY_PASSWORD_HASH)
             return None
 
         if not verify_password(password, row.hashed_password):
