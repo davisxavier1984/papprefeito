@@ -4,6 +4,7 @@
 
 import axios from 'axios';
 import type { AxiosInstance, AxiosResponse } from 'axios';
+import { useAuthStore } from '../stores/authStore';
 import type {
   UF,
   Municipio,
@@ -44,10 +45,23 @@ class ApiClient {
       },
     });
 
+    // Interceptor para anexar o token JWT nas requisições (endpoints exigem login)
+    this.client.interceptors.request.use((config) => {
+      const token = useAuthStore.getState().accessToken;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
+
     // Interceptor para tratar erros globalmente
     this.client.interceptors.response.use(
       (response: AxiosResponse) => response,
       (error) => {
+        // Sessão inválida/expirada: desloga para redirecionar ao login
+        if (error.response?.status === 401) {
+          useAuthStore.getState().logout();
+        }
         const apiError: ApiError = {
           success: false,
           message: error.response?.data?.detail || error.message || 'Erro na comunicação com a API',
