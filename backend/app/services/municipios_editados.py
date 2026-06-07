@@ -67,6 +67,8 @@ class MunicipioEditadoService:
                         codigo_ibge=codigo_ibge,
                         competencia=competencia,
                         perda_recurso_mensal=value.get('perda_recurso_mensal', []),
+                        perda_vinculo_mensal=value.get('perda_vinculo_mensal'),
+                        perda_qualidade_mensal=value.get('perda_qualidade_mensal'),
                         data_edicao=datetime.fromisoformat(
                             value.get('data_edicao', datetime.now().isoformat())
                         )
@@ -99,6 +101,8 @@ class MunicipioEditadoService:
                     codigo_ibge=codigo_ibge,
                     competencia=competencia,
                     perda_recurso_mensal=value.get('perda_recurso_mensal', []),
+                    perda_vinculo_mensal=value.get('perda_vinculo_mensal'),
+                    perda_qualidade_mensal=value.get('perda_qualidade_mensal'),
                     data_edicao=datetime.fromisoformat(
                         value.get('data_edicao', datetime.now().isoformat())
                     )
@@ -147,6 +151,8 @@ class MunicipioEditadoService:
             now = datetime.now()
             data[key] = {
                 'perda_recurso_mensal': municipio_data.perda_recurso_mensal,
+                'perda_vinculo_mensal': municipio_data.perda_vinculo_mensal,
+                'perda_qualidade_mensal': municipio_data.perda_qualidade_mensal,
                 'data_edicao': now.isoformat()
             }
 
@@ -155,6 +161,8 @@ class MunicipioEditadoService:
                     codigo_ibge=municipio_data.codigo_ibge,
                     competencia=municipio_data.competencia,
                     perda_recurso_mensal=municipio_data.perda_recurso_mensal,
+                    perda_vinculo_mensal=municipio_data.perda_vinculo_mensal,
+                    perda_qualidade_mensal=municipio_data.perda_qualidade_mensal,
                     data_edicao=now
                 )
 
@@ -268,6 +276,8 @@ class MunicipioEditadoService:
             now = datetime.now()
             data[key] = {
                 'perda_recurso_mensal': municipio_data.perda_recurso_mensal,
+                'perda_vinculo_mensal': municipio_data.perda_vinculo_mensal,
+                'perda_qualidade_mensal': municipio_data.perda_qualidade_mensal,
                 'data_edicao': now.isoformat()
             }
 
@@ -276,6 +286,8 @@ class MunicipioEditadoService:
                     codigo_ibge=municipio_data.codigo_ibge,
                     competencia=municipio_data.competencia,
                     perda_recurso_mensal=municipio_data.perda_recurso_mensal,
+                    perda_vinculo_mensal=municipio_data.perda_vinculo_mensal,
+                    perda_qualidade_mensal=municipio_data.perda_qualidade_mensal,
                     data_edicao=now
                 )
 

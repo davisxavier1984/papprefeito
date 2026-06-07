@@ -19,6 +19,8 @@ export const useConsultarDados = () => {
     setError,
     setDadosFinanciamento,
     setDadosEditados,
+    setSiapsGap,
+    setSiapsLoading,
   } = useMunicipioStore();
 
   const mutation = useMutation({
@@ -48,6 +50,8 @@ export const useConsultarDados = () => {
             codigo_ibge: selectedMunicipio.codigo_ibge,
             competencia: selectedCompetencia,
             perda_recurso_mensal: zeros,
+            perda_vinculo_mensal: [...zeros],
+            perda_qualidade_mensal: [...zeros],
             data_edicao: new Date().toISOString(),
           };
         } else {
@@ -78,6 +82,25 @@ export const useConsultarDados = () => {
       // Atualizar store e processar
       setDadosFinanciamento(dados);
       setDadosEditados(editados);
+
+      // SIAPS (best-effort): a lacuna não bloqueia a consulta principal.
+      if (selectedMunicipio?.codigo_ibge && selectedCompetencia) {
+        setSiapsLoading(true);
+        apiClient
+          .getSiapsGap(selectedMunicipio.codigo_ibge, selectedCompetencia)
+          .then((gap) => {
+            setSiapsGap(gap);
+            queryClient.setQueryData(
+              queryKeys.siapsGap(selectedMunicipio.codigo_ibge, selectedCompetencia),
+              gap
+            );
+          })
+          .catch(() => {
+            // Sem dados SIAPS para o quadrimestre: segue sem sugestões.
+            setSiapsGap(null);
+          })
+          .finally(() => setSiapsLoading(false));
+      }
     },
     onError: (err: any) => {
       const message = err?.message || err?.details?.message || 'Erro ao consultar dados';

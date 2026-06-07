@@ -140,9 +140,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           color: 'var(--text-secondary)',
           lineHeight: 1.5,
           padding: '12px',
-          backgroundColor: '#f1f5f9',
+          backgroundColor: 'var(--bg-elevated)',
           borderRadius: '8px',
-          border: '1px solid #e2e8f0'
+          border: '1px solid var(--border-color)'
         }}>
           <strong style={{ color: 'var(--text-primary)' }}>Como usar:</strong><br />
           1. Selecione a UF<br />
@@ -168,15 +168,15 @@ const Sidebar: React.FC<SidebarProps> = ({
           placement="left"
           onClose={onDrawerClose}
           open={isDrawerOpen}
-          width={340}
+          width="min(340px, 85vw)"
           styles={{
             body: {
               padding: '16px',
-              backgroundColor: '#fafbfc'
+              backgroundColor: 'var(--bg-elevated)'
             },
             header: {
-              borderBottom: '1px solid #e2e8f0',
-              backgroundColor: '#fff'
+              borderBottom: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-container)'
             }
           }}
         >
@@ -195,9 +195,9 @@ const Sidebar: React.FC<SidebarProps> = ({
             collapsed={collapsed}
             collapsedWidth={64}
             style={{
-              background: '#fafbfc',
+              background: 'var(--bg-elevated)',
               padding: collapsed ? '24px 8px' : '24px 16px',
-              borderRight: '1px solid #e2e8f0',
+              borderRight: '1px solid var(--border-color)',
               boxShadow: '2px 0 8px rgba(0, 0, 0, 0.04)',
               transition: 'width 0.2s ease, padding 0.2s ease',
               overflow: 'visible'

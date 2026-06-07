@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     SAUDE_API_BASE_URL: str = "https://relatorioaps-prd.saude.gov.br/financiamento/pagamento"
     SAUDE_API_TIMEOUT: int = 30
 
+    # SIAPS — API pública de classificação das equipes (CVAT + Qualidade)
+    SIAPS_BASE_URL: str = "https://apisiaps.saude.gov.br"
+    SIAPS_TIMEOUT: int = 60
+    SIAPS_CACHE_DIR: str = "data/SIAPS"
+    SIAPS_CACHE_TTL_DAYS: int = 30  # dado quadrimestral muda raramente
+
     # Cache Configuration
     REDIS_URL: str = "redis://localhost:6379"
     CACHE_TTL: int = 3600  # 1 hora

@@ -85,7 +85,9 @@ class MunicipioEditado(BaseModel):
     """Modelo para dados editados de município"""
     codigo_ibge: str = Field(..., description="Código IBGE do município")
     competencia: str = Field(..., description="Competência")
-    perda_recurso_mensal: List[float] = Field(default_factory=list, description="Lista de perdas mensais por recurso")
+    perda_recurso_mensal: List[float] = Field(default_factory=list, description="Lista de perdas mensais por recurso (total por linha)")
+    perda_vinculo_mensal: Optional[List[float]] = Field(default=None, description="Perda mensal do componente Vínculo e Acompanhamento (CVAT) por recurso")
+    perda_qualidade_mensal: Optional[List[float]] = Field(default=None, description="Perda mensal do componente Qualidade por recurso")
     data_edicao: datetime = Field(default_factory=datetime.now, description="Data da última edição")
 
 class MunicipioEditadoCreate(BaseModel):
@@ -93,6 +95,8 @@ class MunicipioEditadoCreate(BaseModel):
     codigo_ibge: str
     competencia: str
     perda_recurso_mensal: List[float]
+    perda_vinculo_mensal: Optional[List[float]] = None
+    perda_qualidade_mensal: Optional[List[float]] = None
 
 class MunicipioEditadoUpdate(BaseModel):
     """Modelo para atualização de dados editados"""
@@ -467,3 +471,54 @@ class UserListResponse(BaseModel):
     """Schema para resposta de listagem de usuários"""
     total: int = Field(..., description="Total de usuários")
     users: List[User] = Field(..., description="Lista de usuários")
+
+
+# --- SIAPS (classificação das equipes + lacuna financeira) -------------------
+
+class SiapsRegistro(BaseModel):
+    """Registro bruto da API SIAPS (classificação de uma equipe num quadrimestre)."""
+    nuQuadrimestre: str = Field(..., description="Quadrimestre (AAAAQN)")
+    sgEquipe: str = Field(..., description="Tipo de equipe: eSF, eSB, eAP, eMulti")
+    tipoOrigem: str = Field(..., description="Componente: CVAT ou QUALIDADE")
+    qtdClassificacaoOtimo: int = Field(default=0)
+    qtdClassificacaoBom: int = Field(default=0)
+    qtdClassificacaoSuficiente: int = Field(default=0)
+    qtdClassificacaoRegular: int = Field(default=0)
+    totalEquipesValidasParaComponente: int = Field(default=0)
+    model_config = ConfigDict(extra="ignore")
+
+
+class SiapsClassificacaoResponse(BaseModel):
+    """Envelope da classificação SIAPS de um município."""
+    ibge: str
+    uf: str
+    municipio: Optional[str] = None
+    quadrimestres: List[str] = Field(default_factory=list)
+    extraido_em: Optional[str] = None
+    registros: List[SiapsRegistro] = Field(default_factory=list)
+    model_config = ConfigDict(extra="ignore")
+
+
+class SiapsGapDetalhe(BaseModel):
+    """Lacuna financeira por equipe × componente × quadrimestre."""
+    sgEquipe: str
+    componente: str
+    quadrimestre: str
+    variante: str
+    contagens: Dict[str, int] = Field(default_factory=dict)
+    totalEquipes: int = 0
+    gap_vigente: float = 0.0
+    gap_potencial: float = 0.0
+
+
+class SiapsGapResponse(BaseModel):
+    """Resultado do cálculo de lacuna do SIAPS para uma competência."""
+    competencia: str
+    quadrimestre_aplicado: str
+    estrato: int
+    perda_por_recurso_vigente: List[float] = Field(default_factory=list)
+    perda_por_recurso_potencial: List[float] = Field(default_factory=list)
+    total_vigente: float = 0.0
+    total_potencial: float = 0.0
+    detalhe: List[SiapsGapDetalhe] = Field(default_factory=list)
+    valores_validados: bool = False

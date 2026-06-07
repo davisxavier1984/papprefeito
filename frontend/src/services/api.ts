@@ -15,7 +15,9 @@ import type {
   FinanciamentoParams,
   CompetenciaInfo,
   ApiError,
-  RelatorioPDFRequest
+  RelatorioPDFRequest,
+  SiapsClassificacaoResponse,
+  SiapsGapResponse
 } from '../types';
 
 // Configuração base da API
@@ -150,6 +152,42 @@ class ApiClient {
    */
   async consultarDadosFinanciamentoPOST(params: FinanciamentoParams): Promise<DadosFinanciamento> {
     const response = await this.client.post<DadosFinanciamento>('/financiamento/dados/consultar', params);
+    return response.data;
+  }
+
+  // ================================
+  // ENDPOINTS SIAPS
+  // ================================
+
+  /**
+   * Consulta a classificação SIAPS (CVAT + Qualidade) por equipe
+   */
+  async getSiapsClassificacao(
+    codigoIbge: string,
+    competencia: string,
+    quadrimestre?: string
+  ): Promise<SiapsClassificacaoResponse> {
+    const params = quadrimestre ? { quadrimestre } : {};
+    const response = await this.client.get<SiapsClassificacaoResponse>(
+      `/siaps/classificacao/${codigoIbge}/${competencia}`,
+      { params }
+    );
+    return response.data;
+  }
+
+  /**
+   * Consulta a lacuna financeira (vigente e potencial) derivada do SIAPS
+   */
+  async getSiapsGap(
+    codigoIbge: string,
+    competencia: string,
+    quadrimestre?: string
+  ): Promise<SiapsGapResponse> {
+    const params = quadrimestre ? { quadrimestre } : {};
+    const response = await this.client.get<SiapsGapResponse>(
+      `/siaps/gap/${codigoIbge}/${competencia}`,
+      { params }
+    );
     return response.data;
   }
 
@@ -305,4 +343,6 @@ export const queryKeys = {
   competencia: ['competencia', 'latest'] as const,
   editados: ['municipios-editados'] as const,
   editado: (codigo: string, competencia: string) => ['municipio-editado', codigo, competencia] as const,
+  siaps: (codigo: string, competencia: string) => ['siaps', codigo, competencia] as const,
+  siapsGap: (codigo: string, competencia: string) => ['siaps-gap', codigo, competencia] as const,
 } as const;

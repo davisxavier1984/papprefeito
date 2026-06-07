@@ -6,8 +6,10 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { ConfigProvider, App as AntApp } from 'antd';
+import { ConfigProvider, App as AntApp, theme as antdThemeAlgo } from 'antd';
+import type { ThemeConfig } from 'antd';
 import ptBR from 'antd/locale/pt_BR';
+import { useIsDark } from './stores/themeStore';
 import AppLayout from './components/Layout/AppLayout';
 import Dashboard from './pages/Dashboard';
 import { LoginForm } from './components/Auth/LoginForm';
@@ -39,8 +41,11 @@ const queryClient = new QueryClient({
   },
 });
 
-// Configuração do tema Ant Design baseado na marca MAIS GESTOR
-const antdTheme = {
+// Configuração do tema Ant Design baseado na marca MAIS GESTOR.
+// buildTheme(isDark) seleciona o algoritmo (claro/escuro) e só fixa os
+// tokens de superfície no tema claro — no escuro o darkAlgorithm os calcula.
+const buildTheme = (isDark: boolean): ThemeConfig => ({
+  algorithm: isDark ? antdThemeAlgo.darkAlgorithm : antdThemeAlgo.defaultAlgorithm,
   token: {
     colorPrimary: '#0ea5e9', // Azul primário do logo
     colorSuccess: '#22c55e', // Verde para valores positivos
@@ -49,16 +54,21 @@ const antdTheme = {
     borderRadius: 8,
     fontSize: 14,
     fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-    boxShadow: '0 4px 12px rgba(14, 165, 233, 0.1)',
-    colorBgContainer: '#ffffff',
-    colorBgLayout: '#f8fafc',
+    ...(isDark
+      ? {}
+      : {
+          boxShadow: '0 4px 12px rgba(14, 165, 233, 0.1)',
+          colorBgContainer: '#ffffff',
+          colorBgLayout: '#f8fafc',
+        }),
   },
   components: {
-    Layout: {
-      headerBg: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
-      siderBg: '#f8fafc',
-      bodyBg: '#f8fafc',
-    },
+    Layout: isDark
+      ? {}
+      : {
+          siderBg: '#f8fafc',
+          bodyBg: '#f8fafc',
+        },
     Button: {
       borderRadius: 8,
       fontWeight: 500,
@@ -76,13 +86,17 @@ const antdTheme = {
     },
     Table: {
       borderRadius: 8,
-      headerBg: '#f1f5f9',
-      headerColor: '#334155',
-      borderColor: '#e2e8f0',
+      ...(isDark
+        ? {}
+        : {
+            headerBg: '#f1f5f9',
+            headerColor: '#334155',
+            borderColor: '#e2e8f0',
+          }),
     },
     Card: {
       borderRadius: 12,
-      boxShadow: '0 4px 12px rgba(14, 165, 233, 0.08)',
+      ...(isDark ? {} : { boxShadow: '0 4px 12px rgba(14, 165, 233, 0.08)' }),
     },
     Tag: {
       borderRadius: 6,
@@ -93,9 +107,11 @@ const antdTheme = {
       fontFamily: 'inherit',
     },
   },
-};
+});
 
 const App: React.FC = () => {
+  const isDark = useIsDark();
+
   // Sanitizar possíveis classes residuais em HMR/atualizações
   useEffect(() => {
     document.body.classList.remove('resizing');
@@ -105,7 +121,7 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <ConfigProvider
         locale={ptBR}
-        theme={antdTheme}
+        theme={buildTheme(isDark)}
       >
         <AntApp>
         <BrowserRouter>

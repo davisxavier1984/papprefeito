@@ -3,7 +3,7 @@ Router principal da API que inclui todos os endpoints
 """
 from fastapi import APIRouter, Depends
 
-from app.api.endpoints import municipios, financiamento, municipios_editados, relatorios, edicoes, auth, users
+from app.api.endpoints import municipios, financiamento, municipios_editados, relatorios, edicoes, auth, users, siaps
 from app.core.dependencies import get_current_authorized_user
 
 # Router principal
@@ -45,6 +45,13 @@ api_router.include_router(
     edicoes.router,
     prefix="",
     tags=["Edições"],
+    dependencies=_auth_required,
+)
+
+api_router.include_router(
+    siaps.router,
+    prefix="/siaps",
+    tags=["SIAPS"],
     dependencies=_auth_required,
 )
 

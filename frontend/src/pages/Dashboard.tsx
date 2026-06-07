@@ -3,11 +3,12 @@
  */
 
 import React, { useState } from 'react';
-import { Typography, Space, Divider, Empty, Button, App } from 'antd';
+import { Typography, Space, Divider, Empty, Button, App, Spin } from 'antd';
 import FinancialTable from '../components/DataTable/FinancialTable';
 import MetricsCards from '../components/Metrics/MetricsCards';
 import { ProgramasCards } from '../components/Programas/ProgramasCards';
 import { AnaliseBox } from '../components/Programas/AnaliseBox';
+import SiapsClassificacaoCard from '../components/SIAPS/SiapsClassificacaoCard';
 import { useHasDados, useMunicipioInfo, useMunicipioStore } from '../stores/municipioStore';
 import { DownloadOutlined } from '@ant-design/icons';
 import { apiClient } from '../services/api';
@@ -18,7 +19,7 @@ const Dashboard: React.FC = () => {
   const { message } = App.useApp();
   const hasDados = useHasDados();
   const municipioInfo = useMunicipioInfo();
-  const { resumoFinanceiro, dadosProgramas } = useMunicipioStore();
+  const { resumoFinanceiro, dadosProgramas, isLoading } = useMunicipioStore();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingDetailed, setIsGeneratingDetailed] = useState(false);
 
@@ -94,6 +95,25 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div
+        className="fade-in-up"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+          gap: '16px',
+        }}
+      >
+        <Spin size="large" />
+        <Text type="secondary">Carregando dados...</Text>
+      </div>
+    );
+  }
+
   if (!hasDados) {
     return (
       <div className="fade-in-up">
@@ -141,10 +161,10 @@ const Dashboard: React.FC = () => {
           <div style={{
             maxWidth: 680,
             margin: '0 auto',
-            background: '#f8fafc',
+            background: 'var(--bg-elevated)',
             borderRadius: '12px',
             padding: '24px',
-            border: '1px solid #e2e8f0'
+            border: '1px solid var(--border-color)'
           }}>
             <Title level={4} style={{ color: 'var(--primary-blue)', marginBottom: '16px' }}>
               📋 Como utilizar o sistema:
@@ -165,9 +185,9 @@ const Dashboard: React.FC = () => {
                     alignItems: 'flex-start',
                     gap: '12px',
                     padding: '12px',
-                    backgroundColor: '#fff',
+                    backgroundColor: 'var(--bg-container)',
                     borderRadius: '8px',
-                    border: '1px solid #e2e8f0'
+                    border: '1px solid var(--border-color)'
                   }}>
                     <div style={{
                       backgroundColor: 'var(--primary-blue)',
@@ -242,6 +262,9 @@ const Dashboard: React.FC = () => {
 
         <MetricsCards />
 
+        {/* Classificação das equipes (SIAPS) + lacuna financeira */}
+        <SiapsClassificacaoCard />
+
         {/* Cards de Detalhamento por Programa */}
         {dadosProgramas && dadosProgramas.length > 0 && (
           <>
@@ -251,10 +274,10 @@ const Dashboard: React.FC = () => {
         )}
 
         <div style={{
-          background: '#fff',
+          background: 'var(--bg-container)',
           borderRadius: '12px',
           padding: '20px',
-          border: '1px solid #e2e8f0',
+          border: '1px solid var(--border-color)',
           boxShadow: '0 4px 12px rgba(14, 165, 233, 0.08)'
         }}>
           <Title level={4} style={{ color: 'var(--text-primary)', marginBottom: '16px' }}>

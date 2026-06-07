@@ -138,7 +138,7 @@ export const UserManagement: React.FC = () => {
 
       {/* Estatísticas */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={24} md={12} lg={6}>
           <Card>
             <Statistic
               title="Total de Usuários"
@@ -148,7 +148,7 @@ export const UserManagement: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={24} md={12} lg={6}>
           <Card>
             <Statistic
               title="Usuários Ativos"
@@ -158,7 +158,7 @@ export const UserManagement: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={24} md={12} lg={6}>
           <Card>
             <Statistic
               title="Usuários Inativos"
@@ -168,7 +168,7 @@ export const UserManagement: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={24} md={12} lg={6}>
           <Card>
             <Statistic
               title="Superusuários"
@@ -205,7 +205,7 @@ export const UserManagement: React.FC = () => {
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               onPressEnter={loadUsers}
-              style={{ width: 300 }}
+              style={{ width: 'min(300px, 100%)' }}
               allowClear
             />
 

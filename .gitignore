@@ -117,6 +117,10 @@ backend/temp/
 data_cache_papprefeito.json
 municipios_editados.json
 *.json.backup.*
+# Cache de runtime do SIAPS (CLI grava em data/SIAPS/, backend em backend/data/SIAPS/)
+**/data/SIAPS/
+# NÃO ignorar fixtures de teste do SIAPS (versionadas de propósito)
+!backend/tests/fixtures/
 
 # Configuração local da máquina (não deve propagar via VCS)
 .claude/settings.local.json

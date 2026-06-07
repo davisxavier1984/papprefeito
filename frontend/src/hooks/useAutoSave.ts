@@ -14,7 +14,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export const useAutoSave = (debounceMs = 2000) => {
   const queryClient = useQueryClient();
-  const { selectedMunicipio, selectedCompetencia, dadosEditados } = useMunicipioStore();
+  const { selectedMunicipio, selectedCompetencia } = useMunicipioStore();
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -35,6 +35,8 @@ export const useAutoSave = (debounceMs = 2000) => {
           codigo_ibge: payload.codigo_ibge,
           competencia: payload.competencia,
           perda_recurso_mensal: payload.perda_recurso_mensal,
+          perda_vinculo_mensal: payload.perda_vinculo_mensal,
+          perda_qualidade_mensal: payload.perda_qualidade_mensal,
           data_edicao: new Date().toISOString(),
         };
         queryClient.setQueryData(
@@ -67,30 +69,32 @@ export const useAutoSave = (debounceMs = 2000) => {
     },
   });
 
-  // Debounced trigger
-  const triggerSave = useCallback(
-    (overridePerdas?: number[]) => {
-      if (!selectedMunicipio?.codigo_ibge || !selectedCompetencia) return;
-      const perdas = overridePerdas ?? dadosEditados?.perda_recurso_mensal;
-      if (!perdas) return;
+  // Debounced trigger — lê o estado mais recente do store (evita defasagem de 1 edição
+  // por causa de closure desatualizada) e persiste também a decomposição por componente.
+  const triggerSave = useCallback(() => {
+    const state = useMunicipioStore.getState();
+    const { selectedMunicipio: muni, selectedCompetencia: comp, dadosEditados: editados } = state;
+    if (!muni?.codigo_ibge || !comp) return;
+    const perdas = editados?.perda_recurso_mensal;
+    if (!perdas) return;
 
-      const payload: MunicipioEditadoCreate = {
-        codigo_ibge: selectedMunicipio.codigo_ibge,
-        competencia: selectedCompetencia,
-        perda_recurso_mensal: perdas,
-      };
+    const payload: MunicipioEditadoCreate = {
+      codigo_ibge: muni.codigo_ibge,
+      competencia: comp,
+      perda_recurso_mensal: perdas,
+      perda_vinculo_mensal: editados?.perda_vinculo_mensal,
+      perda_qualidade_mensal: editados?.perda_qualidade_mensal,
+    };
 
-      // Clear existing timer
-      if (timerRef.current) {
-        window.clearTimeout(timerRef.current);
-      }
-      // Schedule save
-      timerRef.current = window.setTimeout(() => {
-        mutation.mutate(payload);
-      }, debounceMs);
-    },
-    [debounceMs, dadosEditados?.perda_recurso_mensal, mutation, selectedCompetencia, selectedMunicipio?.codigo_ibge]
-  );
+    // Clear existing timer
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+    }
+    // Schedule save
+    timerRef.current = window.setTimeout(() => {
+      mutation.mutate(payload);
+    }, debounceMs);
+  }, [debounceMs, mutation]);
 
   // Cleanup timer on unmount
   useEffect(() => {

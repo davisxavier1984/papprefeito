@@ -92,7 +92,14 @@ async def gerar_relatorio_detalhado_pdf(request: RelatorioPDFRequest):
                 detail="Não foi possível localizar dados de financiamento para gerar o relatório"
             )
 
-        resumos = dados.get('resumosPlanosOrcamentarios', [])
+        resumos_completos = dados.get('resumosPlanosOrcamentarios', [])
+        # Considerar apenas recursos MUNICIPAIS — mesmo filtro do frontend (processarDados).
+        # Garante que o total do PDF bata com a tela e que os ganhos por componente (indexados
+        # pela lista municipal) caiam na linha correta.
+        resumos = [
+            r for r in resumos_completos
+            if not r.get('dsEsferaAdministrativa') or r.get('dsEsferaAdministrativa') == 'MUNICIPAL'
+        ]
         pagamentos = dados.get('pagamentos', [])
 
         if not pagamentos:
@@ -106,16 +113,21 @@ async def gerar_relatorio_detalhado_pdf(request: RelatorioPDFRequest):
             request.competencia
         )
         perdas = editado.perda_recurso_mensal if editado else [0.0] * len(resumos)
+        perdas_vinculo = editado.perda_vinculo_mensal if editado else None
+        perdas_qualidade = editado.perda_qualidade_mensal if editado else None
 
         resumo = compute_financial_summary(resumos, perdas)
 
-        # Gerar PDF detalhado com dados de pagamento
+        # Gerar PDF detalhado com dados de pagamento + simulação por componente (SIAPS)
         pdf_bytes = create_detailed_pdf_report(
             municipio_nome=request.municipio_nome,
             uf=request.uf,
             competencia=request.competencia,
             resumo=resumo,
-            pagamentos=pagamentos
+            pagamentos=pagamentos,
+            resumos=resumos,
+            perdas_vinculo=perdas_vinculo,
+            perdas_qualidade=perdas_qualidade,
         )
 
         file_name = f"relatorio_detalhado_{request.codigo_ibge}_{request.competencia}.pdf"
