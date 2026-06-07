@@ -12,6 +12,7 @@ import uvicorn
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.database import init_db
+from app.utils.logger import logger
 
 
 def _sanitize_origins(origins: List[str]) -> List[str]:
@@ -34,12 +35,15 @@ async def lifespan(app: FastAPI):
     yield
 
 
+# Docs/OpenAPI expostos apenas fora de produção (DEBUG)
+_docs_enabled = settings.DEBUG
 app = FastAPI(
     title="papprefeito API",
     description="API REST para consulta de dados de financiamento APS",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
     lifespan=lifespan,
 )
 
@@ -73,10 +77,11 @@ async def health_check():
 # Exception handlers
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
-    """Handler geral para exceções não tratadas"""
+    """Handler geral para exceções não tratadas (não vaza detalhes internos)."""
+    logger.error(f"Erro não tratado em {request.method} {request.url.path}: {exc}")
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Erro interno do servidor: {str(exc)}"}
+        content={"detail": "Erro interno do servidor"}
     )
 
 if __name__ == "__main__":
@@ -84,5 +89,5 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True
+        reload=settings.DEBUG
     )

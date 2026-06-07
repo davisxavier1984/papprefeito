@@ -196,6 +196,10 @@ export interface MunicipioEditado {
   codigo_ibge: string;
   competencia: string;
   perda_recurso_mensal: number[];
+  /** Perda mensal do componente Vínculo e Acompanhamento (CVAT) por recurso. */
+  perda_vinculo_mensal?: number[];
+  /** Perda mensal do componente Qualidade por recurso. */
+  perda_qualidade_mensal?: number[];
   data_edicao: string;
 }
 
@@ -203,6 +207,8 @@ export interface MunicipioEditadoCreate {
   codigo_ibge: string;
   competencia: string;
   perda_recurso_mensal: number[];
+  perda_vinculo_mensal?: number[];
+  perda_qualidade_mensal?: number[];
 }
 
 export interface MunicipioEditadoUpdate {
@@ -326,6 +332,52 @@ export interface DetalhamentoSaudeBucal {
   };
 }
 
+// Tipos SIAPS (classificação das equipes + lacuna financeira)
+export type SiapsModo = 'vigente' | 'potencial';
+
+export interface SiapsRegistro {
+  nuQuadrimestre: string;
+  sgEquipe: string;
+  tipoOrigem: string;
+  qtdClassificacaoOtimo: number;
+  qtdClassificacaoBom: number;
+  qtdClassificacaoSuficiente: number;
+  qtdClassificacaoRegular: number;
+  totalEquipesValidasParaComponente: number;
+}
+
+export interface SiapsClassificacaoResponse {
+  ibge: string;
+  uf: string;
+  municipio?: string | null;
+  quadrimestres: string[];
+  extraido_em?: string | null;
+  registros: SiapsRegistro[];
+}
+
+export interface SiapsGapDetalhe {
+  sgEquipe: string;
+  componente: string;
+  quadrimestre: string;
+  variante: string;
+  contagens: Record<string, number>;
+  totalEquipes: number;
+  gap_vigente: number;
+  gap_potencial: number;
+}
+
+export interface SiapsGapResponse {
+  competencia: string;
+  quadrimestre_aplicado: string;
+  estrato: number;
+  perda_por_recurso_vigente: number[];
+  perda_por_recurso_potencial: number[];
+  total_vigente: number;
+  total_potencial: number;
+  detalhe: SiapsGapDetalhe[];
+  valores_validados: boolean;
+}
+
 // Tipos para respostas da API
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -394,6 +446,11 @@ export interface AppState {
 
   // Dados processados para cards de programas
   dadosProgramas: DetalhamentoPrograma[];
+
+  // SIAPS — lacuna financeira derivada da classificação das equipes
+  siapsGap: SiapsGapResponse | null;
+  siapsModo: SiapsModo;
+  siapsLoading: boolean;
 }
 
 // Tipos para ações do store
@@ -412,6 +469,13 @@ export interface AppActions {
   processarDados: () => void;
   calcularResumoFinanceiro: () => void;
   processarProgramas: () => void;
+  setSiapsGap: (gap: SiapsGapResponse | null) => void;
+  setSiapsModo: (modo: SiapsModo) => void;
+  setSiapsLoading: (loading: boolean) => void;
+  /** Atualiza a perda projetada de um componente (Vínculo/Qualidade) e recalcula o total da linha. */
+  updatePerdaComponente: (index: number, componente: 'vinculo' | 'qualidade', valor: number) => void;
+  /** Preenche Vínculo e Qualidade de todas as linhas SIAPS com a lacuna potencial. */
+  autopreencherSiaps: () => void;
 }
 
 // Type para o store completo

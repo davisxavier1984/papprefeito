@@ -8,7 +8,8 @@ from app.models.schemas import (
     MunicipioEditado,
     MunicipioEditadoCreate,
     MunicipioEditadoUpdate,
-    ResponseBase
+    ResponseBase,
+    validate_codigo_ibge_uf,
 )
 from app.services.municipios_editados import municipio_editado_service
 from app.services.municipios import municipio_service
@@ -95,6 +96,13 @@ async def criar_municipio_editado(municipio_data: MunicipioEditadoCreate):
             raise HTTPException(
                 status_code=400,
                 detail="Código IBGE inválido"
+            )
+
+        # Restringe edição a UFs permitidas (bloqueia, não apenas loga)
+        if not validate_codigo_ibge_uf(municipio_data.codigo_ibge):
+            raise HTTPException(
+                status_code=403,
+                detail="UF não permitida para edição"
             )
 
         # Verificar se já existe
@@ -232,6 +240,13 @@ async def upsert_municipio_editado(municipio_data: MunicipioEditadoCreate):
             raise HTTPException(
                 status_code=400,
                 detail="Código IBGE inválido"
+            )
+
+        # Restringe edição a UFs permitidas (bloqueia, não apenas loga)
+        if not validate_codigo_ibge_uf(municipio_data.codigo_ibge):
+            raise HTTPException(
+                status_code=403,
+                detail="UF não permitida para edição"
             )
 
         editado = municipio_editado_service.upsert_editado(municipio_data)

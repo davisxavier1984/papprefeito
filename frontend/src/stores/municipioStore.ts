@@ -14,6 +14,7 @@ import type {
   DetalhamentoPrograma
 } from '../types';
 import { processarProgramas } from '../utils/processarProgramas';
+import { sugestoesPorComponente } from '../utils/siaps';
 
 /**
  * Valida se a UF do município é permitida no sistema
@@ -44,6 +45,11 @@ const initialState = {
 
   // Dados processados para cards de programas
   dadosProgramas: [],
+
+  // SIAPS — lacuna financeira derivada da classificação das equipes
+  siapsGap: null,
+  siapsModo: 'potencial' as const,
+  siapsLoading: false,
 };
 
 /**
@@ -70,6 +76,7 @@ export const useMunicipioStore = create<AppStore>()(
             dadosProcessados: [],
             resumoFinanceiro: null,
             dadosProgramas: [],
+            siapsGap: null,
             error: null
           }), false, 'setSelectedUF');
         },
@@ -86,6 +93,7 @@ export const useMunicipioStore = create<AppStore>()(
             dadosProcessados: [],
             resumoFinanceiro: null,
             dadosProgramas: [],
+            siapsGap: null,
             error: null
           }), false, 'setSelectedMunicipio');
         },
@@ -99,6 +107,7 @@ export const useMunicipioStore = create<AppStore>()(
             dadosProcessados: [],
             resumoFinanceiro: null,
             dadosProgramas: [],
+            siapsGap: null,
             error: null
           }), false, 'setSelectedCompetencia');
         },
@@ -155,6 +164,94 @@ export const useMunicipioStore = create<AppStore>()(
 
         updateDadosProgramas: (programas: DetalhamentoPrograma[]) => {
           set({ dadosProgramas: programas }, false, 'updateDadosProgramas');
+        },
+
+        // ================================
+        // AÇÕES SIAPS
+        // ================================
+
+        setSiapsGap: (gap) => {
+          set({ siapsGap: gap }, false, 'setSiapsGap');
+        },
+
+        setSiapsModo: (modo) => {
+          set({ siapsModo: modo }, false, 'setSiapsModo');
+        },
+
+        setSiapsLoading: (loading: boolean) => {
+          set({ siapsLoading: loading }, false, 'setSiapsLoading');
+        },
+
+        updatePerdaComponente: (index, componente, valor) => {
+          const { dadosEditados, dadosProcessados, setDadosEditados } = get();
+          const len = Math.max(
+            dadosProcessados.length,
+            index + 1,
+            dadosEditados?.perda_recurso_mensal?.length || 0
+          );
+          const ajustar = (arr?: number[]) => {
+            const novo = Array.from({ length: len }, (_, i) => arr?.[i] ?? 0);
+            return novo;
+          };
+
+          const vinculo = ajustar(dadosEditados?.perda_vinculo_mensal);
+          const qualidade = ajustar(dadosEditados?.perda_qualidade_mensal);
+          const total = ajustar(dadosEditados?.perda_recurso_mensal);
+
+          if (componente === 'vinculo') {
+            vinculo[index] = valor;
+          } else {
+            qualidade[index] = valor;
+          }
+          total[index] = (vinculo[index] || 0) + (qualidade[index] || 0);
+
+          setDadosEditados({
+            codigo_ibge: dadosEditados?.codigo_ibge || '',
+            competencia: dadosEditados?.competencia || '',
+            perda_recurso_mensal: total,
+            perda_vinculo_mensal: vinculo,
+            perda_qualidade_mensal: qualidade,
+            data_edicao: new Date().toISOString(),
+          });
+        },
+
+        autopreencherSiaps: () => {
+          const { dadosEditados, dadosProcessados, siapsGap, setDadosEditados } = get();
+          if (!siapsGap) {
+            return;
+          }
+          const recursos = dadosProcessados.map((d) => d.recurso);
+          const sugestoes = sugestoesPorComponente(siapsGap, recursos);
+          const len = Math.max(
+            dadosProcessados.length,
+            dadosEditados?.perda_recurso_mensal?.length || 0
+          );
+          const ajustar = (arr?: number[]) => Array.from({ length: len }, (_, i) => arr?.[i] ?? 0);
+
+          const vinculo = ajustar(dadosEditados?.perda_vinculo_mensal);
+          const qualidade = ajustar(dadosEditados?.perda_qualidade_mensal);
+          const total = ajustar(dadosEditados?.perda_recurso_mensal);
+
+          sugestoes.forEach((s, i) => {
+            if (s.vinculo != null) {
+              vinculo[i] = Math.round(s.vinculo);
+            }
+            if (s.qualidade != null) {
+              qualidade[i] = Math.round(s.qualidade);
+            }
+            if (s.vinculo != null || s.qualidade != null) {
+              total[i] = (vinculo[i] || 0) + (qualidade[i] || 0);
+            }
+          });
+
+          setDadosEditados({
+            codigo_ibge: dadosEditados?.codigo_ibge || '',
+            competencia: dadosEditados?.competencia || '',
+            perda_recurso_mensal: total,
+            perda_vinculo_mensal: vinculo,
+            perda_qualidade_mensal: qualidade,
+            data_edicao: new Date().toISOString(),
+          });
         },
 
         // ================================

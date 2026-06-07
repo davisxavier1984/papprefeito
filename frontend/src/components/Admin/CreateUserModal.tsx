@@ -70,7 +70,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ open, onClose,
       confirmLoading={loading}
       okText="Criar"
       cancelText="Cancelar"
-      width={600}
+      width="min(600px, 92vw)"
     >
       <Form
         form={form}

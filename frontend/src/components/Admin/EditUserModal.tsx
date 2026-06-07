@@ -71,7 +71,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
       confirmLoading={loading}
       okText="Salvar"
       cancelText="Cancelar"
-      width={600}
+      width="min(600px, 92vw)"
     >
       <Form form={form} layout="vertical">
         <Form.Item

@@ -12,6 +12,7 @@ from app.models.schemas import (
     UserCreate,
     User,
     UserUpdate,
+    UserSelfUpdate,
     UserPasswordChange,
     ResponseBase,
     UserAuthorizationUpdate,
@@ -216,20 +217,23 @@ async def get_current_user_profile(
     description="Atualiza os dados do usuário autenticado"
 )
 async def update_current_user_profile(
-    user_data: UserUpdate,
+    user_data: UserSelfUpdate,
     current_user: User = Depends(get_current_active_user),
     user_service: UserService = Depends(get_user_service)
 ):
     """
     Atualiza os dados do usuário autenticado.
 
-    Requer autenticação.
+    Requer autenticação. Apenas nome/email — campos de privilégio
+    (is_superuser/is_authorized/is_active) NÃO podem ser alterados aqui.
 
     - **nome**: Novo nome (opcional)
     - **email**: Novo email (opcional)
     """
     try:
-        updated_user = await user_service.update_user(current_user.id, user_data)
+        # Apenas campos permitidos (evita mass-assignment de privilégios)
+        safe_update = UserUpdate(nome=user_data.nome, email=user_data.email)
+        updated_user = await user_service.update_user(current_user.id, safe_update)
         logger.info(f"Perfil atualizado: {current_user.email}")
         return updated_user
     except HTTPException:

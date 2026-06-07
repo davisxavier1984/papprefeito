@@ -41,12 +41,12 @@ const MetricsCards: React.FC = () => {
 
   return (
     <Row gutter={[16, 16]}>
-      <Col xs={24} sm={12} lg={6}>
+      <Col xs={24} sm={12} md={12} lg={6}>
         <Card
           className="shadow-brand"
           style={{
-            background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
-            border: '1px solid #fecaca',
+            background: 'var(--tint-danger-bg)',
+            border: '1px solid var(--tint-danger-border)',
             borderRadius: '12px',
             overflow: 'hidden'
           }}
@@ -64,27 +64,25 @@ const MetricsCards: React.FC = () => {
               }}>
                 <ArrowDownOutlined style={{ color: '#fff', fontSize: '14px' }} />
               </div>
-              <span style={{ fontSize: '14px', fontWeight: 500, color: '#7f1d1d' }}>
+              <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--tint-danger-text)' }}>
                 Perda Mensal Total
               </span>
             </div>
             <Statistic
               value={Number(total_perda_mensal) || 0}
-              formatter={(v) => <span style={{ color: '#dc2626', fontWeight: 700 }}>{currencyFormatter.format(Number(v))}</span>}
+              formatter={(v) => <span style={{ color: 'var(--tint-danger-strong)', fontWeight: 700 }}>{currencyFormatter.format(Number(v))}</span>}
               style={{ margin: 0 }}
             />
           </Space>
         </Card>
       </Col>
 
-      <Col xs={24} sm={12} lg={6}>
+      <Col xs={24} sm={12} md={12} lg={6}>
         <Card
           className="shadow-brand"
           style={{
-            background: isPerda
-              ? 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)'
-              : 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-            border: `1px solid ${isPerda ? '#fecaca' : '#bbf7d0'}`,
+            background: isPerda ? 'var(--tint-danger-bg)' : 'var(--tint-success-bg)',
+            border: `1px solid ${isPerda ? 'var(--tint-danger-border)' : 'var(--tint-success-border)'}`,
             borderRadius: '12px',
             overflow: 'hidden'
           }}
@@ -103,7 +101,7 @@ const MetricsCards: React.FC = () => {
                 }}>
                   <RiseOutlined style={{ color: '#fff', fontSize: '14px' }} />
                 </div>
-                <span style={{ fontSize: '14px', fontWeight: 500, color: isPerda ? '#7f1d1d' : '#14532d' }}>
+                <span style={{ fontSize: '14px', fontWeight: 500, color: isPerda ? 'var(--tint-danger-text)' : 'var(--tint-success-text)' }}>
                   Diferença Anual
                 </span>
               </div>
@@ -111,19 +109,19 @@ const MetricsCards: React.FC = () => {
             </div>
             <Statistic
               value={Number(total_diferenca_anual) || 0}
-              formatter={(v) => <span style={{ color: isPerda ? '#dc2626' : '#16a34a', fontWeight: 700 }}>{currencyFormatter.format(Number(v))}</span>}
+              formatter={(v) => <span style={{ color: isPerda ? 'var(--tint-danger-strong)' : 'var(--tint-success-strong)', fontWeight: 700 }}>{currencyFormatter.format(Number(v))}</span>}
               style={{ margin: 0 }}
             />
           </Space>
         </Card>
       </Col>
 
-      <Col xs={24} sm={12} lg={6}>
+      <Col xs={24} sm={12} md={12} lg={6}>
         <Card
           className="shadow-brand"
           style={{
-            background: 'linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%)',
-            border: '1px solid #c7d2fe',
+            background: 'var(--tint-info-bg)',
+            border: '1px solid var(--tint-info-border)',
             borderRadius: '12px',
             overflow: 'hidden'
           }}
@@ -141,25 +139,25 @@ const MetricsCards: React.FC = () => {
               }}>
                 <PieChartOutlined style={{ color: '#fff', fontSize: '14px' }} />
               </div>
-              <span style={{ fontSize: '14px', fontWeight: 500, color: '#1e3a8a' }}>
+              <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--tint-info-text)' }}>
                 Percentual de Perda
               </span>
             </div>
             <Statistic
               value={(Number(percentual_perda_anual) || 0) / 100}
-              formatter={(v) => <span style={{ color: 'var(--primary-blue)', fontWeight: 700 }}>{percentFormatter.format(Number(v))}</span>}
+              formatter={(v) => <span style={{ color: 'var(--tint-info-strong)', fontWeight: 700 }}>{percentFormatter.format(Number(v))}</span>}
               style={{ margin: 0 }}
             />
           </Space>
         </Card>
       </Col>
 
-      <Col xs={24} sm={12} lg={6}>
+      <Col xs={24} sm={12} md={12} lg={6}>
         <Card
           className="shadow-brand"
           style={{
-            background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-            border: '1px solid #bbf7d0',
+            background: 'var(--tint-success-bg)',
+            border: '1px solid var(--tint-success-border)',
             borderRadius: '12px',
             overflow: 'hidden'
           }}
@@ -177,13 +175,13 @@ const MetricsCards: React.FC = () => {
               }}>
                 <CreditCardOutlined style={{ color: '#fff', fontSize: '14px' }} />
               </div>
-              <span style={{ fontSize: '14px', fontWeight: 500, color: '#14532d' }}>
+              <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--tint-success-text)' }}>
                 Total Recebido
               </span>
             </div>
             <Statistic
               value={Number(total_recebido) || 0}
-              formatter={(v) => <span style={{ color: '#16a34a', fontWeight: 700 }}>{currencyFormatter.format(Number(v))}</span>}
+              formatter={(v) => <span style={{ color: 'var(--tint-success-strong)', fontWeight: 700 }}>{currencyFormatter.format(Number(v))}</span>}
               style={{ margin: 0 }}
             />
           </Space>

@@ -4,6 +4,7 @@
 
 import axios from 'axios';
 import type { AxiosInstance, AxiosResponse } from 'axios';
+import { useAuthStore } from '../stores/authStore';
 import type {
   UF,
   Municipio,
@@ -14,7 +15,9 @@ import type {
   FinanciamentoParams,
   CompetenciaInfo,
   ApiError,
-  RelatorioPDFRequest
+  RelatorioPDFRequest,
+  SiapsClassificacaoResponse,
+  SiapsGapResponse
 } from '../types';
 
 // Configuração base da API
@@ -44,10 +47,23 @@ class ApiClient {
       },
     });
 
+    // Interceptor para anexar o token JWT nas requisições (endpoints exigem login)
+    this.client.interceptors.request.use((config) => {
+      const token = useAuthStore.getState().accessToken;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
+
     // Interceptor para tratar erros globalmente
     this.client.interceptors.response.use(
       (response: AxiosResponse) => response,
       (error) => {
+        // Sessão inválida/expirada: desloga para redirecionar ao login
+        if (error.response?.status === 401) {
+          useAuthStore.getState().logout();
+        }
         const apiError: ApiError = {
           success: false,
           message: error.response?.data?.detail || error.message || 'Erro na comunicação com a API',
@@ -136,6 +152,42 @@ class ApiClient {
    */
   async consultarDadosFinanciamentoPOST(params: FinanciamentoParams): Promise<DadosFinanciamento> {
     const response = await this.client.post<DadosFinanciamento>('/financiamento/dados/consultar', params);
+    return response.data;
+  }
+
+  // ================================
+  // ENDPOINTS SIAPS
+  // ================================
+
+  /**
+   * Consulta a classificação SIAPS (CVAT + Qualidade) por equipe
+   */
+  async getSiapsClassificacao(
+    codigoIbge: string,
+    competencia: string,
+    quadrimestre?: string
+  ): Promise<SiapsClassificacaoResponse> {
+    const params = quadrimestre ? { quadrimestre } : {};
+    const response = await this.client.get<SiapsClassificacaoResponse>(
+      `/siaps/classificacao/${codigoIbge}/${competencia}`,
+      { params }
+    );
+    return response.data;
+  }
+
+  /**
+   * Consulta a lacuna financeira (vigente e potencial) derivada do SIAPS
+   */
+  async getSiapsGap(
+    codigoIbge: string,
+    competencia: string,
+    quadrimestre?: string
+  ): Promise<SiapsGapResponse> {
+    const params = quadrimestre ? { quadrimestre } : {};
+    const response = await this.client.get<SiapsGapResponse>(
+      `/siaps/gap/${codigoIbge}/${competencia}`,
+      { params }
+    );
     return response.data;
   }
 
@@ -291,4 +343,6 @@ export const queryKeys = {
   competencia: ['competencia', 'latest'] as const,
   editados: ['municipios-editados'] as const,
   editado: (codigo: string, competencia: string) => ['municipio-editado', codigo, competencia] as const,
+  siaps: (codigo: string, competencia: string) => ['siaps', codigo, competencia] as const,
+  siapsGap: (codigo: string, competencia: string) => ['siaps-gap', codigo, competencia] as const,
 } as const;

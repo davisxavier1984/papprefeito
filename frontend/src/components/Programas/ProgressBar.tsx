@@ -34,7 +34,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
       <Progress
         percent={Math.min(percentual, 100)}
         strokeColor={corFinal}
-        trailColor="#e5e7eb"
+        trailColor="var(--border-color)"
         showInfo={false}
         size="small"
       />
@@ -42,7 +42,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
         <div
           style={{
             fontSize: '12px',
-            color: '#64748b',
+            color: 'var(--text-secondary)',
             marginTop: '4px',
             textAlign: 'center',
           }}

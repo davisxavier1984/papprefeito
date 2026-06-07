@@ -21,14 +21,14 @@ export const SaudeBucalDetalhada: React.FC<SaudeBucalDetalhadaProps> = ({ detalh
   const renderInfoBox = (label: string, valor: number | string, cor?: string) => (
     <div
       style={{
-        backgroundColor: cor ? `${cor}10` : '#f8fafc',
+        backgroundColor: cor ? `${cor}10` : 'var(--bg-elevated)',
         padding: '8px 12px',
         borderRadius: '6px',
-        border: `1px solid ${cor ? `${cor}40` : '#e2e8f0'}`,
+        border: `1px solid ${cor ? `${cor}40` : 'var(--border-color)'}`,
       }}
     >
-      <Text style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>{label}</Text>
-      <Text strong style={{ fontSize: '13px', color: cor || '#1e293b' }}>
+      <Text style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>{label}</Text>
+      <Text strong style={{ fontSize: '13px', color: cor || 'var(--text-primary)' }}>
         {typeof valor === 'number' && valor > 0 ? formatarValor(valor) : valor}
       </Text>
     </div>
@@ -36,7 +36,7 @@ export const SaudeBucalDetalhada: React.FC<SaudeBucalDetalhadaProps> = ({ detalh
 
   const renderQuantidadeBox = (label: string, valor: number) => (
     <div style={{ textAlign: 'center', padding: '8px 0' }}>
-      <Text style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>
+      <Text style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
         {label}
       </Text>
       <Tag color="blue" style={{ fontSize: '12px', fontWeight: 600, margin: 0 }}>
@@ -61,17 +61,17 @@ export const SaudeBucalDetalhada: React.FC<SaudeBucalDetalhadaProps> = ({ detalh
           </Space>
         }
         key="1"
-        style={{ backgroundColor: '#f0f9ff', borderRadius: '8px' }}
+        style={{ backgroundColor: 'var(--bg-elevated)', borderRadius: '8px' }}
       >
         {/* ESB - Equipes de Saúde Bucal */}
         <Card
-          title={<Text strong style={{ color: '#1e293b' }}>🦷 ESB - Equipes de Saúde Bucal</Text>}
+          title={<Text strong style={{ color: 'var(--text-primary)' }}>🦷 ESB - Equipes de Saúde Bucal</Text>}
           size="small"
           style={{ marginBottom: '12px' }}
         >
           {/* Modalidade 40h */}
           <div style={{ marginBottom: '12px' }}>
-            <Text strong style={{ fontSize: '12px', color: '#475569' }}>
+            <Text strong style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
               Modalidade 40h
             </Text>
             <Row gutter={[8, 8]} style={{ marginTop: '8px' }}>
@@ -86,7 +86,7 @@ export const SaudeBucalDetalhada: React.FC<SaudeBucalDetalhadaProps> = ({ detalh
 
           {/* CH Diferenciada */}
           <div style={{ marginBottom: '12px' }}>
-            <Text strong style={{ fontSize: '12px', color: '#475569' }}>
+            <Text strong style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
               Carga Horária Diferenciada
             </Text>
             <Row gutter={[8, 8]} style={{ marginTop: '8px' }}>
@@ -104,7 +104,7 @@ export const SaudeBucalDetalhada: React.FC<SaudeBucalDetalhadaProps> = ({ detalh
             detalhamento.esb.quilombolasAssentamentos.modalidadeII > 0) && (
             <>
               <div style={{ marginBottom: '12px' }}>
-                <Text strong style={{ fontSize: '12px', color: '#475569' }}>
+                <Text strong style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
                   Quilombolas e Assentamentos
                 </Text>
                 <Row gutter={[8, 8]} style={{ marginTop: '8px' }}>
@@ -122,7 +122,7 @@ export const SaudeBucalDetalhada: React.FC<SaudeBucalDetalhadaProps> = ({ detalh
 
           {/* Valores ESB */}
           <div>
-            <Text strong style={{ fontSize: '12px', color: '#475569', display: 'block', marginBottom: '8px' }}>
+            <Text strong style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'block', marginBottom: '8px' }}>
               Valores Financeiros ESB
             </Text>
             <Row gutter={[8, 8]}>
@@ -137,7 +137,7 @@ export const SaudeBucalDetalhada: React.FC<SaudeBucalDetalhadaProps> = ({ detalh
         {/* UOM - Unidade Odontológica Móvel */}
         {detalhamento.uom.credenciadas > 0 && (
           <Card
-            title={<Text strong style={{ color: '#1e293b' }}>🚐 UOM - Unidade Odontológica Móvel</Text>}
+            title={<Text strong style={{ color: 'var(--text-primary)' }}>🚐 UOM - Unidade Odontológica Móvel</Text>}
             size="small"
             style={{ marginBottom: '12px' }}
           >
@@ -157,7 +157,7 @@ export const SaudeBucalDetalhada: React.FC<SaudeBucalDetalhadaProps> = ({ detalh
         {/* CEO - Centro de Especialidades Odontológicas */}
         {(detalhamento.ceo.municipal > 0 || detalhamento.ceo.estadual > 0) && (
           <Card
-            title={<Text strong style={{ color: '#1e293b' }}>🏥 CEO - Centro de Especialidades Odontológicas</Text>}
+            title={<Text strong style={{ color: 'var(--text-primary)' }}>🏥 CEO - Centro de Especialidades Odontológicas</Text>}
             size="small"
             style={{ marginBottom: '12px' }}
           >
@@ -172,7 +172,7 @@ export const SaudeBucalDetalhada: React.FC<SaudeBucalDetalhadaProps> = ({ detalh
         {(detalhamento.lrpd.municipal > 0 || detalhamento.lrpd.estadual > 0) && (
           <Card
             title={
-              <Text strong style={{ color: '#1e293b' }}>
+              <Text strong style={{ color: 'var(--text-primary)' }}>
                 🔬 LRPD - Laboratório Regional de Prótese Dentária
               </Text>
             }
@@ -189,20 +189,20 @@ export const SaudeBucalDetalhada: React.FC<SaudeBucalDetalhadaProps> = ({ detalh
         {/* Totais */}
         <Card
           style={{
-            backgroundColor: '#f0f9ff',
+            backgroundColor: 'var(--bg-elevated)',
             border: '2px solid #0ea5e9',
           }}
           size="small"
         >
           <Row gutter={[16, 8]} align="middle">
             <Col span={12} style={{ textAlign: 'center' }}>
-              <Text style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Total de Equipes</Text>
+              <Text style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>Total de Equipes</Text>
               <Text strong style={{ fontSize: '20px', color: '#0ea5e9' }}>
                 {detalhamento.totais.qtTotalEquipes}
               </Text>
             </Col>
             <Col span={12} style={{ textAlign: 'center' }}>
-              <Text style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Valor Total</Text>
+              <Text style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>Valor Total</Text>
               <Text strong style={{ fontSize: '16px', color: '#10b981' }}>
                 {formatarValor(detalhamento.totais.vlTotal)}
               </Text>

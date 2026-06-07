@@ -110,3 +110,18 @@ backend/test_output*.pdf
 
 # Pasta de testes temporários
 backend/temp/
+
+# Estado de runtime gerado/escrito pela aplicação — não versionar
+# (evita churn de diffs e perda de dados em prod via git pull/checkout)
+# Padrões sem barra inicial casam tanto na raiz quanto em backend/
+data_cache_papprefeito.json
+municipios_editados.json
+*.json.backup.*
+# Cache de runtime do SIAPS (CLI grava em data/SIAPS/, backend em backend/data/SIAPS/)
+**/data/SIAPS/
+# NÃO ignorar fixtures de teste do SIAPS (versionadas de propósito)
+!backend/tests/fixtures/
+
+# Configuração local da máquina (não deve propagar via VCS)
+.claude/settings.local.json
+.claude/settings.json

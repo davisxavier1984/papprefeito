@@ -66,6 +66,18 @@ async def get_current_active_user(
     return current_user
 
 
+async def get_current_authorized_user(
+    current_user: User = Depends(get_current_active_user)
+) -> User:
+    """Usuário autenticado, ativo E autorizado por um administrador."""
+    if not current_user.is_authorized:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuário aguardando autorização do administrador."
+        )
+    return current_user
+
+
 async def get_current_superuser(
     current_user: User = Depends(get_current_active_user)
 ) -> User:
