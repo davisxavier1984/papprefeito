@@ -9,15 +9,6 @@ from app.models.schemas import UF, Municipio
 from app.utils.logger import logger
 
 
-# Mapeamento de municípios com nomes duplicados em diferentes UFs
-# Formato: (nome_upper, uf_upper) -> codigo_ibge_7_digitos
-MUNICIPIOS_DUPLICADOS = {
-    ('FILADÉLFIA', 'BA'): '2910859',
-    ('FILADÉLFIA', 'TO'): '1707702',
-    # Adicionar outros conforme necessário
-}
-
-
 class MunicipioService:
     """Serviço para consulta de municípios e UFs"""
 
@@ -176,17 +167,19 @@ class MunicipioService:
             str: Código IBGE (6 dígitos) ou None se não encontrado
         """
         try:
-            # Primeiro: verificar se é município com nome duplicado
+            # Primeiro: buscar dentro da própria UF.
+            # ufbr.get_cidade() varre todas as UFs e retorna o primeiro nome que
+            # casar, então municípios homônimos (ex: SAPUCAIA em PA e RJ) receberiam
+            # o código da UF errada. Restringir a busca à UF resolve na origem.
             if uf_sigla:
-                key = (municipio_nome.upper(), uf_sigla.upper())
-                if key in MUNICIPIOS_DUPLICADOS:
-                    codigo = MUNICIPIOS_DUPLICADOS[key]
-                    # Remover último dígito (verificador) se tiver 7
-                    resultado = codigo[:-1] if len(codigo) == 7 else codigo
-                    logger.info(f"Município duplicado encontrado: {municipio_nome}/{uf_sigla} -> {resultado}")
-                    return resultado
+                uf = ufbr._get_uf_by_sigla(uf_sigla.upper())
+                if uf is not None:
+                    for municipio in uf['municipios']:
+                        if municipio.nome.upper() == municipio_nome.upper():
+                            return str(int(float(municipio.codigo)))[:-1]
+                    return None
 
-            # Segundo: buscar via pyUFbr
+            # Segundo: sem UF informada, buscar globalmente via pyUFbr
             cidade = ufbr.get_cidade(municipio_nome)
             if cidade and hasattr(cidade, 'codigo'):
                 # Remove último dígito conforme lógica original (pyUFbr retorna 7 dígitos)
