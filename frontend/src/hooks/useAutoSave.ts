@@ -4,20 +4,27 @@
  * - Fornece status visual (saving, saved, error)
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, queryKeys } from '../services/api';
 import { useMunicipioStore } from '../stores/municipioStore';
 import type { MunicipioEditadoCreate, MunicipioEditado } from '../types';
+import { criarFilaSalvamento } from '../utils/filaSalvamento';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
-export const useAutoSave = (debounceMs = 2000) => {
+// Uma fila para o app todo: a edição pendente sobrevive à desmontagem da tabela
+// e pode ser gravada por quem precisa do valor salvo (PDF, nova consulta)
+const filaAutosave = criarFilaSalvamento<MunicipioEditadoCreate>(2000);
+
+/** Grava na hora a edição que ainda está no debounce e espera o envio em curso. */
+export const descarregarAutosave = () => filaAutosave.descarregar();
+
+export const useAutoSave = () => {
   const queryClient = useQueryClient();
   const { selectedMunicipio, selectedCompetencia } = useMunicipioStore();
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [error, setError] = useState<string | null>(null);
-  const timerRef = useRef<number | null>(null);
 
   const mutation = useMutation({
     mutationFn: async (payload: MunicipioEditadoCreate) => {
@@ -105,24 +112,16 @@ export const useAutoSave = (debounceMs = 2000) => {
         });
       }
 
-      // Clear existing timer
-      if (timerRef.current) {
-        window.clearTimeout(timerRef.current);
-      }
-      // Schedule save
-      timerRef.current = window.setTimeout(() => {
-        mutation.mutate(payload);
-      }, debounceMs);
+      filaAutosave.agendar(payload, (p) => mutation.mutateAsync(p));
     },
-    [debounceMs, mutation, selectedCompetencia, selectedMunicipio?.codigo_ibge]
+    [mutation, selectedCompetencia, selectedMunicipio?.codigo_ibge]
   );
 
-  // Cleanup timer on unmount
+  // Ao sair da tela (troca de rota, de município ou "Limpar Seleções"), grava a
+  // edição pendente em vez de descartá-la. O payload já tem o município da edição.
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        window.clearTimeout(timerRef.current);
-      }
+      filaAutosave.descarregar().catch(() => undefined);
     };
   }, []);
 

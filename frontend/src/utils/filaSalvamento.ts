@@ -1,0 +1,69 @@
+/**
+ * Fila de salvamento com debounce (autosave da tabela de perdas).
+ * Guarda só o último payload agendado e envia um de cada vez, em ordem.
+ * `descarregar` envia o pendente na hora e espera o envio em curso: usado por quem
+ * precisa do valor já gravado (PDF, nova consulta, saída da tela).
+ * Sem dependências de React, para poder ser testado com `node --test`.
+ */
+
+export interface Relogio {
+  setTimeout: (fn: () => void, ms: number) => unknown;
+  clearTimeout: (id: unknown) => void;
+}
+
+const relogioPadrao: Relogio = {
+  setTimeout: (fn, ms) => globalThis.setTimeout(fn, ms),
+  clearTimeout: (id) => globalThis.clearTimeout(id as ReturnType<typeof setTimeout>),
+};
+
+export interface FilaSalvamento<T> {
+  agendar: (payload: T, enviar: (payload: T) => Promise<unknown>) => void;
+  descarregar: () => Promise<void>;
+  temPendente: () => boolean;
+}
+
+export const criarFilaSalvamento = <T>(
+  debounceMs: number,
+  relogio: Relogio = relogioPadrao
+): FilaSalvamento<T> => {
+  let timer: unknown = null;
+  let pendente: { payload: T; enviar: (payload: T) => Promise<unknown> } | null = null;
+  let emCurso: Promise<unknown> | null = null;
+
+  const enviarAgora = (): Promise<unknown> => {
+    if (timer !== null) {
+      relogio.clearTimeout(timer);
+      timer = null;
+    }
+    const item = pendente;
+    pendente = null;
+    if (!item) return emCurso ?? Promise.resolve();
+
+    // Espera o envio anterior terminar (com sucesso ou erro) antes de mandar o próximo
+    const anterior = emCurso ?? Promise.resolve();
+    const envio = anterior.catch(() => undefined).then(() => item.enviar(item.payload));
+    emCurso = envio;
+    envio
+      .finally(() => {
+        if (emCurso === envio) emCurso = null;
+      })
+      .catch(() => undefined);
+    return envio;
+  };
+
+  return {
+    agendar: (payload, enviar) => {
+      pendente = { payload, enviar };
+      if (timer !== null) relogio.clearTimeout(timer);
+      timer = relogio.setTimeout(() => {
+        timer = null;
+        // O erro do envio automático é tratado por quem enviou (status do autosave)
+        enviarAgora().catch(() => undefined);
+      }, debounceMs);
+    },
+    descarregar: async () => {
+      await enviarAgora();
+    },
+    temPendente: () => pendente !== null,
+  };
+};

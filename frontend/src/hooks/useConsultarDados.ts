@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, queryKeys } from '../services/api';
 import { filtrarResumosMunicipais, useMunicipioStore } from '../stores/municipioStore';
 import type { DadosFinanciamento, MunicipioEditado, SugestaoAplicada } from '../types';
+import { descarregarAutosave } from './useAutoSave';
 
 export const useConsultarDados = () => {
   const queryClient = useQueryClient();
@@ -27,6 +28,9 @@ export const useConsultarDados = () => {
       if (!selectedMunicipio?.codigo_ibge || !selectedCompetencia) {
         throw new Error('Parâmetros incompletos para consulta');
       }
+
+      // Grava a edição pendente antes de recarregar, para a tela não voltar a um valor antigo
+      await descarregarAutosave();
 
       // 1) Buscar dados de financiamento
       const dados: DadosFinanciamento = await apiClient.consultarDadosFinanciamento(

@@ -29,7 +29,7 @@ const formatCurrency = (value: number) => currencyFormatter.format(value);
 const FinancialTable: React.FC = () => {
   const { dadosProcessados, isLoading } = useMunicipioStore();
   const updatePerca = useUpdatePerdaRecurso();
-  const { triggerSave, status, isSaving, isSaved, isError } = useAutoSave(2000);
+  const { triggerSave, status, isSaving, isSaved, isError } = useAutoSave();
   const [isMobile, setIsMobile] = useState(false);
   const [preenchimentoAberto, setPreenchimentoAberto] = useState(false);
 

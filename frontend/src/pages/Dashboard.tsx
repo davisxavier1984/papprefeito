@@ -12,6 +12,7 @@ import { useHasDados, useMunicipioInfo, useMunicipioStore } from '../stores/muni
 import { DownloadOutlined, FileZipOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/api';
+import { descarregarAutosave } from '../hooks/useAutoSave';
 
 const { Title, Text } = Typography;
 
@@ -32,6 +33,8 @@ const Dashboard: React.FC = () => {
 
     try {
       setIsGenerating(true);
+      // O PDF lê as perdas gravadas no servidor: grava antes a edição que está no debounce
+      await descarregarAutosave();
       const blob = await apiClient.gerarRelatorioPDF({
         codigo_ibge: municipioInfo.codigo,
         competencia: municipioInfo.competencia,
@@ -68,6 +71,8 @@ const Dashboard: React.FC = () => {
 
     try {
       setIsGeneratingDetailed(true);
+      // O PDF lê as perdas gravadas no servidor: grava antes a edição que está no debounce
+      await descarregarAutosave();
       const blob = await apiClient.gerarRelatorioDetalhadoPDF({
         codigo_ibge: municipioInfo.codigo,
         competencia: municipioInfo.competencia,
