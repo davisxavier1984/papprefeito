@@ -68,10 +68,12 @@ Corrigir os problemas concretos de UX/UI identificados no frontend do Sistema Ma
 28. `Auth/LoginForm.tsx:146` chama o hook `useAuthStore(...)` dentro de uma prop JSX (funciona, mas foge do padrão de hooks e dificulta manutenção).
 
 **Desempenho**
-29. O bundle de produção atual (`frontend/dist/assets/index-*.js`) tem ~1,35 MB sem code splitting; qualquer biblioteca nova precisa ser carregada de forma enxuta (`LazyMotion` + `domAnimation` + componente `m`).
+29. O bundle de produção tinha ~1,35 MB sem code splitting quando este achado foi escrito; o valor exato (1.349.737 bytes) não existe mais desde a revisão de 2026-09-24 e não deve ser usado como referência — a story 2.1 mede uma nova linha de base no HEAD atual antes de qualquer mudança do épico. Qualquer biblioteca nova precisa ser carregada de forma enxuta (`LazyMotion` + `domAnimation` + componente `m`).
 
 **Integridade do autosave (bug encontrado durante a revisão)**
-30. `DataTable/FinancialTable.tsx:71-75,173-177` + `hooks/useAutoSave.ts:71-81` — `onCommit` chama `updatePerca(...)` e em seguida `triggerSave()` sem override; `triggerSave` monta o payload com o `dadosEditados` capturado no render anterior (closure desatualizada). Resultado provável: a edição recém-confirmada não é enviada ao servidor (fica sempre uma edição "atrasada"), e como os PDFs leem as perdas salvas (`backend/app/api/endpoints/relatorios.py:33-37,104-108`), o relatório pode sair sem o último valor. O indicador "Salvo" afirma algo falso nesse caso. Deve ser validado no Network e corrigido na story 2.4 antes de qualquer trabalho visual no indicador.
+30. **Resolvido** em `9d19d19` — `triggerSave` (`hooks/useAutoSave.ts:78-118`, leitura da store em `:85`) já lê `useMunicipioStore.getState()` no momento da chamada, em vez do `dadosEditados` capturado no render anterior (closure desatualizada). Os defeitos decorrentes desse bug (edição perdida ao trocar de rota/município antes do fim do debounce; PDF sem a última edição; reconsulta sobrescrevendo edição em andamento) foram corrigidos na branch `fix/revisao-frontend` via a fila de autosave (`utils/filaSalvamento.ts`, commits `4c78e91`/`a14fe66`/`6118e28`). A story 2.4 mantém só a validação da regressão (Network) — texto original do achado preservado no histórico de `docs/qa/assessments/epic-2-ux-review.md` (achado 30).
+
+Achados 31–50 (telas novas do épico 3 — relatórios em lote, preenchimento automático, valores de referência) e a reanálise completa dos achados 1–30 no HEAD atual estão em `docs/qa/assessments/epic-2-ux-review.md`.
 
 ### Estado futuro
 - Layout persistente entre rotas (rota de layout com `<Outlet />`) e transição suave apenas da área de conteúdo (`AnimatePresence` com `location.pathname` como key).
@@ -148,6 +150,14 @@ Ordem: 2.1 → 2.2 → (2.3 ∥ 2.4) → 2.5.
 - Cada story é um commit/PR isolado; reverter o commit restaura o comportamento anterior.
 - Rollback global: remover `MotionConfig`/`LazyMotion` de `App.tsx`, reverter os componentes e executar `npm uninstall motion`. Como nenhuma API ou dado muda, não há migração a desfazer.
 - Emergência sem novo deploy de código: `MotionConfig reducedMotion="always"` desliga as animações de transformação em todo o app (mudança de uma linha).
+
+## ⏳ DECISÕES PENDENTES DO PO
+
+Levantadas na revisão de frontend de 2026-09-24 (`docs/qa/assessments/2026-09-24-revisao-frontend.md`, seção 3) — bloqueiam ACs específicos até serem decididas:
+
+- **Cor da diferença (verde × vermelho):** hoje "Diferença Anual" aparece verde/`success` na tabela financeira (`FinancialTable.tsx:113,208`) e vermelha/"Perda" nos cards de métricas (`MetricsCards.tsx:35`) — mesmo valor, cores opostas (achado 14). A story 2.4 (AC 8) propõe alinhar a tabela à semântica dos cards (perda = vermelho); se o PO preferir o contrário, ajustar `MetricsCards` em vez da tabela.
+- **Paleta/contraste (`colorPrimary` e cores da marca):** o azul `#0ea5e9` e o verde `#22c55e` usados em texto/botões não atingem 4,5:1 de contraste (WCAG AA) — a story 2.5 (AC 5) propõe `#0369a1` e `#15803d` para texto/fundo de botão, mantendo os tons originais só em uso decorativo. Precisa de aprovação do PO com captura antes/depois, porque muda a aparência visual da marca em várias telas.
+- **Movimento do próprio Ant Design (story 2.5, AC 11):** o épico controla as animações que ele mesmo introduz (`motion`/`m`, CSS do épico), mas não as animações internas do Ant Design (Drawer, Modal, Dropdown, Menu). Decidir entre manter essas animações como estão (documentando a exceção) ou desligá-las também com `ConfigProvider theme={{ token: { motion: false } }}` quando `prefers-reduced-motion: reduce` estiver ativo.
 
 ## ✅ DEFINITION OF DONE
 
