@@ -35,8 +35,9 @@ A produção roda **da própria pasta do repositório** no servidor (uvicorn em 
 3. **Levar as 6 perguntas do relatório 3.1 ao usuário** (R$ 14.058 na eSF, critério da eMulti, Saúde Bucal etc.).
 4. ~~Story 3.2 (registro estruturado + histórico)~~: **feita**. Depois do deploy, rodar a migração dos itens (primeiro sem `--aplicar` para conferir):
    `cd backend && .venv/bin/python scripts/estudo_regras_perda.py baixar municipios_editados.json` e depois `.venv/bin/python scripts/migrar_itens_perda.py municipios_editados.json`.
-5. Próximas: 3.4 + 3.5 (vários municípios → relatórios Prefeito/Detalhado em lote), 3.6 (módulo opcional de estimativa eMulti) e 3.3 (tabela preenchida por regras).
-6. Épico 2 (animações): stories 2.1 → 2.5.
+5. ~~3.4 + 3.5 (relatórios Prefeito/Detalhado em lote)~~: **feitas**. Página `/relatorios-lote`. Falta testar no navegador.
+6. Próximas: 3.6 (módulo opcional de estimativa eMulti) e 3.3 (tabela preenchida por regras).
+7. Épico 2 (animações): stories 2.1 → 2.5.
 
 Documentos:
 - `docs/prd/epic-3-preenchimento-automatico-e-lote.md`

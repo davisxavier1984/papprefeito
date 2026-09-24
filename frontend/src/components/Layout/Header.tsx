@@ -10,7 +10,8 @@ import {
   LogoutOutlined,
   SettingOutlined,
   TeamOutlined,
-  DashboardOutlined
+  DashboardOutlined,
+  FileZipOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMunicipioInfo } from '../../stores/municipioStore';
@@ -37,6 +38,12 @@ const Header: React.FC = () => {
       icon: <DashboardOutlined />,
       label: 'Dashboard',
       onClick: () => navigate('/dashboard')
+    },
+    {
+      key: 'relatorios-lote',
+      icon: <FileZipOutlined />,
+      label: 'Relatórios em lote',
+      onClick: () => navigate('/relatorios-lote')
     },
     {
       key: 'profile',

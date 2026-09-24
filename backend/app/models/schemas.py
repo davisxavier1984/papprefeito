@@ -499,3 +499,59 @@ class UserListResponse(BaseModel):
     """Schema para resposta de listagem de usuários"""
     total: int = Field(..., description="Total de usuários")
     users: List[User] = Field(..., description="Lista de usuários")
+
+
+# === Relatórios em lote (stories 3.4 e 3.5) ===
+
+class MunicipioLote(BaseModel):
+    """Município selecionado para o lote"""
+    codigo_ibge: str = Field(..., min_length=6, max_length=7)
+    nome: str
+    uf: str = Field(..., min_length=2, max_length=2)
+
+
+class LoteConferenciaRequest(BaseModel):
+    """Pedido de conferência antes de gerar o lote"""
+    competencia: str = Field(..., min_length=6, max_length=6)
+    municipios: List[MunicipioLote] = Field(..., min_length=1, max_length=300)
+
+
+class LoteConferenciaItem(BaseModel):
+    """Situação das perdas salvas de um município na competência"""
+    codigo_ibge: str
+    nome: str
+    uf: str
+    tem_perdas: bool
+    total_perda_mensal: float = 0.0
+    origens: Dict[str, int] = Field(default_factory=dict, description="Quantidade de valores por origem (manual/regra/estimativa)")
+    data_edicao: Optional[datetime] = None
+
+
+class LoteRequest(BaseModel):
+    """Pedido de geração de relatórios em lote"""
+    competencia: str = Field(..., min_length=6, max_length=6)
+    tipos: List[Literal['prefeito', 'detalhado']] = Field(..., min_length=1, max_length=2)
+    municipios: List[MunicipioLote] = Field(..., min_length=1, max_length=300)
+    sem_perdas: Literal['ignorar', 'zero'] = Field(
+        'ignorar', description="O que fazer com municípios sem perdas salvas: ignorar ou gerar com perda zero"
+    )
+
+    @validator('competencia')
+    def competencia_valida(cls, v: str) -> str:
+        if not v.isdigit() or not (1 <= int(v[4:]) <= 12):
+            raise ValueError('Competência deve estar no formato AAAAMM')
+        return v
+
+
+class LoteStatus(BaseModel):
+    """Andamento de um lote"""
+    id: str
+    status: Literal['processando', 'concluido', 'erro']
+    competencia: str
+    tipos: List[str]
+    total: int
+    processados: int
+    arquivos: int
+    erros: List[str] = Field(default_factory=list)
+    criado_em: datetime
+    concluido_em: Optional[datetime] = None

@@ -10,6 +10,7 @@ import { ConfigProvider, App as AntApp } from 'antd';
 import ptBR from 'antd/locale/pt_BR';
 import AppLayout from './components/Layout/AppLayout';
 import Dashboard from './pages/Dashboard';
+import RelatoriosLote from './pages/RelatoriosLote';
 import { LoginForm } from './components/Auth/LoginForm';
 import { RegisterForm } from './components/Auth/RegisterForm';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
@@ -121,6 +122,17 @@ const App: React.FC = () => {
                 <ProtectedRoute>
                   <AppLayout>
                     <Dashboard />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/relatorios-lote"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <RelatoriosLote />
                   </AppLayout>
                 </ProtectedRoute>
               }

@@ -9,7 +9,8 @@ import MetricsCards from '../components/Metrics/MetricsCards';
 import { ProgramasCards } from '../components/Programas/ProgramasCards';
 import { AnaliseBox } from '../components/Programas/AnaliseBox';
 import { useHasDados, useMunicipioInfo, useMunicipioStore } from '../stores/municipioStore';
-import { DownloadOutlined } from '@ant-design/icons';
+import { DownloadOutlined, FileZipOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/api';
 
 const { Title, Text } = Typography;
@@ -19,6 +20,7 @@ const Dashboard: React.FC = () => {
   const hasDados = useHasDados();
   const municipioInfo = useMunicipioInfo();
   const { resumoFinanceiro, dadosProgramas } = useMunicipioStore();
+  const navigate = useNavigate();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingDetailed, setIsGeneratingDetailed] = useState(false);
 
@@ -221,6 +223,9 @@ const Dashboard: React.FC = () => {
             gap: '12px'
           }}
         >
+          <Button icon={<FileZipOutlined />} onClick={() => navigate('/relatorios-lote')}>
+            Vários municípios
+          </Button>
           <Button
             icon={<DownloadOutlined />}
             onClick={handleGerarPDF}

@@ -14,7 +14,11 @@ import type {
   FinanciamentoParams,
   CompetenciaInfo,
   ApiError,
-  RelatorioPDFRequest
+  RelatorioPDFRequest,
+  LoteConferenciaItem,
+  LoteRequest,
+  LoteStatus,
+  MunicipioLote
 } from '../types';
 import { useAuthStore } from '../stores/authStore';
 import { authService } from './authService';
@@ -190,6 +194,42 @@ class ApiClient {
       payload,
       { responseType: 'blob' }
     );
+    return response.data;
+  }
+
+  // ================================
+  // RELATÓRIOS EM LOTE
+  // ================================
+
+  /**
+   * Situação das perdas salvas de cada município antes de gerar o lote
+   */
+  async conferirLote(competencia: string, municipios: MunicipioLote[]): Promise<LoteConferenciaItem[]> {
+    const response = await this.client.post<LoteConferenciaItem[]>(
+      '/relatorios/lote/conferencia',
+      { competencia, municipios }
+    );
+    return response.data;
+  }
+
+  /**
+   * Inicia a geração em segundo plano
+   */
+  async criarLote(payload: LoteRequest): Promise<LoteStatus> {
+    const response = await this.client.post<LoteStatus>('/relatorios/lote', payload);
+    return response.data;
+  }
+
+  async statusLote(id: string): Promise<LoteStatus> {
+    const response = await this.client.get<LoteStatus>(`/relatorios/lote/${id}`);
+    return response.data;
+  }
+
+  async baixarLote(id: string): Promise<Blob> {
+    const response = await this.client.get<Blob>(`/relatorios/lote/${id}/download`, {
+      responseType: 'blob',
+      timeout: 120000,
+    });
     return response.data;
   }
 

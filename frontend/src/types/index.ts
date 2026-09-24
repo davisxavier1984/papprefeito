@@ -432,3 +432,42 @@ export type AppStore = AppState & AppActions;
 // Tipos utilitários
 export type Nullable<T> = T | null;
 export type Optional<T> = T | undefined;
+
+// ================================
+// Relatórios em lote (stories 3.4 e 3.5)
+// ================================
+
+export type TipoRelatorio = 'prefeito' | 'detalhado';
+
+export interface MunicipioLote {
+  codigo_ibge: string;
+  nome: string;
+  uf: string;
+}
+
+export interface LoteConferenciaItem extends MunicipioLote {
+  tem_perdas: boolean;
+  total_perda_mensal: number;
+  origens: Record<string, number>;
+  data_edicao?: string | null;
+}
+
+export interface LoteRequest {
+  competencia: string;
+  tipos: TipoRelatorio[];
+  municipios: MunicipioLote[];
+  sem_perdas: 'ignorar' | 'zero';
+}
+
+export interface LoteStatus {
+  id: string;
+  status: 'processando' | 'concluido' | 'erro';
+  competencia: string;
+  tipos: TipoRelatorio[];
+  total: number;
+  processados: number;
+  arquivos: number;
+  erros: string[];
+  criado_em: string;
+  concluido_em?: string | null;
+}

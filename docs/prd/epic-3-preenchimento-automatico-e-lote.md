@@ -1,7 +1,7 @@
 # ÉPICO BROWNFIELD: Preenchimento automático das perdas e relatórios em lote
 
 **ID:** EPIC-AUTO-003
-**Status:** Em andamento: 3.0, 3.1, 3.1b e 3.2 feitas (ver `docs/analises/regras-perda-ministerio.md`)
+**Status:** Em andamento: 3.0, 3.1, 3.1b, 3.2, 3.4 e 3.5 feitas (ver `docs/analises/regras-perda-ministerio.md`)
 **Prioridade:** Alta
 **Branch de origem do planejamento:** `chore/limpeza-seguranca`
 
@@ -131,7 +131,9 @@ Outros achados:
 - Planos sem regra (Saúde Bucal e demais) ficam em branco, destacados como "preencher manualmente".
 - **AC:** para municípios do histórico, o valor calculado bate com o que o usuário havia informado, na taxa medida na 3.1.
 
-### Story 3.4: Seleção de vários municípios para relatórios
+### Story 3.4: Seleção de vários municípios para relatórios ✅ FEITA
+**Implementado:** página `/relatorios-lote` (`frontend/src/pages/RelatoriosLote.tsx`), com acesso pelo menu do usuário ("Relatórios em lote") e pelo botão "Vários municípios" no Dashboard. Seleção acumulada entre UFs, "selecionar todos da UF", competência, tipos, opção para municípios sem perdas e conferência (`POST /api/relatorios/lote/conferencia`). A opção (b) "usar regras" fica para depois da 3.3/3.6.
+
 **Objetivo (definido pelo usuário):** selecionar vários municípios de uma vez para **gerar os relatórios**, escolhendo o tipo: **"Relatório PAP Prefeito"** (`/relatorios/pdf`) ou **"Relatório Detalhado"**/completo (`/relatorios/pdf-detalhado`).
 - Nova tela "Relatórios em lote", separada do Dashboard atual, que continua igual. Nela:
   - UF → municípios, com multi-select, "selecionar todos da UF" e busca;
@@ -140,7 +142,15 @@ Outros achados:
 - Antes de gerar, uma lista de conferência por município: perdas salvas? (sim/não/parcial), total da perda mensal, origem dos valores (manual/regra/estimativa) e avisos (sem perdas salvas, outlier, erro na consulta ao Ministério).
 - Os municípios sem perdas salvas podem: (a) ficar de fora, (b) usar as regras da 3.3/3.6 se o usuário marcar essa opção, ou (c) sair com perda zero, e nesse caso o relatório avisa. Padrão: (a).
 
-### Story 3.5: Geração dos relatórios em lote
+### Story 3.5: Geração dos relatórios em lote ✅ FEITA
+**Implementado:**
+- `app/services/relatorios_service.py`: preparação e renderização compartilhadas com as rotas individuais.
+- `app/services/relatorios_lote.py`: job em segundo plano, com 3 consultas simultâneas ao Ministério e renderização em thread, uma por vez.
+- Rotas: `POST /api/relatorios/lote` (202), `GET /api/relatorios/lote/{id}` e `GET /api/relatorios/lote/{id}/download`. Cada lote só é visível para o usuário que o criou.
+- O estado dos lotes fica em memória (se o backend reiniciar, os lotes em andamento se perdem), e os ZIPs são apagados depois de 6 h.
+
+**Testado:** o texto dos PDFs do lote é idêntico ao dos individuais (`pdftotext`, Prefeito e Detalhado). As rotas individuais geram o mesmo texto antes e depois da refatoração. Município sem perdas → aviso no `erros.txt`, sem token → 403, lote de outro id → 404.
+
 - Novo endpoint `POST /api/relatorios/lote` com `{municipios: [...], competencia, tipos: ["prefeito"|"detalhado"]}`. Devolve um **ZIP** com um PDF por município e tipo (`{UF}_{municipio}_{competencia}_{tipo}.pdf`).
 - Reaproveitar as funções que já geram os PDFs individuais (`relatorios.py` e `relatorio_pdf.py`), sem duplicar layout.
 - Processar no servidor com limite de concorrência (o WeasyPrint é pesado). Para lotes grandes, usar um job assíncrono com progresso na tela ("12 de 40"), em vez de uma requisição síncrona longa.
