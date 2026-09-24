@@ -29,17 +29,20 @@ A produção roda **da própria pasta do repositório** no servidor (uvicorn em 
 5. Teste: login, consulta, edição de perda, PDF individual e detalhado.
 
 ## Próximos passos (ordem sugerida)
-1. **Story 3.0 (hotfix):** o autosave perde a última edição. É pequena, e é a mais urgente.
-2. **Story 3.1 (spike):** comparar as perdas informadas com a API do Ministério para confirmar as regras (eMulti × R$ 12 mil, ACS × R$ 3.242 etc.).
-3. Stories 3.2 → 3.5: registro estruturado, preenchimento automático, vários municípios e relatórios em lote.
-4. Épico 2 (animações): stories 2.1 → 2.5, em paralelo ou depois.
+1. ~~Story 3.0 (hotfix do autosave)~~: **feita**. Falta validar no navegador que o upsert leva o valor recém-digitado (DevTools → Network).
+2. ~~Story 3.1 (regras vs. Ministério)~~: **feita**. Ver `docs/analises/regras-perda-ministerio.md`.
+3. **Levar as 6 perguntas do relatório 3.1 ao usuário** (R$ 14.058 na eSF, critério da eMulti, Saúde Bucal etc.).
+4. Stories 3.2 → 3.5: registro estruturado, preenchimento automático (ACS e eSF primeiro), vários municípios e relatórios em lote.
+5. Épico 2 (animações): stories 2.1 → 2.5.
 
 Documentos:
 - `docs/prd/epic-3-preenchimento-automatico-e-lote.md`
 - `docs/prd/epic-2-frontend-ux-animacoes.md`
 - `docs/stories/`
 
-Análise dos dados: `python backend/scripts/analise_perdas_informadas.py [caminho/municipios_editados.json]`
+Análise dos dados:
+- `python backend/scripts/analise_perdas_informadas.py [caminho/municipios_editados.json]`: estatísticas das perdas informadas.
+- `python backend/scripts/estudo_regras_perda.py baixar|analisar [caminho]`: cruza com a API do Ministério (cache em `~/.cache/maispap-ministerio`).
 
 ## Pendências conhecidas (fora dos épicos)
 - `SECRET_KEY` tem um valor padrão inseguro em `backend/app/core/config.py` (o `install.sh` gera uma chave no deploy).

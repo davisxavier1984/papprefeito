@@ -1,7 +1,7 @@
 # ÉPICO BROWNFIELD: Preenchimento automático das perdas e relatórios em lote
 
 **ID:** EPIC-AUTO-003
-**Status:** Planejado (nenhuma story iniciada)
+**Status:** Em andamento: 3.0 feita, 3.1 feita (ver `docs/analises/regras-perda-ministerio.md`)
 **Prioridade:** Alta
 **Branch de origem do planejamento:** `chore/limpeza-seguranca`
 
@@ -80,7 +80,7 @@ Outros achados:
 
 ## 📋 STORIES
 
-### Story 3.0: Hotfix: autosave envia a última edição
+### Story 3.0: Hotfix: autosave envia a última edição ✅ FEITA (commit `fix(autosave)`)
 **Prioridade: fazer primeiro (perda de dados).**
 - **Problema:** em `FinancialTable.tsx:71-75` e `:173-177`, `onCommit` chama `updatePerca()` e, logo em seguida, `triggerSave()`. Mas `triggerSave` (`useAutoSave.ts:73`) usa o `dadosEditados` do render anterior (closure desatualizada). Resultado: cada salvamento vai **sem a última edição**, e o PDF sai com o valor antigo.
 - **Correção:** ler o estado atual da store no momento do envio, com `useMunicipioStore.getState()` dentro do `setTimeout` de `triggerSave`.
@@ -90,7 +90,9 @@ Outros achados:
   - nada mais muda.
 - É o mesmo AC 1 da story 2.4. Se esta for feita antes, marcar lá como já resolvido.
 
-### Story 3.1: Spike: confirmar as regras contra a API do Ministério
+### Story 3.1: Spike: confirmar as regras contra a API do Ministério ✅ FEITA
+**Resultado:** `docs/analises/regras-perda-ministerio.md`. ACS e eSF viram sugestão automática; eMulti vira sugestão guiada (o usuário escolhe quantas equipes); Saúde Bucal e demais planos continuam manuais até responder às perguntas do relatório.
+
 **Tipo:** investigação, sem mudar o produto.
 1. Para cada um dos 241 registros, consultar `https://relatorioaps-prd.saude.gov.br/financiamento/pagamento`, com os mesmos parâmetros de `api_client.py:71-80` (`coMunicipio` com 6 dígitos e `nuParcelaInicio`/`nuParcelaFim` = competência). Salvar as respostas brutas **fora do repo**, como cache local de estudo, e usar um intervalo entre as chamadas.
    - **Não** usar `ApiClient.consultar_financiamento` como está, porque ele sobrescreve `data_cache_papprefeito.json`.
