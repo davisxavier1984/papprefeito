@@ -110,3 +110,17 @@ backend/test_output*.pdf
 
 # Pasta de testes temporários
 backend/temp/
+
+# Dados de runtime e artefatos locais (não versionar)
+*.db
+*.json.backup.*
+*.pid
+/*.pdf
+/data_cache_papprefeito.json
+/municipios_editados.json
+backend/data_cache_papprefeito.json
+backend/municipios_editados.json
+.claude/settings.local.json
+/apt
+/sudo
+/update

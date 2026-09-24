@@ -1,0 +1,14 @@
+tunnel: 7265903e-6db2-44d1-9cf7-24075d472dbb
+credentials-file: /home/davi/.cloudflared/7265903e-6db2-44d1-9cf7-24075d472dbb.json
+
+ingress:
+  # Frontend React (build estático servido por deploy/serve_spa.py)
+  - hostname: maispap.dasix.site
+    service: http://127.0.0.1:5173
+
+  # Backend FastAPI (uvicorn)
+  - hostname: api-maispap.dasix.site
+    service: http://127.0.0.1:8000
+
+  # Catch-all de segurança (deve ser o último)
+  - service: http_status:404

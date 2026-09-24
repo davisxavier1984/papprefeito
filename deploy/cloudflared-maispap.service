@@ -1,0 +1,18 @@
+[Unit]
+Description=Cloudflare Tunnel maispap (maispap.dasix.site -> :5173, api-maispap.dasix.site -> :8000)
+After=network-online.target papprefeito-backend.service papprefeito-frontend.service
+Wants=network-online.target
+# Sobe junto com a aplicação; se ela parar, o túnel não tem o que servir.
+BindsTo=papprefeito-backend.service papprefeito-frontend.service
+
+[Service]
+Type=simple
+User=davi
+Group=davi
+ExecStart=/usr/local/bin/cloudflared tunnel --config /home/davi/.cloudflared/config-maispap.yml run maispap
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target
