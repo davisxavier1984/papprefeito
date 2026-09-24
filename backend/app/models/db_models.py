@@ -70,3 +70,16 @@ class ValorReferenciaDB(Base):
     __table_args__ = (
         UniqueConstraint("chave", "vigente_desde", name="uq_valor_referencia_vigencia"),
     )
+
+
+class RespostaMinisterioDB(Base):
+    """Última resposta da API de financiamento do Ministério por município e competência.
+
+    Base do painel de acerto e dos municípios parecidos (aprendizado com o consultor).
+    """
+    __tablename__ = "respostas_ministerio"
+
+    codigo_ibge: Mapped[str] = mapped_column(String(10), primary_key=True)
+    competencia: Mapped[str] = mapped_column(String(6), primary_key=True)
+    resposta: Mapped[str] = mapped_column(Text, nullable=False)  # JSON bruto
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

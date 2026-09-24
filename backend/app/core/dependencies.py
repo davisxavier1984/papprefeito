@@ -13,6 +13,7 @@ from app.services.user_service import UserService
 from app.services.edicoes_service import EdicoesService
 from app.services.historico_perdas import HistoricoPerdasService
 from app.services.valores_referencia import ValoresReferenciaService
+from app.services.respostas_ministerio import RespostasMinisterioService
 
 security = HTTPBearer()
 
@@ -31,6 +32,10 @@ def get_historico_service(session: AsyncSession = Depends(get_session)) -> Histo
 
 def get_valores_service(session: AsyncSession = Depends(get_session)) -> ValoresReferenciaService:
     return ValoresReferenciaService(session)
+
+
+def get_respostas_service(session: AsyncSession = Depends(get_session)) -> RespostasMinisterioService:
+    return RespostasMinisterioService(session)
 
 
 async def get_current_user(
