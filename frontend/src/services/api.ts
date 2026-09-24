@@ -16,6 +16,8 @@ import type {
   ApiError,
   RelatorioPDFRequest
 } from '../types';
+import { useAuthStore } from '../stores/authStore';
+import { authService } from './authService';
 
 // Configuração base da API
 const DEFAULT_API_BASE_URL = 'http://localhost:8000/api';
@@ -44,10 +46,34 @@ class ApiClient {
       },
     });
 
+    // Interceptor para enviar o token de acesso
+    this.client.interceptors.request.use((config) => {
+      const token = useAuthStore.getState().accessToken;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
+
     // Interceptor para tratar erros globalmente
     this.client.interceptors.response.use(
       (response: AxiosResponse) => response,
-      (error) => {
+      async (error) => {
+        const originalRequest = error.config;
+
+        // Token expirado: renova uma vez e refaz a requisição
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+          originalRequest._retry = true;
+          try {
+            const newAccessToken = await authService.refreshAccessToken();
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return this.client(originalRequest);
+          } catch {
+            useAuthStore.getState().logout();
+            window.location.href = '/login';
+          }
+        }
+
         const apiError: ApiError = {
           success: false,
           message: error.response?.data?.detail || error.message || 'Erro na comunicação com a API',

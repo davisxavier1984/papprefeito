@@ -26,20 +26,27 @@ class MunicipioEditadoService:
 
     def _load_data(self) -> Dict[str, Any]:
         """Carrega dados do arquivo JSON"""
+        if not os.path.exists(self.data_file):
+            return {}
         try:
-            if os.path.exists(self.data_file):
-                with open(self.data_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            return {}
+            with open(self.data_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
         except Exception as e:
+            # Não devolver {} aqui: a próxima gravação apagaria todas as edições
             logger.error(f"Erro ao carregar dados editados: {str(e)}")
-            return {}
+            raise
 
     def _save_data(self, data: Dict[str, Any]) -> bool:
         """Salva dados no arquivo JSON"""
+        tmp_file = f"{self.data_file}.tmp"
         try:
-            with open(self.data_file, 'w', encoding='utf-8') as f:
+            # Grava em arquivo temporário e troca de forma atômica,
+            # para uma falha no meio da escrita não truncar o arquivo
+            with open(tmp_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_file, self.data_file)
             return True
         except Exception as e:
             logger.error(f"Erro ao salvar dados editados: {str(e)}")

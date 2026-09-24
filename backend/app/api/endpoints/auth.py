@@ -164,6 +164,12 @@ async def refresh_token(
             detail="Usuário inativo"
         )
 
+    if not user.is_authorized:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuário aguardando autorização"
+        )
+
     # Cria novos tokens
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)

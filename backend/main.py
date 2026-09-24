@@ -12,6 +12,7 @@ import uvicorn
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.database import init_db
+from app.utils.logger import logger
 
 
 def _sanitize_origins(origins: List[str]) -> List[str]:
@@ -74,9 +75,10 @@ async def health_check():
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
     """Handler geral para exceções não tratadas"""
+    logger.exception(f"Erro não tratado em {request.method} {request.url.path}: {exc}")
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Erro interno do servidor: {str(exc)}"}
+        content={"detail": "Erro interno do servidor"}
     )
 
 if __name__ == "__main__":
