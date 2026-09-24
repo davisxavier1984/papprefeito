@@ -83,7 +83,7 @@ Outros achados:
 ### Story 3.0: Hotfix: autosave envia a última edição ✅ FEITA (commit `fix(autosave)`)
 **Prioridade: fazer primeiro (perda de dados).**
 - **Problema:** em `FinancialTable.tsx:71-75` e `:173-177`, `onCommit` chama `updatePerca()` e, logo em seguida, `triggerSave()`. Mas `triggerSave` (`useAutoSave.ts:73`) usa o `dadosEditados` do render anterior (closure desatualizada). Resultado: cada salvamento vai **sem a última edição**, e o PDF sai com o valor antigo.
-- **Correção:** ler o estado atual da store no momento do envio, com `useMunicipioStore.getState()` dentro do `setTimeout` de `triggerSave`.
+- **Correção (implementada):** `triggerSave` e `updatePerca` leem `useMunicipioStore.getState()` no momento da chamada. A leitura é feita na chamada, e não no disparo do timer, para não salvar dados de outro município se o usuário trocar de seleção durante o debounce.
 - **AC:**
   - o upsert contém o valor recém-digitado (conferir no Network);
   - várias edições dentro de 2 s geram um único envio com todas elas;
