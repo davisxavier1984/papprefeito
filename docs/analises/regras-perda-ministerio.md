@@ -79,6 +79,18 @@ Nas competências até 202510, as perdas eram mais "no olho" (100 mil, 80 mil, 1
 
 - 63% das perdas são múltiplos de 12 mil. Os valores mais comuns são 24 mil (12×), 48 mil (12×), 12 mil (9×) e 36 mil (5×). Ou seja, o usuário **acrescenta de 1 a 4 equipes**, numa quantidade que ele decide caso a caso.
 
+**Estimativa por quantidade de profissionais elegíveis (sem carga horária).** Foi a forma indicada pelo usuário. Testes nos 85 municípios:
+
+| Estimador | ±1 equipe (±12 mil) | Exato |
+|---|---|---|
+| min(T, CH elegível × 50% ÷ 100 h, nutri + psi) × 12 mil − atual (com CH, descartado) | 42% | 12% |
+| **min(T, P ÷ 6, nutri + psi) × 12 mil − atual** (P = profissionais elegíveis) | 39% | **16%** |
+| min(T, P ÷ 5, nutri + psi) × 12 mil − atual | 42% | 7% |
+| (min(T, P ÷ 7) − equipes atuais) × 12 mil | 39% | 16% |
+| min(⌊T/5⌋, grupo 1, grupo 2, P ÷ 10) × 24 mil − atual | 36% | 12% |
+
+Decisão: a story 3.6 usa **P ÷ 6** (ajustável), **sem carga horária**. Uma limitação: o CNES consultado é o cadastro atual, não o da época de cada competência, e isso reduz a taxa medida.
+
 **Conclusão para a story 3.3 (eMulti = sugestão guiada):**
 1. A tela mostra T, o teto por modalidade, as eMulti atuais e a disponibilidade no CNES (grupos fixos e CH), usando `backend/app/services/cnes/`.
 2. O usuário informa **quantas equipes a mais de cada modalidade**, e o sistema calcula o valor (custeio + qualidade BOM de 18,75%, se marcado). Assim ele não precisa calcular nem digitar valores.

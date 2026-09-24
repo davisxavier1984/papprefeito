@@ -150,26 +150,29 @@ Outros achados:
   - o tipo escolhido é respeitado.
 
 ### Story 3.6: Módulo opcional "Estimativa eMulti" (substitui o cálculo manual do usuário)
-**Contexto:** o usuário estima a quantidade de eMulti a partir dos **profissionais elegíveis existentes** no município. A spike 3.1b mostrou que a disponibilidade no CNES quase nunca é o limite, mas o estimador abaixo, calibrado no histórico, acerta a perda dentro de ±1 equipe (±12 mil) em cerca de 42% dos casos, contra ≤14% das regras só por nº de equipes. É o melhor ponto de partida, desde que **transparente e revisável**.
+**Contexto:** o usuário estima a quantidade de eMulti a partir dos **profissionais elegíveis existentes** no município. **Decisão: a estimativa não usa carga horária, só a quantidade de profissionais.** Calibrado nos 85 municípios do histórico, o estimador abaixo acerta a perda exatamente em 16% dos casos e dentro de ±1 equipe (±12 mil) em 39%, contra ≤14% das regras só por nº de equipes. É o melhor ponto de partida, desde que **transparente e revisável**.
 
 **Módulo próprio e opcional:**
 - Tela separada "Estimativa eMulti". Nada muda na tabela até o usuário **aplicar** a estimativa.
 - Funciona para **um ou vários municípios** (mesma seleção da 3.4), e as estimativas aplicadas alimentam os relatórios em lote.
 
-**Cálculo por município** (backend `app/services/emulti_estimativa.py`, usando `app/services/cnes/`):
+**Cálculo por município** (backend `app/services/emulti_estimativa.py`, usando `app/services/cnes/`), **sem carga horária**:
 1. **Equipes vinculáveis (T):** eSF + eAP credenciadas (Ministério), comparadas com as ativas no CNES.
 2. **eMulti atuais:** pagas (Ministério) e cadastradas no CNES.
-3. **Profissionais elegíveis:** pelo CNES, agrupados por categoria da Portaria 635/2023 (composição fixa e variável), com pessoas distintas e CH semanal. Quem já está em eMulti ativa é descontado da CH disponível.
-4. **Capacidade:** CH disponível = CH elegível × **fração de disponibilidade** (padrão 50%, calibrado nos 85 municípios do histórico; ajustável). Número de equipes possíveis = mínimo entre (T disponível, CH disponível ÷ CH mínima da modalidade, profissionais do grupo fixo).
-5. **Combinação sugerida** respeitando as faixas da Portaria (Estratégica 1–4, Complementar 5–9, Ampliada 10–12 eSF/eAP) e o teto do Ministério. O usuário pode trocar a combinação.
+3. **Profissionais elegíveis (P):** pessoas distintas no CNES nas categorias da Portaria 635/2023 (composição fixa + variável, com o mapeamento de CBO de `emulti_regras`).
+4. **Número de eMulti possíveis** = mínimo entre:
+   - **T** (cada eMulti vincula ao menos uma eSF/eAP);
+   - **P ÷ 6**, uma equipe a cada 6 profissionais elegíveis. O divisor 6 foi o melhor na calibração (5 dá mais acertos aproximados, 6–7 mais acertos exatos) e fica ajustável na tela;
+   - **nutricionistas + psicólogos**, a composição fixa mínima da Estratégica.
+5. **Combinação sugerida:** o número de equipes do passo 4, em Estratégicas (R$ 12 mil). Na tela, o usuário pode converter em Complementar/Ampliada, respeitando as faixas da Portaria (5–9 e 10–12 eSF/eAP) e o teto do Ministério.
 6. **Perda** = custeio da combinação − custeio atual, com a opção de incluir a qualidade BOM (+18,75%).
 
 **Tela:**
-- Por município: T, eMulti atuais, quadro de profissionais elegíveis (categoria, pessoas, CH), combinação sugerida e valor.
+- Por município: T, eMulti atuais, quadro de profissionais elegíveis (categoria e pessoas), combinação sugerida e valor.
 - Botões "Aplicar" (grava na posição da eMulti com `origem: "estimativa"`, `regra_id` e `valor_sugerido`, via 3.2) e "Ajustar".
 - No modo lote: tabela com todos os municípios selecionados, estimativa de cada um, "aplicar em todos" ou por linha, e exportação para planilha (como no `maisprofissionais`).
 
-**Aprendizado:** cada aplicação ou ajuste fica no histórico da 3.2. Com isso dá para recalibrar a fração de disponibilidade e a preferência de combinação por porte de município.
+**Aprendizado:** cada aplicação ou ajuste fica no histórico da 3.2. Com isso dá para recalibrar o divisor (profissionais por equipe) e a preferência de combinação por porte de município.
 
 **AC:**
 - a estimativa de um município mostra os profissionais usados no cálculo;
