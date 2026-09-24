@@ -13,7 +13,8 @@ import {
   DashboardOutlined,
   FileZipOutlined,
   TableOutlined,
-  TeamOutlined
+  TeamOutlined,
+  LineChartOutlined
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
@@ -61,6 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     ...(isSuperuser
       ? [
           { key: '/admin/valores-referencia', icon: <TableOutlined />, label: 'Valores de referência' },
+          { key: '/admin/acerto-automatico', icon: <LineChartOutlined />, label: 'Acerto do automático' },
           { key: '/admin/users', icon: <TeamOutlined />, label: 'Gestão de Usuários' },
         ]
       : []),

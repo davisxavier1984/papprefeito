@@ -17,6 +17,7 @@ import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { UserProfile } from './components/Auth/UserProfile';
 import { UserManagement } from './pages/Admin/UserManagement';
 import ValoresReferencia from './pages/Admin/ValoresReferencia';
+import AcertoAutomatico from './pages/Admin/AcertoAutomatico';
 import './App.css';
 
 // Configurar React Query Client
@@ -168,6 +169,17 @@ const App: React.FC = () => {
                 <ProtectedRoute requireSuperuser>
                   <AppLayout>
                     <ValoresReferencia />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/acerto-automatico"
+              element={
+                <ProtectedRoute requireSuperuser>
+                  <AppLayout>
+                    <AcertoAutomatico />
                   </AppLayout>
                 </ProtectedRoute>
               }

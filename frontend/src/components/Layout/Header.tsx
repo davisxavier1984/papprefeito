@@ -12,7 +12,8 @@ import {
   TeamOutlined,
   DashboardOutlined,
   FileZipOutlined,
-  TableOutlined
+  TableOutlined,
+  LineChartOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMunicipioInfo } from '../../stores/municipioStore';
@@ -68,6 +69,12 @@ const Header: React.FC = () => {
             icon: <TableOutlined />,
             label: 'Valores de referência',
             onClick: () => navigate('/admin/valores-referencia')
+          },
+          {
+            key: 'acerto-automatico',
+            icon: <LineChartOutlined />,
+            label: 'Acerto do automático',
+            onClick: () => navigate('/admin/acerto-automatico')
           }
         ]
       : []),
