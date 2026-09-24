@@ -36,6 +36,10 @@ const adiado = () => {
   return { promessa, resolver, rejeitar };
 };
 
+// Dá tempo para as cadeias de promises internas da fila (não controladas pelo
+// relógio falso, que só controla os `setTimeout` do debounce) terminarem de assentar.
+const aguardarMicrotarefas = () => new Promise((res) => setTimeout(res, 0));
+
 test('envia só o último payload quando o timer dispara', async () => {
   const r = relogioFalso();
   const fila = criarFilaSalvamento<string>(2000, r.relogio);
@@ -55,14 +59,20 @@ test('envia o payload capturado no agendamento', async () => {
   const r = relogioFalso();
   const fila = criarFilaSalvamento<{ codigo: string }>(2000, r.relogio);
   const enviados: string[] = [];
-  const payload = { codigo: '2900207' };
-  fila.agendar(payload, async (p) => {
+  const enviar = async (p: { codigo: string }) => {
     enviados.push(p.codigo);
-  });
-  // Um novo agendamento de outro município só acontece com outro payload; o já
-  // agendado é enviado como estava
+  };
+
+  fila.agendar({ codigo: '2900207' }, enviar);
+  r.disparar();
   await fila.descarregar();
-  assert.deepEqual(enviados, ['2900207']);
+
+  // Um segundo agendamento, com outro payload, feito depois de o primeiro já ter sido
+  // enviado: cada envio deve levar o payload que estava vigente no momento do agendar
+  fila.agendar({ codigo: '3100104' }, enviar);
+  await fila.descarregar();
+
+  assert.deepEqual(enviados, ['2900207', '3100104']);
 });
 
 test('descarregar envia na hora e cancela o timer', async () => {
@@ -82,7 +92,16 @@ test('descarregar envia na hora e cancela o timer', async () => {
 
 test('descarregar sem pendente resolve sem enviar', async () => {
   const fila = criarFilaSalvamento<string>(2000, relogioFalso().relogio);
+  let chamadas = 0;
+  fila.agendar('x', async () => {
+    chamadas++;
+  });
   await fila.descarregar();
+  assert.equal(chamadas, 1);
+
+  chamadas = 0;
+  await fila.descarregar();
+  assert.equal(chamadas, 0);
   assert.equal(fila.temPendente(), false);
 });
 
@@ -103,14 +122,83 @@ test('descarregar espera o envio em curso', async () => {
   assert.equal(terminou, true);
 });
 
-test('descarregar rejeita quando o envio falha e a fila volta a funcionar', async () => {
+test('descarregar rejeita quando o envio falha e a fila volta a funcionar depois da retentativa', async () => {
   const fila = criarFilaSalvamento<string>(2000, relogioFalso().relogio);
   fila.agendar('x', async () => {
     throw new Error('falhou');
   });
+  // Primeira falha: o item volta a ser pendente para uma retentativa
+  await assert.rejects(fila.descarregar(), /falhou/);
+  assert.equal(fila.temPendente(), true);
+
+  // A retentativa também falha: descarta o item, a fila não fica travada
   await assert.rejects(fila.descarregar(), /falhou/);
   assert.equal(fila.temPendente(), false);
   await fila.descarregar();
+});
+
+test('falha no envio pelo timer → descarregar reenvia e resolve quando o reenvio dá certo', async () => {
+  const r = relogioFalso();
+  const fila = criarFilaSalvamento<string>(2000, r.relogio);
+  let tentativa = 0;
+  const enviados: string[] = [];
+  fila.agendar('x', async (p) => {
+    tentativa++;
+    if (tentativa === 1) throw new Error('falhou');
+    enviados.push(p);
+  });
+  r.disparar();
+  await aguardarMicrotarefas();
+  assert.equal(fila.temPendente(), true, 'item falho deve voltar a ser pendente');
+
+  await fila.descarregar();
+  assert.deepEqual(enviados, ['x']);
+  assert.equal(tentativa, 2);
+  assert.equal(fila.temPendente(), false);
+});
+
+test('falha no envio pelo timer e no reenvio → descarregar rejeita e a próxima descarga resolve', async () => {
+  const r = relogioFalso();
+  const fila = criarFilaSalvamento<string>(2000, r.relogio);
+  let tentativas = 0;
+  fila.agendar('x', async () => {
+    tentativas++;
+    throw new Error('falhou de novo');
+  });
+  r.disparar();
+  await aguardarMicrotarefas();
+  assert.equal(fila.temPendente(), true);
+
+  await assert.rejects(fila.descarregar(), /falhou de novo/);
+  assert.equal(tentativas, 2);
+  assert.equal(fila.temPendente(), false);
+
+  // A fila não fica travada: a próxima descarga resolve mesmo sem pendente
+  await fila.descarregar();
+});
+
+test('falha com pendente mais novo → só o mais novo é enviado', async () => {
+  const r = relogioFalso();
+  const fila = criarFilaSalvamento<string>(2000, r.relogio);
+  const primeiraTentativa = adiado();
+  const enviados: string[] = [];
+
+  fila.agendar('a', () => primeiraTentativa.promessa);
+  r.disparar(); // dispara o envio de 'a', que fica pendurado até rejeitarmos
+
+  // Enquanto 'a' ainda está em voo, chega uma edição mais nova
+  fila.agendar('b', async (p) => {
+    enviados.push(p);
+  });
+
+  primeiraTentativa.rejeitar(new Error('falhou'));
+  await aguardarMicrotarefas();
+
+  // 'a' falhou, mas 'b' já é o pendente mais novo: 'a' não deve substituí-lo
+  assert.equal(fila.temPendente(), true);
+
+  await fila.descarregar();
+  assert.deepEqual(enviados, ['b']);
 });
 
 test('envios acontecem em ordem', async () => {

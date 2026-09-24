@@ -136,7 +136,7 @@ const ValoresReferencia: React.FC = () => {
 
       <Card>
         <Space direction="vertical" style={{ width: '100%' }}>
-          {isError && (
+          {isError && !valores.length && (
             <Alert
               type="error"
               showIcon

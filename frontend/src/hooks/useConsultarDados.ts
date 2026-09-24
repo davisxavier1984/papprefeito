@@ -30,8 +30,15 @@ export const useConsultarDados = () => {
         throw new Error('Parâmetros incompletos para consulta');
       }
 
-      // Grava a edição pendente antes de recarregar, para a tela não voltar a um valor antigo
-      await descarregarAutosave();
+      // Grava a edição pendente antes de recarregar, para a tela não voltar a um valor antigo.
+      // Erro aqui é do autosave, não da consulta: relança com mensagem própria para o
+      // usuário não confundir as duas falhas.
+      try {
+        await descarregarAutosave();
+      } catch (err) {
+        const mensagem = err instanceof Error ? err.message : 'erro desconhecido';
+        throw new Error(`Não foi possível salvar a alteração anterior: ${mensagem}`);
+      }
 
       // 1) Buscar dados de financiamento
       const dados: DadosFinanciamento = await apiClient.consultarDadosFinanciamento(codigo_ibge, competencia);

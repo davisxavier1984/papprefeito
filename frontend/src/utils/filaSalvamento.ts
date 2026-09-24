@@ -3,6 +3,10 @@
  * Guarda só o último payload agendado e envia um de cada vez, em ordem.
  * `descarregar` envia o pendente na hora e espera o envio em curso: usado por quem
  * precisa do valor já gravado (PDF, nova consulta, saída da tela).
+ * Se um envio falha e ninguém agendou nada mais novo enquanto ele estava em voo, o
+ * item falho volta a ser o pendente (sem reagendar timer) para uma única retentativa
+ * no próximo `agendar`/`descarregar`; se essa retentativa falhar de novo, o item é
+ * descartado e a fila segue livre.
  * Sem dependências de React, para poder ser testado com `node --test`.
  */
 
@@ -27,7 +31,7 @@ export const criarFilaSalvamento = <T>(
   relogio: Relogio = relogioPadrao
 ): FilaSalvamento<T> => {
   let timer: unknown = null;
-  let pendente: { payload: T; enviar: (payload: T) => Promise<unknown> } | null = null;
+  let pendente: { payload: T; enviar: (payload: T) => Promise<unknown>; retentativa?: boolean } | null = null;
   let emCurso: Promise<unknown> | null = null;
 
   const enviarAgora = (): Promise<unknown> => {
@@ -41,7 +45,19 @@ export const criarFilaSalvamento = <T>(
 
     // Espera o envio anterior terminar (com sucesso ou erro) antes de mandar o próximo
     const anterior = emCurso ?? Promise.resolve();
-    const envio = anterior.catch(() => undefined).then(() => item.enviar(item.payload));
+    const envio = anterior
+      .catch(() => undefined)
+      .then(() => item.enviar(item.payload))
+      .catch((erro) => {
+        // Se ninguém agendou nada mais novo enquanto este envio estava em voo, guarda o
+        // item para uma retentativa (sem reagendar timer: só um novo agendar ou um
+        // descarregar explícito reenviam). Uma retentativa que falha de novo é descartada,
+        // para a fila não ficar travada.
+        if (!item.retentativa && pendente === null) {
+          pendente = { ...item, retentativa: true };
+        }
+        throw erro;
+      });
     emCurso = envio;
     envio
       .finally(() => {

@@ -52,12 +52,14 @@ export const useAutoSave = () => {
       }
       return { prev: undefined };
     },
-    onError: (err: any, _payload, context) => {
-      // Rollback
+    onError: (err: any, payload, context) => {
+      // Rollback: usa o município/competência do payload que falhou (2º argumento do
+      // onError), não a seleção atual da tela — evita reverter os dados errados se o
+      // usuário já trocou de município/competência enquanto o envio estava em voo.
       const prev = (context as any)?.prev as MunicipioEditado | undefined;
-      if (prev && selectedMunicipio?.codigo_ibge && selectedCompetencia) {
+      if (prev && payload.codigo_ibge && payload.competencia) {
         queryClient.setQueryData(
-          queryKeys.editado(selectedMunicipio.codigo_ibge, selectedCompetencia),
+          queryKeys.editado(payload.codigo_ibge, payload.competencia),
           prev
         );
       }
