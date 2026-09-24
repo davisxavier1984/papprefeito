@@ -11,6 +11,13 @@ import { filtrarResumosMunicipais, useMunicipioStore } from '../stores/municipio
 import type { DadosFinanciamento, MunicipioEditado, SugestaoAplicada } from '../types';
 import { descarregarAutosave } from './useAutoSave';
 import { mesmaSelecao, type Selecao } from '../utils/selecao';
+import { ehConsultaAtual } from '../utils/consultaAtual';
+
+// Compartilhado entre todas as instâncias do hook (Sidebar e CompetenciaInput têm cada
+// uma seu próprio useMutation, mas escrevem no mesmo isLoading global da store): identifica
+// qual foi a última consulta disparada, para o onSettled de uma consulta obsoleta não
+// desligar o loading enquanto uma consulta mais nova ainda está em andamento.
+let ultimaConsulta = 0;
 
 export const useConsultarDados = () => {
   const queryClient = useQueryClient();
@@ -55,6 +62,7 @@ export const useConsultarDados = () => {
     onMutate: () => {
       setLoading(true);
       setError(null);
+      return { id: ++ultimaConsulta };
     },
     onSuccess: ({ dados, editados }, selecao) => {
       // O usuário trocou de município/competência enquanto esta consulta estava em andamento
@@ -90,8 +98,13 @@ export const useConsultarDados = () => {
       const message = err?.message || err?.details?.message || 'Erro ao consultar dados';
       setError(message);
     },
-    onSettled: () => {
-      setLoading(false);
+    onSettled: (_data, _err, _selecao, context) => {
+      // Só desliga o loading se esta ainda for a consulta mais recente: uma resposta
+      // atrasada de uma consulta já substituída não pode reabilitar o botão Consultar
+      // enquanto a consulta atual ainda está em voo.
+      if (context && ehConsultaAtual(context.id, ultimaConsulta)) {
+        setLoading(false);
+      }
     },
   });
 
