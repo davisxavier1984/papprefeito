@@ -7,7 +7,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, queryKeys } from '../services/api';
-import { useMunicipioStore } from '../stores/municipioStore';
+import { filtrarResumosMunicipais, useMunicipioStore } from '../stores/municipioStore';
 import type { DadosFinanciamento, MunicipioEditado } from '../types';
 
 export const useConsultarDados = () => {
@@ -43,7 +43,8 @@ export const useConsultarDados = () => {
       } catch (err: any) {
         // Se não existir (404), iniciamos com zeros
         if (err?.error_code === '404') {
-          const zeros = (dados.resumosPlanosOrcamentarios || []).map(() => 0);
+          // Mesmo tamanho da tabela: só os planos da esfera municipal
+          const zeros = filtrarResumosMunicipais(dados.resumosPlanosOrcamentarios || []).map(() => 0);
           editados = {
             codigo_ibge: selectedMunicipio.codigo_ibge,
             competencia: selectedCompetencia,

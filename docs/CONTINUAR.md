@@ -27,13 +27,16 @@ A produção roda **da própria pasta do repositório** no servidor (uvicorn em 
 3. Rode `sudo systemctl restart papprefeito-backend`, que ativa a exigência de login.
 4. Os passos 2 e 3 precisam acontecer juntos: o frontend antigo não envia token e quebraria.
 5. Teste: login, consulta, edição de perda, PDF individual e detalhado.
+6. No primeiro start, o backend cria a tabela `historico_perdas` no SQLite (`create_all`, sem alterar as tabelas existentes).
 
 ## Próximos passos (ordem sugerida)
 1. ~~Story 3.0 (hotfix do autosave)~~: **feita**. Falta validar no navegador que o upsert leva o valor recém-digitado (DevTools → Network).
 2. ~~Story 3.1 (regras vs. Ministério)~~ e ~~3.1b (eMulti × CNES)~~: **feitas**. Ver `docs/analises/regras-perda-ministerio.md`. Os módulos do CNES do `maisprofissionais` foram copiados para `backend/app/services/cnes/`.
 3. **Levar as 6 perguntas do relatório 3.1 ao usuário** (R$ 14.058 na eSF, critério da eMulti, Saúde Bucal etc.).
-4. Stories 3.2 → 3.5: registro estruturado, preenchimento automático (ACS e eSF primeiro), vários municípios e relatórios em lote.
-5. Épico 2 (animações): stories 2.1 → 2.5.
+4. ~~Story 3.2 (registro estruturado + histórico)~~: **feita**. Depois do deploy, rodar a migração dos itens (primeiro sem `--aplicar` para conferir):
+   `cd backend && .venv/bin/python scripts/estudo_regras_perda.py baixar municipios_editados.json` e depois `.venv/bin/python scripts/migrar_itens_perda.py municipios_editados.json`.
+5. Próximas: 3.4 + 3.5 (vários municípios → relatórios Prefeito/Detalhado em lote), 3.6 (módulo opcional de estimativa eMulti) e 3.3 (tabela preenchida por regras).
+6. Épico 2 (animações): stories 2.1 → 2.5.
 
 Documentos:
 - `docs/prd/epic-3-preenchimento-automatico-e-lote.md`

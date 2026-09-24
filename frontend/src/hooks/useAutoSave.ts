@@ -84,6 +84,17 @@ export const useAutoSave = (debounceMs = 2000) => {
         perda_recurso_mensal: perdas,
       };
 
+      // Nome do plano de cada posição (story 3.2). Só envia quando a tabela e o
+      // array têm o mesmo tamanho, para não rotular posições erradas em registros antigos.
+      const { dadosProcessados } = useMunicipioStore.getState();
+      if (dadosProcessados.length === perdas.length) {
+        payload.itens = perdas.map((valor, i) => ({
+          plano: dadosProcessados[i].recurso,
+          valor,
+          origem: 'manual',
+        }));
+      }
+
       // Clear existing timer
       if (timerRef.current) {
         window.clearTimeout(timerRef.current);

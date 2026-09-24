@@ -1,7 +1,7 @@
 # ÉPICO BROWNFIELD: Preenchimento automático das perdas e relatórios em lote
 
 **ID:** EPIC-AUTO-003
-**Status:** Em andamento: 3.0, 3.1 e 3.1b feitas (ver `docs/analises/regras-perda-ministerio.md`)
+**Status:** Em andamento: 3.0, 3.1, 3.1b e 3.2 feitas (ver `docs/analises/regras-perda-ministerio.md`)
 **Prioridade:** Alta
 **Branch de origem do planejamento:** `chore/limpeza-seguranca`
 
@@ -111,30 +111,72 @@ Outros achados:
 - **Resultado:** hipótese rejeitada. 82 de 85 municípios têm profissionais suficientes, e nenhuma regra fixa passa de 14% de acerto. A eMulti vira **sugestão guiada** na 3.3: o usuário escolhe quantas equipes a mais e o sistema calcula. Detalhes em `docs/analises/regras-perda-ministerio.md`.
 - Script: `backend/scripts/estudo_emulti_cnes.py`.
 
-### Story 3.2: Registro estruturado e histórico das perdas
-- Gravar, para cada plano, `{dsPlanoOrcamentario, valor, origem: "regra"|"manual", regra_id, valor_sugerido}`, e não mais só o array posicional.
-- Manter compatibilidade: o array atual continua sendo lido e os PDFs continuam funcionando. Migração com script que lê o JSON existente, **sem apagá-lo**.
-- Histórico append-only com `usuario_id` e data. Avaliar reaproveitar a tabela `edicoes`, que já tem `usuario_id` e timestamps. A partir daí, cada aceite ou correção de sugestão vira dado para recalibrar as regras.
-- Corrigir `useConsultarDados.ts:161`, que cria o array com o tamanho de todos os resumos em vez de aplicar o filtro de esfera.
+### Story 3.2: Registro estruturado e histórico das perdas ✅ FEITA
+- **Backend:**
+  - `MunicipioEditado`/`Create`/`Update` ganham `itens` opcionais (`ItemPerda`: `plano`, `valor`, `origem` manual|regra|estimativa, `regra_id`, `valor_sugerido`). Os itens precisam ter o mesmo tamanho e os mesmos valores de `perda_recurso_mensal` (senão 422).
+  - O array posicional continua sendo a fonte dos PDFs, então nada muda para o fluxo atual.
+  - Um `PUT` sem itens remove os itens antigos, para não ficarem descrevendo valores que mudaram.
+  - Nova tabela append-only `historico_perdas` (`HistoricoPerdaDB`), criada pelo `create_all` sem tocar nas tabelas existentes. Cada create/update/upsert/delete grava usuário, operação, valores e itens (`app/services/historico_perdas.py`). Uma falha no histórico é logada e não impede a gravação.
+  - Nova rota `GET /api/municipios-editados/{ibge}/{competencia}/historico`.
+- **Frontend:**
+  - O autosave envia `itens` com o nome de cada plano (origem `manual`) quando a tabela e o array têm o mesmo tamanho.
+  - `useConsultarDados` passa a criar o array de zeros só com os planos municipais, com o filtro compartilhado `filtrarResumosMunicipais`.
+- **Migração:** `backend/scripts/migrar_itens_perda.py` rotula 235 dos 241 registros com o nome do plano, usando o cache do Ministério. Por padrão só gera `<arquivo>.com_itens.json`; com `--aplicar`, faz backup e substitui. **Ainda não foi aplicada** nos dados de produção.
+- **Testado** em processo com cópia dos dados: formato antigo compatível, itens incoerentes → 422, histórico com usuário, rota sem token → 403, JSON manteve as 241 entradas.
 
 ### Story 3.3: Preenchimento automático na tela
-- Ao consultar um município, o backend calcula as perdas com as regras aprovadas na 3.1 e a tabela já vem preenchida, sem cálculo nem digitação.
-- Cada célula mostra a origem ("calculado" ou "ajustado por você") e, se o usuário alterar, o valor sugerido fica visível.
-- Planos sem regra ficam em branco, destacados como "preencher manualmente".
+- Ao consultar um município, o backend calcula as perdas com as regras aprovadas na 3.1 (ACS e eSF) e a tabela já vem preenchida, sem cálculo nem digitação.
+- Cada célula mostra a origem ("calculado" ou "ajustado por você") e, se o usuário alterar, o valor sugerido fica visível (gravado em `itens[].valor_sugerido` da 3.2).
+- eMulti: vem do módulo da story 3.6, se o usuário optar por ele.
+- Planos sem regra (Saúde Bucal e demais) ficam em branco, destacados como "preencher manualmente".
 - **AC:** para municípios do histórico, o valor calculado bate com o que o usuário havia informado, na taxa medida na 3.1.
 
-### Story 3.4: Seleção de vários municípios
-- Na sidebar, selecionar **vários municípios** (multi-select por UF, com "selecionar todos da UF") e uma competência.
-- Consultar em fila, com limite de concorrência e retry, mostrando o progresso ("12 de 40").
-- Mostrar uma lista/resumo com o total de perda por município e marcar os que precisam de revisão (plano sem regra, outlier, erro da API).
+### Story 3.4: Seleção de vários municípios para relatórios
+**Objetivo (definido pelo usuário):** selecionar vários municípios de uma vez para **gerar os relatórios**, escolhendo o tipo: **"Relatório PAP Prefeito"** (`/relatorios/pdf`) ou **"Relatório Detalhado"**/completo (`/relatorios/pdf-detalhado`).
+- Nova tela "Relatórios em lote", separada do Dashboard atual, que continua igual. Nela:
+  - UF → municípios, com multi-select, "selecionar todos da UF" e busca;
+  - competência;
+  - tipo de relatório (Prefeito, Detalhado ou ambos).
+- Antes de gerar, uma lista de conferência por município: perdas salvas? (sim/não/parcial), total da perda mensal, origem dos valores (manual/regra/estimativa) e avisos (sem perdas salvas, outlier, erro na consulta ao Ministério).
+- Os municípios sem perdas salvas podem: (a) ficar de fora, (b) usar as regras da 3.3/3.6 se o usuário marcar essa opção, ou (c) sair com perda zero, e nesse caso o relatório avisa. Padrão: (a).
 
-### Story 3.5: Relatórios em lote
-- Novo endpoint, por exemplo `POST /api/relatorios/lote`, que recebe a lista de municípios, a competência e o tipo de relatório e devolve um **ZIP** com um PDF por município (nome: `{UF}_{municipio}_{competencia}.pdf`).
-- Processar no servidor com limite de concorrência (o WeasyPrint é pesado). Para lotes grandes, usar um job com progresso, em vez de uma requisição síncrona longa.
-- Usar as perdas calculadas e salvas das stories 3.2 e 3.3.
+### Story 3.5: Geração dos relatórios em lote
+- Novo endpoint `POST /api/relatorios/lote` com `{municipios: [...], competencia, tipos: ["prefeito"|"detalhado"]}`. Devolve um **ZIP** com um PDF por município e tipo (`{UF}_{municipio}_{competencia}_{tipo}.pdf`).
+- Reaproveitar as funções que já geram os PDFs individuais (`relatorios.py` e `relatorio_pdf.py`), sem duplicar layout.
+- Processar no servidor com limite de concorrência (o WeasyPrint é pesado). Para lotes grandes, usar um job assíncrono com progresso na tela ("12 de 40"), em vez de uma requisição síncrona longa.
 - **AC:**
-  - um lote de 20 municípios gera 20 PDFs idênticos aos gerados individualmente;
-  - uma falha num município não derruba o lote (vai para um `erros.txt` dentro do ZIP).
+  - um lote de 20 municípios gera PDFs idênticos aos gerados individualmente;
+  - uma falha num município não derruba o lote (vai para um `erros.txt` dentro do ZIP);
+  - o tipo escolhido é respeitado.
+
+### Story 3.6: Módulo opcional "Estimativa eMulti" (substitui o cálculo manual do usuário)
+**Contexto:** o usuário estima a quantidade de eMulti a partir dos **profissionais elegíveis existentes** no município. A spike 3.1b mostrou que a disponibilidade no CNES quase nunca é o limite, mas o estimador abaixo, calibrado no histórico, acerta a perda dentro de ±1 equipe (±12 mil) em cerca de 42% dos casos, contra ≤14% das regras só por nº de equipes. É o melhor ponto de partida, desde que **transparente e revisável**.
+
+**Módulo próprio e opcional:**
+- Tela separada "Estimativa eMulti". Nada muda na tabela até o usuário **aplicar** a estimativa.
+- Funciona para **um ou vários municípios** (mesma seleção da 3.4), e as estimativas aplicadas alimentam os relatórios em lote.
+
+**Cálculo por município** (backend `app/services/emulti_estimativa.py`, usando `app/services/cnes/`):
+1. **Equipes vinculáveis (T):** eSF + eAP credenciadas (Ministério), comparadas com as ativas no CNES.
+2. **eMulti atuais:** pagas (Ministério) e cadastradas no CNES.
+3. **Profissionais elegíveis:** pelo CNES, agrupados por categoria da Portaria 635/2023 (composição fixa e variável), com pessoas distintas e CH semanal. Quem já está em eMulti ativa é descontado da CH disponível.
+4. **Capacidade:** CH disponível = CH elegível × **fração de disponibilidade** (padrão 50%, calibrado nos 85 municípios do histórico; ajustável). Número de equipes possíveis = mínimo entre (T disponível, CH disponível ÷ CH mínima da modalidade, profissionais do grupo fixo).
+5. **Combinação sugerida** respeitando as faixas da Portaria (Estratégica 1–4, Complementar 5–9, Ampliada 10–12 eSF/eAP) e o teto do Ministério. O usuário pode trocar a combinação.
+6. **Perda** = custeio da combinação − custeio atual, com a opção de incluir a qualidade BOM (+18,75%).
+
+**Tela:**
+- Por município: T, eMulti atuais, quadro de profissionais elegíveis (categoria, pessoas, CH), combinação sugerida e valor.
+- Botões "Aplicar" (grava na posição da eMulti com `origem: "estimativa"`, `regra_id` e `valor_sugerido`, via 3.2) e "Ajustar".
+- No modo lote: tabela com todos os municípios selecionados, estimativa de cada um, "aplicar em todos" ou por linha, e exportação para planilha (como no `maisprofissionais`).
+
+**Aprendizado:** cada aplicação ou ajuste fica no histórico da 3.2. Com isso dá para recalibrar a fração de disponibilidade e a preferência de combinação por porte de município.
+
+**AC:**
+- a estimativa de um município mostra os profissionais usados no cálculo;
+- aplicar grava com origem `estimativa` e aparece no histórico;
+- sem aplicar, nada muda nos dados;
+- a estimativa em lote de 20 municípios termina com progresso visível;
+- uma falha do CNES num município não impede os outros.
 
 ## ⚠️ RISCOS E MITIGAÇÃO
 

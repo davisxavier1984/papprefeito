@@ -22,6 +22,6 @@ async def get_session() -> AsyncSession:
 
 async def init_db():
     """Cria todas as tabelas no startup."""
-    from app.models.db_models import UserDB, EdicaoDB  # noqa: F401
+    from app.models.db_models import UserDB, EdicaoDB, HistoricoPerdaDB  # noqa: F401
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

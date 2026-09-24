@@ -192,10 +192,20 @@ export interface DadosFinanciamento {
 }
 
 // Tipos para dados editados
+/** Perda de um plano orçamentário, com a origem do valor (story 3.2) */
+export interface ItemPerda {
+  plano: string;
+  valor: number;
+  origem?: 'manual' | 'regra' | 'estimativa';
+  regra_id?: string | null;
+  valor_sugerido?: number | null;
+}
+
 export interface MunicipioEditado {
   codigo_ibge: string;
   competencia: string;
   perda_recurso_mensal: number[];
+  itens?: ItemPerda[] | null;
   data_edicao: string;
 }
 
@@ -203,10 +213,12 @@ export interface MunicipioEditadoCreate {
   codigo_ibge: string;
   competencia: string;
   perda_recurso_mensal: number[];
+  itens?: ItemPerda[];
 }
 
 export interface MunicipioEditadoUpdate {
   perda_recurso_mensal: number[];
+  itens?: ItemPerda[];
 }
 
 // Tipos para dados processados (frontend)

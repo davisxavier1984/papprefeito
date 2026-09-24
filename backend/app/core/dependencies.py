@@ -11,6 +11,7 @@ from app.core.database import get_session
 from app.models.schemas import User
 from app.services.user_service import UserService
 from app.services.edicoes_service import EdicoesService
+from app.services.historico_perdas import HistoricoPerdasService
 
 security = HTTPBearer()
 
@@ -21,6 +22,10 @@ def get_user_service(session: AsyncSession = Depends(get_session)) -> UserServic
 
 def get_edicoes_service(session: AsyncSession = Depends(get_session)) -> EdicoesService:
     return EdicoesService(session)
+
+
+def get_historico_service(session: AsyncSession = Depends(get_session)) -> HistoricoPerdasService:
+    return HistoricoPerdasService(session)
 
 
 async def get_current_user(

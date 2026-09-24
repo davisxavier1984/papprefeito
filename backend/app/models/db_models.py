@@ -36,3 +36,17 @@ class EdicaoDB(Base):
     __table_args__ = (
         UniqueConstraint("codigo_municipio", "competencia", name="uq_municipio_competencia"),
     )
+
+
+class HistoricoPerdaDB(Base):
+    """Histórico append-only de cada gravação de perdas (nunca é atualizado nem apagado)."""
+    __tablename__ = "historico_perdas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    codigo_ibge: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    competencia: Mapped[str] = mapped_column(String(6), nullable=False, index=True)
+    usuario_id: Mapped[str] = mapped_column(String(36), nullable=True, index=True)
+    operacao: Mapped[str] = mapped_column(String(10), nullable=False)  # create | update | upsert | delete
+    perda_recurso_mensal: Mapped[str] = mapped_column(Text, nullable=False)  # JSON
+    itens: Mapped[str] = mapped_column(Text, nullable=True)  # JSON
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)

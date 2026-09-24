@@ -1,7 +1,7 @@
 """
 Modelos Pydantic para validação de dados
 """
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 from pydantic import BaseModel, Field, validator
 from pydantic import AliasChoices, ConfigDict
 from datetime import datetime
@@ -81,11 +81,33 @@ class DadosFinanciamento(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
     model_config = ConfigDict(extra='ignore', populate_by_name=True)
 
+class ItemPerda(BaseModel):
+    """Perda de um plano orçamentário, com a origem do valor"""
+    plano: str = Field(..., description="dsPlanoOrcamentario do Ministério")
+    valor: float = Field(..., description="Perda mensal informada")
+    origem: Literal['manual', 'regra', 'estimativa'] = Field('manual', description="De onde veio o valor")
+    regra_id: Optional[str] = Field(None, description="Regra ou estimativa que gerou a sugestão")
+    valor_sugerido: Optional[float] = Field(None, description="Valor sugerido pelo sistema, quando houver")
+
+
+def _validar_itens(itens, perdas):
+    """Os itens descrevem o array posicional: mesmo tamanho e mesmos valores."""
+    if itens is None:
+        return itens
+    if len(itens) != len(perdas):
+        raise ValueError('itens deve ter o mesmo tamanho de perda_recurso_mensal')
+    for item, valor in zip(itens, perdas):
+        if abs(item.valor - valor) > 0.005:
+            raise ValueError('itens[].valor deve ser igual ao valor correspondente de perda_recurso_mensal')
+    return itens
+
+
 class MunicipioEditado(BaseModel):
     """Modelo para dados editados de município"""
     codigo_ibge: str = Field(..., description="Código IBGE do município")
     competencia: str = Field(..., description="Competência")
     perda_recurso_mensal: List[float] = Field(default_factory=list, description="Lista de perdas mensais por recurso")
+    itens: Optional[List[ItemPerda]] = Field(None, description="Perdas por plano (mesma ordem de perda_recurso_mensal)")
     data_edicao: datetime = Field(default_factory=datetime.now, description="Data da última edição")
 
 class MunicipioEditadoCreate(BaseModel):
@@ -93,10 +115,32 @@ class MunicipioEditadoCreate(BaseModel):
     codigo_ibge: str
     competencia: str
     perda_recurso_mensal: List[float]
+    itens: Optional[List[ItemPerda]] = None
+
+    @validator('itens')
+    def itens_coerentes(cls, v, values):
+        return _validar_itens(v, values.get('perda_recurso_mensal', []))
 
 class MunicipioEditadoUpdate(BaseModel):
     """Modelo para atualização de dados editados"""
     perda_recurso_mensal: List[float]
+    itens: Optional[List[ItemPerda]] = None
+
+    @validator('itens')
+    def itens_coerentes(cls, v, values):
+        return _validar_itens(v, values.get('perda_recurso_mensal', []))
+
+
+class HistoricoPerda(BaseModel):
+    """Registro append-only de cada gravação de perdas"""
+    id: int
+    codigo_ibge: str
+    competencia: str
+    usuario_id: Optional[str] = None
+    operacao: str
+    perda_recurso_mensal: List[float]
+    itens: Optional[List[ItemPerda]] = None
+    created_at: datetime
 
 class DadosProcessados(BaseModel):
     """Modelo para dados processados com cálculos"""

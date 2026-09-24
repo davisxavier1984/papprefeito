@@ -49,6 +49,13 @@ const initialState = {
 /**
  * Store principal da aplicação usando Zustand
  */
+/**
+ * Planos orçamentários da esfera municipal (os estaduais não entram na tabela).
+ * O array de perdas é posicional em relação a esta lista.
+ */
+export const filtrarResumosMunicipais = <T extends { dsEsferaAdministrativa?: string | null }>(resumos: T[]): T[] =>
+  resumos.filter(r => !r.dsEsferaAdministrativa || r.dsEsferaAdministrativa === 'MUNICIPAL');
+
 export const useMunicipioStore = create<AppStore>()(
   devtools(
     persist(
@@ -177,8 +184,7 @@ export const useMunicipioStore = create<AppStore>()(
           }
 
           // Filtrar apenas recursos municipais (ignorar estaduais)
-          const resumosMunicipais = dadosFinanciamento.resumosPlanosOrcamentarios
-            .filter(r => !r.dsEsferaAdministrativa || r.dsEsferaAdministrativa === 'MUNICIPAL');
+          const resumosMunicipais = filtrarResumosMunicipais(dadosFinanciamento.resumosPlanosOrcamentarios);
 
           const dadosProcessados: DadosProcessados[] = resumosMunicipais.map((resumo, index) => {
             const perdaMensal = dadosEditados?.perda_recurso_mensal?.[index] || 0;
