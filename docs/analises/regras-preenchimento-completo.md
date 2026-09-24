@@ -11,7 +11,7 @@ A perda de cada plano é o **potencial** do município (o que ele poderia recebe
 ## Como aparece na tela
 
 - Ao consultar um município, a tabela mostra o que está salvo. O botão **"Preencher automaticamente"** calcula os valores, e **nada é sobrescrito sem o usuário pedir**. Depois o usuário revisa e salva.
-- Cada célula preenchida indica "calculado" e a regra usada. Ao passar o mouse, aparece a composição, por exemplo "48 ACS × R$ 3.242".
+- A tela de revisão mostra, por plano, cada componente com quantidade × valor unitário (ex.: "48 ACS × R$ 3.242"). O usuário marca ou desmarca componentes e ajusta as quantidades. **Ainda não implementado:** indicar na própria tabela que a célula foi calculada. Hoje essa informação fica só nos itens gravados e no histórico.
 - O que for gravado leva `origem: "regra"`, `regra_id` e `valor_sugerido` (story 3.2), para o sistema aprender com os ajustes.
 
 ## Regras por plano
@@ -34,7 +34,7 @@ A perda de cada plano é o **potencial** do município (o que ele poderia recebe
 | **SESB** (Portaria GM/MS 751/2023) | R$ 7.200/mês se o município tem **até 20 mil habitantes** (`qtPopulacao`) e **ainda não recebe** SESB. A cobertura de 75% o usuário confere | Sim, se elegível |
 | UOM | R$ 9.360/mês por unidade odontológica móvel | Não (opcional) |
 | LRPD | Subir para a próxima faixa (R$ 11.250 → 18.000 → 27.000 → 33.750) ou implantar | Não (opcional) |
-| CEO | Implantar ou mudar de tipo (valores pagos observados: 27.720 / 36.960 / 64.660) | Não (opcional) |
+| CEO | Implantar ou mudar de tipo (valores pagos observados: 27.720 / 36.960 / 64.660) | **Não implementado**: os valores por tipo não foram confirmados. Continua manual |
 
 No histórico, essa composição explica **23 de 54** perdas de Saúde Bucal de 202512 ao centavo, e em **21 delas o SESB entrava**. Os componentes UOM, LRPD e CEO dependem de produção e demanda, que não estão na API. Por isso ficam como opções que o usuário marca.
 
