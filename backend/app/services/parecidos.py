@@ -38,7 +38,8 @@ def perfil(resposta: Dict[str, Any]) -> Optional[Perfil]:
     """Perfil do município na resposta do Ministério; None se faltar pagamento ou população."""
     pagamentos = resposta.get('pagamentos') or []
     p = pagamentos[0] if pagamentos else {}
-    if not float(p.get('qtPopulacao') or 0):
+    populacao = float(p.get('qtPopulacao') or 0)
+    if populacao <= 0:
         return None
     recebe: Dict[str, float] = {}
     for r in filtrar_resumos_municipais(resposta.get('resumosPlanosOrcamentarios') or []):
@@ -46,7 +47,7 @@ def perfil(resposta: Dict[str, Any]) -> Optional[Perfil]:
         recebe[nome] = recebe.get(nome, 0.0) + float(r.get('vlIntegral') or 0)
     return Perfil(
         uf=p.get('sgUf') or '', municipio=p.get('noMunicipio') or '',
-        populacao=float(p['qtPopulacao']),
+        populacao=populacao,
         equipes=float(p.get('qtEsfTotalPgto') or 0) + float(p.get('qtEapTotalPgto') or 0),
         recebe=recebe,
     )

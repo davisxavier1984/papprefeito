@@ -31,6 +31,7 @@ def test_perfil_le_populacao_equipes_e_so_resumos_municipais():
 def test_perfil_incompleto_e_none():
     assert perfil({'pagamentos': [], 'resumosPlanosOrcamentarios': []}) is None
     assert perfil({'pagamentos': [{'qtPopulacao': 0}]}) is None
+    assert perfil({'pagamentos': [{'qtPopulacao': -5000}]}) is None
 
 
 def test_distancia_penaliza_outra_uf_e_cresce_com_a_populacao():
