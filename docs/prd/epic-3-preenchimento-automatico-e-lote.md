@@ -1,7 +1,7 @@
 # ÉPICO BROWNFIELD: Preenchimento automático das perdas e relatórios em lote
 
 **ID:** EPIC-AUTO-003
-**Status:** Em andamento: 3.0 feita, 3.1 feita (ver `docs/analises/regras-perda-ministerio.md`)
+**Status:** Em andamento: 3.0, 3.1 e 3.1b feitas (ver `docs/analises/regras-perda-ministerio.md`)
 **Prioridade:** Alta
 **Branch de origem do planejamento:** `chore/limpeza-seguranca`
 
@@ -106,11 +106,10 @@ Outros achados:
 4. **Entregável:** `docs/analises/regras-perda-ministerio.md`, com a tabela de acerto por plano, as regras aprovadas, os valores unitários encontrados (e em que portaria se baseiam, se identificável) e as perguntas para o usuário.
 - **Critério para seguir:** regra com ≥ 90% de acerto entra como automática. Entre 60% e 90%, entra como sugestão destacada para revisar. Abaixo de 60%, o plano continua manual.
 
-### Story 3.1b: Spike: eMulti limitada pelos profissionais do CNES
-- Reaproveitar do repositório `maisprofissionais` os módulos `cnes_utils.py` (API CNES web, que exige o header `Referer`) e `emulti_utils.py` (Portaria 635/2023, composição fixa/variável e mapeamento de CBO).
-- Para cerca de 20 municípios do histórico: T (eSF + eAP) → combinação que cobre as equipes → limitar pela CH e pelas categorias disponíveis no CNES → comparar com a perda informada.
-- **Entregável:** taxa de acerto e regra final da eMulti, acrescentadas a `docs/analises/regras-perda-ministerio.md`.
-- **Decisão técnica a tomar:** copiar os módulos para `backend/app/services/cnes/` ou empacotar o `maisprofissionais` como dependência.
+### Story 3.1b: Spike: eMulti limitada pelos profissionais do CNES ✅ FEITA
+- Os módulos do `maisprofissionais` foram **copiados** para `backend/app/services/cnes/`: `cnes_client.py` (API CNES web, adaptado de requests para httpx) e `emulti_regras.py` (Portaria 635/2023 + `avaliar_modalidade`).
+- **Resultado:** hipótese rejeitada. 82 de 85 municípios têm profissionais suficientes, e nenhuma regra fixa passa de 14% de acerto. A eMulti vira **sugestão guiada** na 3.3: o usuário escolhe quantas equipes a mais e o sistema calcula. Detalhes em `docs/analises/regras-perda-ministerio.md`.
+- Script: `backend/scripts/estudo_emulti_cnes.py`.
 
 ### Story 3.2: Registro estruturado e histórico das perdas
 - Gravar, para cada plano, `{dsPlanoOrcamentario, valor, origem: "regra"|"manual", regra_id, valor_sugerido}`, e não mais só o array posicional.

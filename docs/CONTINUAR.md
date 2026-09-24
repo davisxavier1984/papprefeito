@@ -30,7 +30,7 @@ A produção roda **da própria pasta do repositório** no servidor (uvicorn em 
 
 ## Próximos passos (ordem sugerida)
 1. ~~Story 3.0 (hotfix do autosave)~~: **feita**. Falta validar no navegador que o upsert leva o valor recém-digitado (DevTools → Network).
-2. ~~Story 3.1 (regras vs. Ministério)~~: **feita**. Ver `docs/analises/regras-perda-ministerio.md`.
+2. ~~Story 3.1 (regras vs. Ministério)~~ e ~~3.1b (eMulti × CNES)~~: **feitas**. Ver `docs/analises/regras-perda-ministerio.md`. Os módulos do CNES do `maisprofissionais` foram copiados para `backend/app/services/cnes/`.
 3. **Levar as 6 perguntas do relatório 3.1 ao usuário** (R$ 14.058 na eSF, critério da eMulti, Saúde Bucal etc.).
 4. Stories 3.2 → 3.5: registro estruturado, preenchimento automático (ACS e eSF primeiro), vários municípios e relatórios em lote.
 5. Épico 2 (animações): stories 2.1 → 2.5.
@@ -43,6 +43,7 @@ Documentos:
 Análise dos dados:
 - `python backend/scripts/analise_perdas_informadas.py [caminho/municipios_editados.json]`: estatísticas das perdas informadas.
 - `python backend/scripts/estudo_regras_perda.py baixar|analisar [caminho]`: cruza com a API do Ministério (cache em `~/.cache/maispap-ministerio`).
+- `cd backend && .venv/bin/python scripts/estudo_emulti_cnes.py [municipios_editados.json]`: cruza a eMulti com o CNES (cache em `~/.cache/maispap-cnes`).
 
 ## Pendências conhecidas (fora dos épicos)
 - `SECRET_KEY` tem um valor padrão inseguro em `backend/app/core/config.py` (o `install.sh` gera uma chave no deploy).
