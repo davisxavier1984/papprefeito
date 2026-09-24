@@ -307,10 +307,11 @@ export const useMunicipioInfo = () => {
  * Hook para atualizar perda de recurso de um item específico
  */
 export const useUpdatePerdaRecurso = () => {
-  const { dadosEditados, setDadosEditados, dadosProcessados } = useMunicipioStore();
+  const setDadosEditados = useMunicipioStore((state) => state.setDadosEditados);
 
   return (index: number, novoValor: number) => {
-    // Atualizar dados editados
+    // Lê o estado atual (e não o do render) para não descartar edições anteriores
+    const { dadosEditados, dadosProcessados } = useMunicipioStore.getState();
     const perdasAtuais = dadosEditados?.perda_recurso_mensal || Array(dadosProcessados.length).fill(0);
     const novasPerdas = [...perdasAtuais];
     novasPerdas[index] = novoValor;

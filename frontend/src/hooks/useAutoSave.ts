@@ -14,7 +14,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export const useAutoSave = (debounceMs = 2000) => {
   const queryClient = useQueryClient();
-  const { selectedMunicipio, selectedCompetencia, dadosEditados } = useMunicipioStore();
+  const { selectedMunicipio, selectedCompetencia } = useMunicipioStore();
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -71,7 +71,11 @@ export const useAutoSave = (debounceMs = 2000) => {
   const triggerSave = useCallback(
     (overridePerdas?: number[]) => {
       if (!selectedMunicipio?.codigo_ibge || !selectedCompetencia) return;
-      const perdas = overridePerdas ?? dadosEditados?.perda_recurso_mensal;
+      // Lê a store no momento da chamada (o set do Zustand é síncrono), e não o
+      // valor do render em que triggerSave foi criado: assim a edição recém-confirmada
+      // entra no payload. Ler aqui, e não no disparo do timer, evita salvar dados de
+      // outro município se o usuário trocar de seleção durante o debounce.
+      const perdas = overridePerdas ?? useMunicipioStore.getState().dadosEditados?.perda_recurso_mensal;
       if (!perdas) return;
 
       const payload: MunicipioEditadoCreate = {
@@ -89,7 +93,7 @@ export const useAutoSave = (debounceMs = 2000) => {
         mutation.mutate(payload);
       }, debounceMs);
     },
-    [debounceMs, dadosEditados?.perda_recurso_mensal, mutation, selectedCompetencia, selectedMunicipio?.codigo_ibge]
+    [debounceMs, mutation, selectedCompetencia, selectedMunicipio?.codigo_ibge]
   );
 
   // Cleanup timer on unmount
