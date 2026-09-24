@@ -71,3 +71,37 @@ def renderizar_pdf(
             pagamentos=dados.pagamentos,
         )
     raise ValueError(f"Tipo de relatório desconhecido: {tipo}")
+
+
+async def preencher_por_regras(codigo_ibge: str, competencia: str, usuario_id: Optional[str]) -> bool:
+    """Calcula as perdas pelas regras da story 3.3 (valores padrão) e salva com origem "regra".
+
+    Usado no lote para municípios sem perdas salvas, quando o usuário escolhe essa opção.
+    eMulti e planos sem regra ficam zerados. Retorna False se não houver dados do Ministério.
+    """
+    # Imports locais: evitam ciclo com os serviços de banco
+    from app.core.database import async_session
+    from app.models.schemas import ItemPerda, MunicipioEditadoCreate
+    from app.services.historico_perdas import HistoricoPerdasService
+    from app.services.regras_perda import sugerir
+    from app.services.valores_referencia import ValoresReferenciaService
+
+    dados = await saude_api_client.consultar_financiamento(codigo_ibge, competencia)
+    if not dados or not dados.get('resumosPlanosOrcamentarios'):
+        return False
+    async with async_session() as session:
+        valores = await ValoresReferenciaService(session).vigentes(competencia)
+        planos = sugerir(dados, valores)
+        perdas = [p.total_sugerido if p.aplicavel else 0.0 for p in planos]
+        itens = [
+            ItemPerda(plano=p.plano, valor=v, origem='regra' if p.aplicavel else 'manual',
+                      regra_id=p.regra_id if p.aplicavel else None,
+                      valor_sugerido=p.total_sugerido if p.aplicavel else None)
+            for p, v in zip(planos, perdas)
+        ]
+        salvo = municipio_editado_service.upsert_editado(MunicipioEditadoCreate(
+            codigo_ibge=codigo_ibge, competencia=competencia, perda_recurso_mensal=perdas, itens=itens))
+        if not salvo:
+            raise RuntimeError("falha ao salvar as perdas calculadas")
+        await HistoricoPerdasService(session).registrar(codigo_ibge, competencia, 'upsert', perdas, itens, usuario_id)
+    return True

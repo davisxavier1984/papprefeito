@@ -532,8 +532,10 @@ class LoteRequest(BaseModel):
     competencia: str = Field(..., min_length=6, max_length=6)
     tipos: List[Literal['prefeito', 'detalhado']] = Field(..., min_length=1, max_length=2)
     municipios: List[MunicipioLote] = Field(..., min_length=1, max_length=300)
-    sem_perdas: Literal['ignorar', 'zero'] = Field(
-        'ignorar', description="O que fazer com municípios sem perdas salvas: ignorar ou gerar com perda zero"
+    sem_perdas: Literal['ignorar', 'zero', 'regras'] = Field(
+        'ignorar',
+        description="Municípios sem perdas salvas: ignorar, gerar com perda zero, ou calcular pelas regras "
+                    "do preenchimento automático (salvando com origem 'regra')",
     )
 
     @validator('competencia')

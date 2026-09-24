@@ -23,7 +23,7 @@ from typing import Dict, List, Optional
 
 from app.models.schemas import LoteConferenciaItem, LoteRequest, LoteStatus, MunicipioLote
 from app.services.municipios_editados import municipio_editado_service
-from app.services.relatorios_service import DadosNaoEncontrados, preparar_dados, renderizar_pdf
+from app.services.relatorios_service import DadosNaoEncontrados, preencher_por_regras, preparar_dados, renderizar_pdf
 from app.utils.logger import logger
 
 CONSULTAS_SIMULTANEAS = 3   # chamadas simultâneas à API do Ministério
@@ -123,10 +123,16 @@ class GerenciadorLotes:
                 async def um_municipio(m: MunicipioLote):
                     rotulo = f"{m.nome}/{m.uf} ({m.codigo_ibge})"
                     try:
-                        if (pedido.sem_perdas == 'ignorar'
-                                and not municipio_editado_service.get_editado(m.codigo_ibge, pedido.competencia)):
+                        sem_perdas = not municipio_editado_service.get_editado(m.codigo_ibge, pedido.competencia)
+                        if sem_perdas and pedido.sem_perdas == 'ignorar':
                             lote.erros.append(f"{rotulo}: sem perdas salvas na competência (ignorado)")
                             return
+                        if sem_perdas and pedido.sem_perdas == 'regras':
+                            async with consultas:
+                                calculou = await preencher_por_regras(m.codigo_ibge, pedido.competencia, lote.usuario_id)
+                            if not calculou:
+                                raise DadosNaoEncontrados("sem dados do Ministério")
+                            lote.erros.append(f"{rotulo}: perdas calculadas pelas regras e salvas (revise no Dashboard)")
                         async with consultas:
                             dados = await preparar_dados(m.codigo_ibge, pedido.competencia)
                         for tipo in pedido.tipos:

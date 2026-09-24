@@ -460,7 +460,7 @@ export interface LoteRequest {
   competencia: string;
   tipos: TipoRelatorio[];
   municipios: MunicipioLote[];
-  sem_perdas: 'ignorar' | 'zero';
+  sem_perdas: 'ignorar' | 'zero' | 'regras';
 }
 
 export interface LoteStatus {

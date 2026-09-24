@@ -53,7 +53,7 @@ const RelatoriosLote: React.FC = () => {
   const [selecionados, setSelecionados] = useState<Record<string, MunicipioLote>>({});
   const [competencia, setCompetencia] = useState('');
   const [tipos, setTipos] = useState<TipoRelatorio[]>(['prefeito']);
-  const [semPerdas, setSemPerdas] = useState<'ignorar' | 'zero'>('ignorar');
+  const [semPerdas, setSemPerdas] = useState<'ignorar' | 'zero' | 'regras'>('regras');
 
   const [conferencia, setConferencia] = useState<LoteConferenciaItem[] | null>(null);
   const [conferindo, setConferindo] = useState(false);
@@ -70,7 +70,10 @@ const RelatoriosLote: React.FC = () => {
   const conferir = async () => {
     try {
       setConferindo(true);
-      setConferencia(await apiClient.conferirLote(competencia, listaSelecionados));
+      const resultado = await apiClient.conferirLote(competencia, listaSelecionados);
+      setConferencia(resultado);
+      const com = resultado.filter((c) => c.tem_perdas).length;
+      message.info(`Conferido: ${com} com perdas salvas e ${resultado.length - com} sem, em ${competencia.slice(4)}/${competencia.slice(0, 4)}.`);
     } catch {
       message.error('Não foi possível conferir os municípios. Tente novamente.');
     } finally {
@@ -147,8 +150,8 @@ const RelatoriosLote: React.FC = () => {
         r.tem_perdas ? (
           <Tag color="green">Sim</Tag>
         ) : (
-          <Tag color={semPerdas === 'ignorar' ? 'default' : 'orange'}>
-            {semPerdas === 'ignorar' ? 'Não (fica de fora)' : 'Não (perda zero)'}
+          <Tag color={semPerdas === 'ignorar' ? 'default' : semPerdas === 'regras' ? 'blue' : 'orange'}>
+            {semPerdas === 'ignorar' ? 'Não (fica de fora)' : semPerdas === 'regras' ? 'Não (será calculado)' : 'Não (perda zero)'}
           </Tag>
         ),
     },
@@ -201,6 +204,9 @@ const RelatoriosLote: React.FC = () => {
           />
           <Radio.Group value={semPerdas} onChange={(e) => setSemPerdas(e.target.value)}>
             <Space direction="vertical">
+              <Radio value="regras">
+                Municípios sem perdas salvas: calcular pelas regras (eSF, ACS e Saúde Bucal) e salvar
+              </Radio>
               <Radio value="ignorar">Municípios sem perdas salvas ficam de fora</Radio>
               <Radio value="zero">Municípios sem perdas salvas saem com perda zero</Radio>
             </Space>
@@ -227,8 +233,10 @@ const RelatoriosLote: React.FC = () => {
                 message={`${semPerdasCount} município(s) sem perdas salvas nesta competência`}
                 description={
                   semPerdas === 'ignorar'
-                    ? 'Eles ficarão de fora. Para incluí-los, salve as perdas no Dashboard ou escolha "saem com perda zero".'
-                    : 'Os relatórios deles vão mostrar perda zero.'
+                    ? 'Eles ficarão de fora. Para incluí-los, escolha "calcular pelas regras" ou salve as perdas no Dashboard.'
+                    : semPerdas === 'regras'
+                      ? 'As perdas deles serão calculadas pelas regras do preenchimento automático e salvas (origem "regra"). A eMulti fica zerada; revise depois no Dashboard, se quiser.'
+                      : 'Os relatórios deles vão mostrar perda zero.'
                 }
               />
             )}

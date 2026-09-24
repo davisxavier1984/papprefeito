@@ -153,7 +153,7 @@ Outros achados:
   - uma competência sem valores cadastrados usa a vigência anterior e avisa.
 
 ### Story 3.4: Seleção de vários municípios para relatórios ✅ FEITA
-**Implementado:** página `/relatorios-lote` (`frontend/src/pages/RelatoriosLote.tsx`), com acesso pelo menu do usuário ("Relatórios em lote") e pelo botão "Vários municípios" no Dashboard. Seleção acumulada entre UFs, "selecionar todos da UF", competência, tipos, opção para municípios sem perdas e conferência (`POST /api/relatorios/lote/conferencia`). A opção (b) "usar regras" fica para depois da 3.3/3.6.
+**Implementado:** página `/relatorios-lote` (`frontend/src/pages/RelatoriosLote.tsx`), com acesso pelo menu do usuário ("Relatórios em lote") e pelo botão "Vários municípios" no Dashboard. Seleção acumulada entre UFs, "selecionar todos da UF", competência, tipos, opção para municípios sem perdas e conferência (`POST /api/relatorios/lote/conferencia`). A opção "calcular pelas regras" (padrão) calcula as perdas dos municípios sem perdas salvas com o motor da 3.3, salva com origem `regra` e registra no histórico. A eMulti fica zerada.
 
 **Objetivo (definido pelo usuário):** selecionar vários municípios de uma vez para **gerar os relatórios**, escolhendo o tipo: **"Relatório PAP Prefeito"** (`/relatorios/pdf`) ou **"Relatório Detalhado"**/completo (`/relatorios/pdf-detalhado`).
 - Nova tela "Relatórios em lote", separada do Dashboard atual, que continua igual. Nela:
