@@ -555,3 +555,58 @@ class LoteStatus(BaseModel):
     erros: List[str] = Field(default_factory=list)
     criado_em: datetime
     concluido_em: Optional[datetime] = None
+
+
+# === Preenchimento automático (story 3.3) ===
+
+class ComponenteSugestao(BaseModel):
+    """Parte do cálculo de um plano: quantidade × valor unitário"""
+    id: str
+    nome: str
+    quantidade: float
+    valor_unitario: float
+    incluido: bool = True
+    quantidade_editavel: bool = False
+    detalhe: Optional[str] = None
+
+
+class PlanoSugestao(BaseModel):
+    """Sugestão de perda de um plano (posição na tabela)"""
+    indice: int
+    plano: str
+    tipo: Literal['esf', 'acs', 'sb', 'emulti', 'outro']
+    regra_id: Optional[str] = None
+    aplicavel: bool = Field(..., description="False quando não há regra: o valor atual é mantido")
+    componentes: List[ComponenteSugestao] = Field(default_factory=list)
+    total_sugerido: float = 0.0
+    observacao: Optional[str] = None
+
+
+class SugestaoResposta(BaseModel):
+    codigo_ibge: str
+    competencia: str
+    planos: List[PlanoSugestao]
+    vigencia_mais_antiga: Optional[str] = Field(None, description="Vigência mais antiga entre os valores usados (AAAAMM)")
+    aviso: Optional[str] = None
+
+
+class ValorReferencia(BaseModel):
+    id: int
+    chave: str
+    descricao: str
+    vigente_desde: str
+    valor: float
+    fonte: Optional[str] = None
+
+
+class ValorReferenciaCreate(BaseModel):
+    chave: str
+    vigente_desde: str = Field(..., min_length=6, max_length=6)
+    valor: float = Field(..., ge=0)
+    fonte: Optional[str] = None
+
+    @validator('vigente_desde')
+    def vigencia_valida(cls, v: str) -> str:
+        if not v.isdigit() or not (1 <= int(v[4:]) <= 12):
+            raise ValueError('Vigência deve estar no formato AAAAMM')
+        return v

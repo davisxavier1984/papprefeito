@@ -406,6 +406,9 @@ export interface AppState {
 
   // Dados processados para cards de programas
   dadosProgramas: DetalhamentoPrograma[];
+
+  // Posições da tabela preenchidas pelo cálculo automático (story 3.3)
+  sugestoesAplicadas: Record<number, SugestaoAplicada>;
 }
 
 // Tipos para ações do store
@@ -415,6 +418,7 @@ export interface AppActions {
   setSelectedCompetencia: (competencia: string) => void;
   setDadosFinanciamento: (dados: DadosFinanciamento | null) => void;
   setDadosEditados: (dados: MunicipioEditado | null) => void;
+  setSugestoesAplicadas: (sugestoes: Record<number, SugestaoAplicada>) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   updateDadosProcessados: (dados: DadosProcessados[]) => void;
@@ -470,4 +474,60 @@ export interface LoteStatus {
   erros: string[];
   criado_em: string;
   concluido_em?: string | null;
+}
+
+// ================================
+// Preenchimento automático (story 3.3)
+// ================================
+
+export interface ComponenteSugestao {
+  id: string;
+  nome: string;
+  quantidade: number;
+  valor_unitario: number;
+  incluido: boolean;
+  quantidade_editavel: boolean;
+  detalhe?: string | null;
+}
+
+export interface PlanoSugestao {
+  indice: number;
+  plano: string;
+  tipo: 'esf' | 'acs' | 'sb' | 'emulti' | 'outro';
+  regra_id?: string | null;
+  aplicavel: boolean;
+  componentes: ComponenteSugestao[];
+  total_sugerido: number;
+  observacao?: string | null;
+}
+
+export interface SugestaoResposta {
+  codigo_ibge: string;
+  competencia: string;
+  planos: PlanoSugestao[];
+  vigencia_mais_antiga?: string | null;
+  aviso?: string | null;
+}
+
+/** Sugestão aplicada numa posição da tabela: permite saber se o valor ainda é o calculado */
+export interface SugestaoAplicada {
+  regra_id: string;
+  valor_sugerido: number;
+  valor_aplicado: number;
+}
+
+export interface ValorReferencia {
+  id: number;
+  chave: string;
+  descricao: string;
+  vigente_desde: string;
+  valor: number;
+  fonte?: string | null;
+}
+
+export interface ValorReferenciaCreate {
+  chave: string;
+  vigente_desde: string;
+  valor: number;
+  fonte?: string;
 }

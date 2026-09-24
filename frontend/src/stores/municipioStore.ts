@@ -11,7 +11,8 @@ import type {
   MunicipioEditado,
   DadosProcessados,
   ResumoFinanceiro,
-  DetalhamentoPrograma
+  DetalhamentoPrograma,
+  SugestaoAplicada
 } from '../types';
 import { processarProgramas } from '../utils/processarProgramas';
 
@@ -44,6 +45,9 @@ const initialState = {
 
   // Dados processados para cards de programas
   dadosProgramas: [],
+
+  // Posições da tabela preenchidas pelo cálculo automático (story 3.3)
+  sugestoesAplicadas: {},
 };
 
 /**
@@ -77,6 +81,7 @@ export const useMunicipioStore = create<AppStore>()(
             dadosProcessados: [],
             resumoFinanceiro: null,
             dadosProgramas: [],
+            sugestoesAplicadas: {},
             error: null
           }), false, 'setSelectedUF');
         },
@@ -93,6 +98,7 @@ export const useMunicipioStore = create<AppStore>()(
             dadosProcessados: [],
             resumoFinanceiro: null,
             dadosProgramas: [],
+            sugestoesAplicadas: {},
             error: null
           }), false, 'setSelectedMunicipio');
         },
@@ -106,6 +112,7 @@ export const useMunicipioStore = create<AppStore>()(
             dadosProcessados: [],
             resumoFinanceiro: null,
             dadosProgramas: [],
+            sugestoesAplicadas: {},
             error: null
           }), false, 'setSelectedCompetencia');
         },
@@ -122,6 +129,10 @@ export const useMunicipioStore = create<AppStore>()(
             get().processarDados();
             get().processarProgramas();
           }
+        },
+
+        setSugestoesAplicadas: (sugestoes: Record<number, SugestaoAplicada>) => {
+          set({ sugestoesAplicadas: sugestoes }, false, 'setSugestoesAplicadas');
         },
 
         setDadosEditados: (dados: MunicipioEditado | null) => {

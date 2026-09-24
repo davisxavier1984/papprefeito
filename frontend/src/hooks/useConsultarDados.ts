@@ -8,7 +8,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, queryKeys } from '../services/api';
 import { filtrarResumosMunicipais, useMunicipioStore } from '../stores/municipioStore';
-import type { DadosFinanciamento, MunicipioEditado } from '../types';
+import type { DadosFinanciamento, MunicipioEditado, SugestaoAplicada } from '../types';
 
 export const useConsultarDados = () => {
   const queryClient = useQueryClient();
@@ -19,6 +19,7 @@ export const useConsultarDados = () => {
     setError,
     setDadosFinanciamento,
     setDadosEditados,
+    setSugestoesAplicadas,
   } = useMunicipioStore();
 
   const mutation = useMutation({
@@ -76,7 +77,20 @@ export const useConsultarDados = () => {
         );
       }
 
+      // Posições que vieram do cálculo automático (story 3.3): mantém a origem nas próximas gravações
+      const sugestoes: Record<number, SugestaoAplicada> = {};
+      (editados.itens ?? []).forEach((item, i) => {
+        if (item.regra_id && item.valor_sugerido != null) {
+          sugestoes[i] = {
+            regra_id: item.regra_id,
+            valor_sugerido: item.valor_sugerido,
+            valor_aplicado: item.origem === 'manual' ? item.valor_sugerido : item.valor,
+          };
+        }
+      });
+
       // Atualizar store e processar
+      setSugestoesAplicadas(sugestoes);
       setDadosFinanciamento(dados);
       setDadosEditados(editados);
     },

@@ -29,8 +29,8 @@ A perda de cada plano é o **potencial** do município (o que ele poderia recebe
 
 | Componente | Cálculo | Entra por padrão |
 |---|---|---|
-| Qualidade até ÓTIMO | eSB 40h pagas × (qualidade ÓTIMO − qualidade paga por equipe) | Sim |
-| eSB novas até o teto | (teto eSB 40h − eSB credenciadas) × (fixo por equipe + qualidade ÓTIMO) | Sim |
+| Qualidade até ÓTIMO | eSB 40h pagas × qualidade paga por equipe × (ÓTIMO ÷ BOM − 1), ou seja, +1/3 do valor pago. É proporcional porque alguns municípios recebem valores por equipe menores que a tabela | Sim |
+| eSB novas (uma por eSF) | (meta − eSB credenciadas) × (fixo por equipe + qualidade ÓTIMO). **Meta = eSF credenciadas + eSF novas** (mesmo padrão da eSF). Explica 16 de 19 casos reconstruídos; o teto de eSB, só 6 | Sim |
 | **SESB** (Portaria GM/MS 751/2023) | R$ 7.200/mês se o município tem **até 20 mil habitantes** (`qtPopulacao`) e **ainda não recebe** SESB. A cobertura de 75% o usuário confere | Sim, se elegível |
 | UOM | R$ 9.360/mês por unidade odontológica móvel | Não (opcional) |
 | LRPD | Subir para a próxima faixa (R$ 11.250 → 18.000 → 27.000 → 33.750) ou implantar | Não (opcional) |
@@ -66,3 +66,15 @@ Valores **confirmados para 2025** (dos pagamentos e da pesquisa):
 - [Credenciamento de eSB (Ministério da Saúde)](https://www.gov.br/saude/pt-br/composicao/saps/brasil-sorridente/saude-bucal-na-aps/credenciamento-de-esb)
 - [LRPD (Ministério da Saúde)](https://www.gov.br/saude/pt-br/composicao/saps/previne-brasil/valores-de-referencia/custeio-de-atencao-a-saude-bucal/lrpd)
 - [Portaria GM/MS 10.994/2026](https://www.acsace.com.br/2026/05/portaria-gm-ms-10994-2026-financiamento-aps.html)
+
+## Validação da implementação (motor `app/services/regras_perda.py`)
+
+Rodado com os valores padrão sobre os 241 registros do histórico (competências a partir de 202512):
+
+| Plano | Exato | Soma sugerida ÷ soma informada |
+|---|---|---|
+| eSF | 29% | 1,03 |
+| Saúde Bucal | 11% exato, 23% dentro de ±10% | 0,98 |
+| ACS (teto − pagos, decisão do usuário) | 4% | 2,56. O teto dá bem mais do que o usuário informava pelos credenciados |
+
+Testes: `backend/tests/test_regras_perda.py`, com o caso 290240/202512, que reproduz os valores informados de eSF (24.000,00) e Saúde Bucal (12.710,22).

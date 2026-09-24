@@ -50,3 +50,23 @@ class HistoricoPerdaDB(Base):
     perda_recurso_mensal: Mapped[str] = mapped_column(Text, nullable=False)  # JSON
     itens: Mapped[str] = mapped_column(Text, nullable=True)  # JSON
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class ValorReferenciaDB(Base):
+    """Valor de referência do financiamento federal por vigência (story 3.3).
+
+    Cada linha vale a partir de `vigente_desde` (AAAAMM) até a próxima vigência da mesma chave.
+    """
+    __tablename__ = "valores_referencia"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chave: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
+    vigente_desde: Mapped[str] = mapped_column(String(6), nullable=False)
+    valor: Mapped[str] = mapped_column(String(30), nullable=False)  # decimal como texto
+    fonte: Mapped[str] = mapped_column(String(255), nullable=True)
+    usuario_id: Mapped[str] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("chave", "vigente_desde", name="uq_valor_referencia_vigencia"),
+    )

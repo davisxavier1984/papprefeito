@@ -18,7 +18,10 @@ import type {
   LoteConferenciaItem,
   LoteRequest,
   LoteStatus,
-  MunicipioLote
+  MunicipioLote,
+  SugestaoResposta,
+  ValorReferencia,
+  ValorReferenciaCreate
 } from '../types';
 import { useAuthStore } from '../stores/authStore';
 import { authService } from './authService';
@@ -231,6 +234,34 @@ class ApiClient {
       timeout: 120000,
     });
     return response.data;
+  }
+
+  // ================================
+  // PREENCHIMENTO AUTOMÁTICO
+  // ================================
+
+  /**
+   * Calcula o que o município poderia ter, por plano. Não grava nada.
+   */
+  async getSugestaoPreenchimento(codigoIbge: string, competencia: string): Promise<SugestaoResposta> {
+    const response = await this.client.get<SugestaoResposta>(
+      `/preenchimento/${codigoIbge}/${competencia}/sugestao`
+    );
+    return response.data;
+  }
+
+  async listarValoresReferencia(): Promise<ValorReferencia[]> {
+    const response = await this.client.get<ValorReferencia[]>('/preenchimento/valores-referencia');
+    return response.data;
+  }
+
+  async cadastrarValorReferencia(payload: ValorReferenciaCreate): Promise<ValorReferencia> {
+    const response = await this.client.post<ValorReferencia>('/preenchimento/valores-referencia', payload);
+    return response.data;
+  }
+
+  async removerValorReferencia(id: number): Promise<void> {
+    await this.client.delete(`/preenchimento/valores-referencia/${id}`);
   }
 
   /**

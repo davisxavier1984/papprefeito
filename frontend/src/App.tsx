@@ -16,6 +16,7 @@ import { RegisterForm } from './components/Auth/RegisterForm';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { UserProfile } from './components/Auth/UserProfile';
 import { UserManagement } from './pages/Admin/UserManagement';
+import ValoresReferencia from './pages/Admin/ValoresReferencia';
 import './App.css';
 
 // Configurar React Query Client
@@ -156,6 +157,17 @@ const App: React.FC = () => {
                 <ProtectedRoute requireSuperuser>
                   <AppLayout>
                     <UserManagement />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/valores-referencia"
+              element={
+                <ProtectedRoute requireSuperuser>
+                  <AppLayout>
+                    <ValoresReferencia />
                   </AppLayout>
                 </ProtectedRoute>
               }

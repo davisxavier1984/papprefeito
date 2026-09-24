@@ -11,7 +11,8 @@ import {
   SettingOutlined,
   TeamOutlined,
   DashboardOutlined,
-  FileZipOutlined
+  FileZipOutlined,
+  TableOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMunicipioInfo } from '../../stores/municipioStore';
@@ -61,6 +62,12 @@ const Header: React.FC = () => {
             icon: <TeamOutlined />,
             label: 'Gestão de Usuários',
             onClick: () => navigate('/admin/users')
+          },
+          {
+            key: 'valores-referencia',
+            icon: <TableOutlined />,
+            label: 'Valores de referência',
+            onClick: () => navigate('/admin/valores-referencia')
           }
         ]
       : []),

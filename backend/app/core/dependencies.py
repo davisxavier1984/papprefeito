@@ -12,6 +12,7 @@ from app.models.schemas import User
 from app.services.user_service import UserService
 from app.services.edicoes_service import EdicoesService
 from app.services.historico_perdas import HistoricoPerdasService
+from app.services.valores_referencia import ValoresReferenciaService
 
 security = HTTPBearer()
 
@@ -26,6 +27,10 @@ def get_edicoes_service(session: AsyncSession = Depends(get_session)) -> Edicoes
 
 def get_historico_service(session: AsyncSession = Depends(get_session)) -> HistoricoPerdasService:
     return HistoricoPerdasService(session)
+
+
+def get_valores_service(session: AsyncSession = Depends(get_session)) -> ValoresReferenciaService:
+    return ValoresReferenciaService(session)
 
 
 async def get_current_user(

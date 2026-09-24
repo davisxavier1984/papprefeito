@@ -1,7 +1,7 @@
 # ÉPICO BROWNFIELD: Preenchimento automático das perdas e relatórios em lote
 
 **ID:** EPIC-AUTO-003
-**Status:** Em andamento: 3.0, 3.1, 3.1b, 3.2, 3.4 e 3.5 feitas (ver `docs/analises/regras-perda-ministerio.md`)
+**Status:** Em andamento: 3.0, 3.1, 3.1b, 3.2, 3.3, 3.4 e 3.5 feitas; falta a 3.6 (ver `docs/analises/regras-perda-ministerio.md`)
 **Prioridade:** Alta
 **Branch de origem do planejamento:** `chore/limpeza-seguranca`
 
@@ -124,7 +124,19 @@ Outros achados:
 - **Migração:** `backend/scripts/migrar_itens_perda.py` rotula 235 dos 241 registros com o nome do plano, usando o cache do Ministério. Por padrão só gera `<arquivo>.com_itens.json`; com `--aplicar`, faz backup e substitui. **Ainda não foi aplicada** nos dados de produção.
 - **Testado** em processo com cópia dos dados: formato antigo compatível, itens incoerentes → 422, histórico com usuário, rota sem token → 403, JSON manteve as 241 entradas.
 
-### Story 3.3: Preenchimento automático na tela (regras definidas em entrevista)
+### Story 3.3: Preenchimento automático na tela (regras definidas em entrevista) ✅ FEITA
+**Implementado:**
+- Backend:
+  - `app/services/regras_perda.py` (motor de regras);
+  - `app/services/valores_referencia.py` e a tabela `valores_referencia`, com os valores de 2025 gravados na inicialização;
+  - rotas `GET /api/preenchimento/{ibge}/{comp}/sugestao` (só calcula) e `GET|POST|DELETE /api/preenchimento/valores-referencia` (escrita só para administrador).
+- Frontend:
+  - botão "Preencher automaticamente" na tabela, com a tela de revisão `PreenchimentoAutomatico.tsx`;
+  - o autosave mantém a origem `regra` enquanto o valor não muda, e `manual` com `valor_sugerido` depois de um ajuste;
+  - tela de administração `/admin/valores-referencia`.
+- A digitação manual funciona como antes: sem clicar no botão, nada muda. Após aplicar, qualquer célula continua editável.
+- **Mudança em relação à entrevista:** a meta de eSB novas é uma por eSF (credenciadas + novas), e não o teto de eSB, porque explicou melhor o histórico.
+
 **Especificação completa:** `docs/analises/regras-preenchimento-completo.md` (entrevista de 24/09/2026).
 - **Princípio:** estimar o que o município **poderia ter** a partir do que o Ministério informa, e não reproduzir valores antigos.
 - Botão **"Preencher automaticamente"** no Dashboard. Nada é sobrescrito sem o usuário pedir, e ele revisa antes de salvar.

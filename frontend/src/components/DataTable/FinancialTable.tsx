@@ -7,12 +7,14 @@
  */
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Table, Typography, Space, Tag, Card, Row, Col, Statistic, Divider } from 'antd';
+import { Table, Typography, Space, Tag, Card, Row, Col, Statistic, Divider, Button } from 'antd';
+import { ThunderboltOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMunicipioStore, useUpdatePerdaRecurso } from '../../stores/municipioStore';
 import type { DadosProcessados } from '../../types';
 import useAutoSave from '../../hooks/useAutoSave';
 import CurrencyInput from '../inputs/CurrencyInput';
+import PreenchimentoAutomatico from './PreenchimentoAutomatico';
 
 const { Text } = Typography;
 
@@ -29,6 +31,7 @@ const FinancialTable: React.FC = () => {
   const updatePerca = useUpdatePerdaRecurso();
   const { triggerSave, status, isSaving, isSaved, isError } = useAutoSave(2000);
   const [isMobile, setIsMobile] = useState(false);
+  const [preenchimentoAberto, setPreenchimentoAberto] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -229,12 +232,28 @@ const FinancialTable: React.FC = () => {
           {isError && <Tag color="error">Erro ao salvar</Tag>}
           {!isSaving && !isSaved && !isError && <Tag>Pronto</Tag>}
         </Space>
-        {!isMobile && (
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {dadosProcessados.length} registros
-          </Text>
-        )}
+        <Space size="small">
+          <Button
+            size="small"
+            icon={<ThunderboltOutlined />}
+            onClick={() => setPreenchimentoAberto(true)}
+            disabled={!dadosProcessados.length}
+          >
+            Preencher automaticamente
+          </Button>
+          {!isMobile && (
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              {dadosProcessados.length} registros
+            </Text>
+          )}
+        </Space>
       </Space>
+
+      <PreenchimentoAutomatico
+        open={preenchimentoAberto}
+        onClose={() => setPreenchimentoAberto(false)}
+        onAplicado={() => triggerSave()}
+      />
 
       {isMobile ? (
         <MobileCardView />

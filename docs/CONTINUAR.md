@@ -27,7 +27,7 @@ A produção roda **da própria pasta do repositório** no servidor (uvicorn em 
 3. Rode `sudo systemctl restart papprefeito-backend`, que ativa a exigência de login.
 4. Os passos 2 e 3 precisam acontecer juntos: o frontend antigo não envia token e quebraria.
 5. Teste: login, consulta, edição de perda, PDF individual e detalhado.
-6. No primeiro start, o backend cria a tabela `historico_perdas` no SQLite (`create_all`, sem alterar as tabelas existentes).
+6. No primeiro start, o backend cria as tabelas `historico_perdas` e `valores_referencia` no SQLite (`create_all`, sem alterar as tabelas existentes) e grava os valores de referência de 2025.
 
 ## Próximos passos (ordem sugerida)
 1. ~~Story 3.0 (hotfix do autosave)~~: **feita**. Falta validar no navegador que o upsert leva o valor recém-digitado (DevTools → Network).
@@ -36,8 +36,9 @@ A produção roda **da própria pasta do repositório** no servidor (uvicorn em 
 4. ~~Story 3.2 (registro estruturado + histórico)~~: **feita**. Depois do deploy, rodar a migração dos itens (primeiro sem `--aplicar` para conferir):
    `cd backend && .venv/bin/python scripts/estudo_regras_perda.py baixar municipios_editados.json` e depois `.venv/bin/python scripts/migrar_itens_perda.py municipios_editados.json`.
 5. ~~3.4 + 3.5 (relatórios Prefeito/Detalhado em lote)~~: **feitas**. Página `/relatorios-lote`. Falta testar no navegador.
-6. Próximas: **3.3** (regras fechadas em entrevista: `docs/analises/regras-preenchimento-completo.md`) e 3.6 (módulo opcional de estimativa eMulti). Pendência do usuário: cadastrar os valores de referência de 2026.
-7. Épico 2 (animações): stories 2.1 → 2.5.
+6. ~~3.3 (preenchimento automático)~~: **feita**. Falta testar no navegador. **Pendência do usuário:** cadastrar os valores de referência de 2026 em Menu → Valores de referência.
+7. Próxima: 3.6 (módulo opcional de estimativa eMulti).
+8. Épico 2 (animações): stories 2.1 → 2.5.
 
 Documentos:
 - `docs/prd/epic-3-preenchimento-automatico-e-lote.md`

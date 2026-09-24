@@ -11,7 +11,8 @@ import uvicorn
 
 from app.api.router import api_router
 from app.core.config import settings
-from app.core.database import init_db
+from app.core.database import async_session, init_db
+from app.services.valores_referencia import ValoresReferenciaService
 from app.utils.logger import logger
 
 
@@ -32,6 +33,9 @@ DEFAULT_CORS_ORIGINS = {
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    # Valores de referência iniciais (só grava chaves que ainda não existem)
+    async with async_session() as session:
+        await ValoresReferenciaService(session).semear_padrao()
     yield
 
 

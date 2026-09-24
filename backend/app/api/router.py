@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 
 from app.core.dependencies import get_current_authorized_user
 
-from app.api.endpoints import municipios, financiamento, municipios_editados, relatorios, edicoes, auth, users
+from app.api.endpoints import municipios, financiamento, municipios_editados, relatorios, edicoes, auth, users, preenchimento
 
 # Router principal
 api_router = APIRouter()
@@ -39,6 +39,13 @@ api_router.include_router(
     prefix="/relatorios",
     dependencies=requer_autorizacao,
     tags=["Relatórios"]
+)
+
+api_router.include_router(
+    preenchimento.router,
+    prefix="/preenchimento",
+    tags=["Preenchimento automático"],
+    dependencies=requer_autorizacao,
 )
 
 api_router.include_router(
