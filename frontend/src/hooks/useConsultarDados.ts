@@ -10,22 +10,16 @@ import { apiClient, queryKeys } from '../services/api';
 import { filtrarResumosMunicipais, useMunicipioStore } from '../stores/municipioStore';
 import type { DadosFinanciamento, MunicipioEditado, SugestaoAplicada } from '../types';
 import { descarregarAutosave } from './useAutoSave';
+import { mesmaSelecao, type Selecao } from '../utils/selecao';
 
 export const useConsultarDados = () => {
   const queryClient = useQueryClient();
-  const {
-    selectedMunicipio,
-    selectedCompetencia,
-    setLoading,
-    setError,
-    setDadosFinanciamento,
-    setDadosEditados,
-    setSugestoesAplicadas,
-  } = useMunicipioStore();
+  const { setLoading, setError, setDadosFinanciamento, setDadosEditados, setSugestoesAplicadas } =
+    useMunicipioStore();
 
   const mutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedMunicipio?.codigo_ibge || !selectedCompetencia) {
+    mutationFn: async ({ codigo_ibge, competencia }: Selecao) => {
+      if (!codigo_ibge || !competencia) {
         throw new Error('Parâmetros incompletos para consulta');
       }
 
@@ -33,26 +27,20 @@ export const useConsultarDados = () => {
       await descarregarAutosave();
 
       // 1) Buscar dados de financiamento
-      const dados: DadosFinanciamento = await apiClient.consultarDadosFinanciamento(
-        selectedMunicipio.codigo_ibge,
-        selectedCompetencia
-      );
+      const dados: DadosFinanciamento = await apiClient.consultarDadosFinanciamento(codigo_ibge, competencia);
 
       // 2) Tentar carregar dados editados
       let editados: MunicipioEditado | null = null;
       try {
-        editados = await apiClient.getMunicipioEditado(
-          selectedMunicipio.codigo_ibge,
-          selectedCompetencia
-        );
+        editados = await apiClient.getMunicipioEditado(codigo_ibge, competencia);
       } catch (err: any) {
         // Se não existir (404), iniciamos com zeros
         if (err?.error_code === '404') {
           // Mesmo tamanho da tabela: só os planos da esfera municipal
           const zeros = filtrarResumosMunicipais(dados.resumosPlanosOrcamentarios || []).map(() => 0);
           editados = {
-            codigo_ibge: selectedMunicipio.codigo_ibge,
-            competencia: selectedCompetencia,
+            codigo_ibge,
+            competencia,
             perda_recurso_mensal: zeros,
             data_edicao: new Date().toISOString(),
           };
@@ -68,18 +56,14 @@ export const useConsultarDados = () => {
       setLoading(true);
       setError(null);
     },
-    onSuccess: ({ dados, editados }) => {
+    onSuccess: ({ dados, editados }, selecao) => {
+      // O usuário trocou de município/competência enquanto esta consulta estava em andamento
+      const { selectedMunicipio: atualMun, selectedCompetencia: atualComp } = useMunicipioStore.getState();
+      if (!mesmaSelecao(selecao, { codigo_ibge: atualMun?.codigo_ibge ?? '', competencia: atualComp })) return;
+
       // Atualizar cache de queries relevantes
-      if (selectedMunicipio?.codigo_ibge && selectedCompetencia) {
-        queryClient.setQueryData(
-          queryKeys.financiamento(selectedMunicipio.codigo_ibge, selectedCompetencia),
-          dados
-        );
-        queryClient.setQueryData(
-          queryKeys.editado(selectedMunicipio.codigo_ibge, selectedCompetencia),
-          editados
-        );
-      }
+      queryClient.setQueryData(queryKeys.financiamento(selecao.codigo_ibge, selecao.competencia), dados);
+      queryClient.setQueryData(queryKeys.editado(selecao.codigo_ibge, selecao.competencia), editados);
 
       // Posições que vieram do cálculo automático (story 3.3): mantém a origem nas próximas gravações
       const sugestoes: Record<number, SugestaoAplicada> = {};
@@ -98,7 +82,11 @@ export const useConsultarDados = () => {
       setDadosFinanciamento(dados);
       setDadosEditados(editados);
     },
-    onError: (err: any) => {
+    onError: (err: any, selecao) => {
+      // O usuário trocou de município/competência: o erro não é mais relevante
+      const { selectedMunicipio: atualMun, selectedCompetencia: atualComp } = useMunicipioStore.getState();
+      if (!mesmaSelecao(selecao, { codigo_ibge: atualMun?.codigo_ibge ?? '', competencia: atualComp })) return;
+
       const message = err?.message || err?.details?.message || 'Erro ao consultar dados';
       setError(message);
     },
@@ -108,7 +96,10 @@ export const useConsultarDados = () => {
   });
 
   return {
-    consultar: () => mutation.mutate(),
+    consultar: () => {
+      const { selectedMunicipio: mun, selectedCompetencia: comp } = useMunicipioStore.getState();
+      mutation.mutate({ codigo_ibge: mun?.codigo_ibge ?? '', competencia: comp });
+    },
     isLoading: mutation.isPending,
     isSuccess: mutation.isSuccess,
     isError: mutation.isError,
