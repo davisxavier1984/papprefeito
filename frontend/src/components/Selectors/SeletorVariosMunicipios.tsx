@@ -3,7 +3,7 @@
  * Usado em Relatórios em lote.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, Select, Space, Tag, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient, queryKeys } from '../../services/api';
@@ -41,10 +41,12 @@ const SeletorVariosMunicipios: React.FC<Props> = ({ selecionados, onChange, comp
     staleTime: 1000 * 60 * 10,
   });
 
+  // Sugere a última competência uma única vez; depois o usuário pode apagar e digitar outra
+  const competenciaSugeridaRef = useRef(false);
   useEffect(() => {
-    if (!competencia && ultimaCompetencia?.competencia) {
-      onCompetenciaChange(ultimaCompetencia.competencia);
-    }
+    if (competenciaSugeridaRef.current || !ultimaCompetencia?.competencia) return;
+    competenciaSugeridaRef.current = true;
+    if (!competencia) onCompetenciaChange(ultimaCompetencia.competencia);
   }, [ultimaCompetencia, competencia, onCompetenciaChange]);
 
   const lista = useMemo(() => ordenarMunicipios(selecionados), [selecionados]);

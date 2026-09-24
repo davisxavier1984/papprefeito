@@ -10,7 +10,7 @@ import { Alert, App, Button, Card, Checkbox, Progress, Space, Typography } from 
 import { CheckCircleOutlined, DownloadOutlined } from '@ant-design/icons';
 import { apiClient } from '../services/api';
 import SeletorVariosMunicipios from '../components/Selectors/SeletorVariosMunicipios';
-import { competenciaValida, ordenarMunicipios } from '../utils/municipiosLote';
+import { competenciaValida, guardarLoteAtivo, lerLoteAtivo, ordenarMunicipios, statusMaisRecente } from '../utils/municipiosLote';
 import type { LoteStatus, MunicipioLote, TipoRelatorio } from '../types';
 
 const { Title, Text } = Typography;
@@ -34,36 +34,74 @@ const RelatoriosLote: React.FC = () => {
   const [competencia, setCompetencia] = useState('');
   const [tipos, setTipos] = useState<TipoRelatorio[]>(['prefeito']);
   const [lote, setLote] = useState<LoteStatus | null>(null);
+  const [iniciando, setIniciando] = useState(false);
   const baixadoRef = useRef<string | null>(null);
 
   const listaSelecionados = useMemo(() => ordenarMunicipios(selecionados), [selecionados]);
 
   const gerar = async () => {
+    if (iniciando) return;
+    setIniciando(true);
     try {
       baixadoRef.current = null;
-      setLote(await apiClient.criarLote({ competencia, tipos, municipios: listaSelecionados, sem_perdas: 'regras' }));
+      const novo = await apiClient.criarLote({ competencia, tipos, municipios: listaSelecionados, sem_perdas: 'regras' });
+      guardarLoteAtivo(novo.id);
+      setLote(novo);
     } catch {
       message.error('Não foi possível iniciar a geração dos relatórios.');
+    } finally {
+      setIniciando(false);
     }
   };
 
-  // Acompanha o andamento e baixa o ZIP ao terminar
+  // Retoma o acompanhamento de um lote iniciado antes de sair da página
   useEffect(() => {
-    if (!lote || lote.status !== 'processando') return;
-    const timer = window.setInterval(async () => {
+    const id = lerLoteAtivo();
+    if (!id) return;
+    apiClient
+      .statusLote(id)
+      .then((status) => setLote((atual) => atual ?? status))
+      .catch(() => guardarLoteAtivo(null));
+  }, []);
+
+  // Acompanha o andamento. Uma chamada por vez; respostas fora de ordem são ignoradas
+  // e só desiste depois de 3 falhas seguidas.
+  const loteId = lote?.id;
+  const loteStatus = lote?.status;
+  useEffect(() => {
+    if (!loteId || loteStatus !== 'processando') return;
+    let cancelado = false;
+    let falhas = 0;
+    let timer: number | undefined;
+    const acompanhar = async () => {
       try {
-        setLote(await apiClient.statusLote(lote.id));
+        const novo = await apiClient.statusLote(loteId);
+        falhas = 0;
+        if (!cancelado) setLote((atual) => statusMaisRecente(atual, novo));
       } catch {
-        message.error('Perdi o acompanhamento da geração. Gere novamente.');
-        setLote(null);
+        falhas += 1;
+        if (falhas >= 3) {
+          if (!cancelado) {
+            message.error('Perdi o acompanhamento da geração. Gere novamente.');
+            guardarLoteAtivo(null);
+            setLote(null);
+          }
+          return;
+        }
       }
-    }, 2000);
-    return () => window.clearInterval(timer);
-  }, [lote, message]);
+      if (!cancelado) timer = window.setTimeout(acompanhar, 2000);
+    };
+    timer = window.setTimeout(acompanhar, 2000);
+    return () => {
+      cancelado = true;
+      window.clearTimeout(timer);
+    };
+  }, [loteId, loteStatus, message]);
 
   useEffect(() => {
     if (!lote || lote.status !== 'concluido' || baixadoRef.current === lote.id) return;
     baixadoRef.current = lote.id;
+    guardarLoteAtivo(null);
     if (lote.arquivos === 0) {
       message.warning('Nenhum relatório foi gerado. Veja o motivo abaixo.');
       return;
@@ -76,6 +114,11 @@ const RelatoriosLote: React.FC = () => {
       })
       .catch(() => message.error('Os relatórios foram gerados, mas o download falhou. Tente baixar de novo.'));
   }, [lote, message]);
+
+  // Lote terminou com erro: para de tentar retomar ao voltar à página
+  useEffect(() => {
+    if (lote?.status === 'erro') guardarLoteAtivo(null);
+  }, [lote?.status]);
 
   const baixarNovamente = () => {
     if (!lote) return;
@@ -119,7 +162,13 @@ const RelatoriosLote: React.FC = () => {
             ]}
           />
           <Space wrap>
-            <Button type="primary" icon={<DownloadOutlined />} onClick={gerar} loading={gerando} disabled={!podeGerar}>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={gerar}
+              loading={iniciando || gerando}
+              disabled={!podeGerar || iniciando}
+            >
               Gerar {listaSelecionados.length * tipos.length} relatório(s)
             </Button>
             {!tipos.length && <Text type="danger">Escolha ao menos um tipo de relatório.</Text>}
