@@ -124,12 +124,21 @@ Outros achados:
 - **Migração:** `backend/scripts/migrar_itens_perda.py` rotula 235 dos 241 registros com o nome do plano, usando o cache do Ministério. Por padrão só gera `<arquivo>.com_itens.json`; com `--aplicar`, faz backup e substitui. **Ainda não foi aplicada** nos dados de produção.
 - **Testado** em processo com cópia dos dados: formato antigo compatível, itens incoerentes → 422, histórico com usuário, rota sem token → 403, JSON manteve as 241 entradas.
 
-### Story 3.3: Preenchimento automático na tela
-- Ao consultar um município, o backend calcula as perdas com as regras aprovadas na 3.1 (ACS e eSF) e a tabela já vem preenchida, sem cálculo nem digitação.
-- Cada célula mostra a origem ("calculado" ou "ajustado por você") e, se o usuário alterar, o valor sugerido fica visível (gravado em `itens[].valor_sugerido` da 3.2).
-- eMulti: vem do módulo da story 3.6, se o usuário optar por ele.
-- Planos sem regra (Saúde Bucal e demais) ficam em branco, destacados como "preencher manualmente".
-- **AC:** para municípios do histórico, o valor calculado bate com o que o usuário havia informado, na taxa medida na 3.1.
+### Story 3.3: Preenchimento automático na tela (regras definidas em entrevista)
+**Especificação completa:** `docs/analises/regras-preenchimento-completo.md` (entrevista de 24/09/2026).
+- **Princípio:** estimar o que o município **poderia ter** a partir do que o Ministério informa, e não reproduzir valores antigos.
+- Botão **"Preencher automaticamente"** no Dashboard. Nada é sobrescrito sem o usuário pedir, e ele revisa antes de salvar.
+- **eSF:** ganho até ÓTIMO nas equipes pagas + equipes novas (até 2 faltando: todas; mais: ⌈diferença ÷ 3⌉). Campo para a constante R$ 14.058 (padrão 0 vezes).
+- **ACS:** (teto − pagos) × valor por ACS.
+- **Saúde Bucal:** qualidade até ÓTIMO + eSB novas até o teto + SESB (se ≤ 20 mil hab. e ainda não recebe). UOM, LRPD e CEO como opcionais.
+- **eMulti:** via módulo da story 3.6 (opcional).
+- Demais planos: zero, destacados.
+- **Tabela de valores de referência por competência** (tela de administração), com 2025 já preenchido. Os valores de 2026 são cadastrados pelo usuário.
+- Cada valor preenchido é gravado com `origem: "regra"`, `regra_id` e `valor_sugerido` (3.2).
+- **AC:**
+  - para municípios do histórico, a Saúde Bucal calculada com os mesmos componentes bate com o valor informado, como medido na análise;
+  - nenhum valor salvo muda sem o usuário clicar em "Preencher" e salvar;
+  - uma competência sem valores cadastrados usa a vigência anterior e avisa.
 
 ### Story 3.4: Seleção de vários municípios para relatórios ✅ FEITA
 **Implementado:** página `/relatorios-lote` (`frontend/src/pages/RelatoriosLote.tsx`), com acesso pelo menu do usuário ("Relatórios em lote") e pelo botão "Vários municípios" no Dashboard. Seleção acumulada entre UFs, "selecionar todos da UF", competência, tipos, opção para municípios sem perdas e conferência (`POST /api/relatorios/lote/conferencia`). A opção (b) "usar regras" fica para depois da 3.3/3.6.
