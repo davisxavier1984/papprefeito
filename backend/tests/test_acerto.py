@@ -48,3 +48,13 @@ def test_contar_preenchidos_demais_e_promocao():
     c = contar_preenchidos(itens)
     assert c['Demais programas'] == {'registros': 2, 'preenchidos': 1}
     assert c['Incentivo financeiro da APS - Promoção'] == {'registros': 1, 'preenchidos': 1}
+
+
+def test_montar_acerto():
+    from app.api.endpoints.preenchimento import montar_acerto
+    entradas = [([_sug('acs', 6484)], [{'plano': 'Agentes Comunitários de Saúde', 'valor': 6484, 'origem': 'manual'}])]
+    r = montar_acerto(entradas, [e[1] for e in entradas], '202512', sem_resposta=2)
+    acs = next(p for p in r.planos if p.tipo == 'acs')
+    assert (acs.registros, acs.exatos, acs.plano) == (1, 1, 'ACS')
+    assert r.sem_resposta == 2 and r.desde == '202512'
+    assert {m.plano for m in r.manuais} == {'Demais programas', 'Incentivo financeiro da APS - Promoção'}

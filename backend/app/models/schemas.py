@@ -646,3 +646,52 @@ class EstimativaEmulti(BaseModel):
     indice_plano: Optional[int] = Field(None, description="Posição do plano eMulti na tabela")
     plano: Optional[str] = None
     aviso: Optional[str] = None
+
+
+# === Municípios parecidos e acerto do automático (story 3.7) ===
+
+class ExemploParecido(BaseModel):
+    codigo_ibge: str
+    competencia: str
+    municipio: str
+    uf: str
+    valor: float
+    distancia: float
+
+
+class PlanoParecidos(BaseModel):
+    indice: int = Field(..., description="Posição do plano na tabela")
+    plano: str
+    mediana: Optional[float] = None
+    exemplos: List[ExemploParecido] = Field(default_factory=list)
+
+
+class ParecidosResposta(BaseModel):
+    codigo_ibge: str
+    competencia: str
+    planos: List[PlanoParecidos]
+
+
+class MetricasPlano(BaseModel):
+    tipo: str
+    plano: str
+    registros: int
+    exatos: int
+    erro_mediano: Optional[float] = None
+    dentro_25: int
+    zero_certo: int
+    razao_soma: Optional[float] = None
+    alerta: bool
+
+
+class PreenchidosPlano(BaseModel):
+    plano: str
+    registros: int
+    preenchidos: int
+
+
+class AcertoResposta(BaseModel):
+    desde: str
+    planos: List[MetricasPlano]
+    manuais: List[PreenchidosPlano]
+    sem_resposta: int = Field(..., description="Registros sem resposta do Ministério guardada")

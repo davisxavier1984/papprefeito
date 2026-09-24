@@ -11,22 +11,89 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.dependencies import get_current_superuser, get_valores_service
+from app.core.dependencies import get_current_superuser, get_respostas_service, get_valores_service
 from app.models.schemas import (
+    AcertoResposta,
     EstimativaEmulti,
+    ExemploParecido,
+    MetricasPlano,
+    ParecidosResposta,
+    PlanoParecidos,
+    PreenchidosPlano,
     SugestaoResposta,
     User,
     ValorReferencia,
     ValorReferenciaCreate,
 )
 from app.services import emulti_estimativa
+from app.services.acerto import PLANOS_ACERTO, comparar, contar_preenchidos, metricas
+from app.services.municipios_editados import municipio_editado_service
+from app.services.parecidos import PREFIXOS_PARECIDOS, mediana, parecidos, perfil
 from app.services.relatorios_service import DadosNaoEncontrados
 from app.services.api_client import saude_api_client
-from app.services.regras_perda import sugerir
+from app.services.regras_perda import filtrar_resumos_municipais, sugerir
+from app.services.respostas_ministerio import RespostasMinisterioService
 from app.services.valores_referencia import ANO_CONFIRMADO_INICIAL, CATALOGO, VIGENCIA_INICIAL, ValoresReferenciaService
 from app.utils.logger import logger
 
 router = APIRouter()
+
+
+def _itens(editado) -> List[dict]:
+    """Converte os itens de um MunicipioEditado em dicts (aceita Pydantic ou dict)."""
+    return [i.model_dump() if hasattr(i, 'model_dump') else dict(i) for i in (editado.itens or [])]
+
+
+def montar_parecidos(codigo_ibge: str, competencia: str, dados: dict, historico) -> ParecidosResposta:
+    """Para cada plano municipal de 'Demais' ou 'Promoção', os municípios parecidos preenchidos à mão."""
+    alvo = perfil(dados)
+    planos: List[PlanoParecidos] = []
+    for indice, resumo in enumerate(filtrar_resumos_municipais(dados.get('resumosPlanosOrcamentarios') or [])):
+        nome = resumo.get('dsPlanoOrcamentario') or ''
+        prefixo = next((p for p in PREFIXOS_PARECIDOS if nome.startswith(p)), None)
+        if not prefixo:
+            continue
+        exemplos = parecidos(codigo_ibge, alvo, historico, prefixo) if alvo else []
+        planos.append(PlanoParecidos(indice=indice, plano=nome, mediana=mediana(exemplos),
+                                     exemplos=[ExemploParecido(**vars(e)) for e in exemplos]))
+    return ParecidosResposta(codigo_ibge=codigo_ibge, competencia=competencia, planos=planos)
+
+
+def montar_acerto(entradas, itens_por_registro, desde: str, sem_resposta: int) -> AcertoResposta:
+    """Métricas de acerto do automático (por plano) e quanto o consultor preencheu à mão."""
+    pares = comparar(entradas)
+    planos = [MetricasPlano(tipo=tipo, plano=rotulo, **metricas(pares[tipo]))
+              for tipo, (rotulo, _) in PLANOS_ACERTO.items()]
+    manuais = [PreenchidosPlano(plano=p, **c) for p, c in contar_preenchidos(itens_por_registro).items()]
+    return AcertoResposta(desde=desde, planos=planos, manuais=manuais, sem_resposta=sem_resposta)
+
+
+@router.get("/acerto", response_model=AcertoResposta)
+async def acerto_automatico(
+    desde: str = Query("202512", pattern=r"^\d{6}$"),
+    current_user: User = Depends(get_current_superuser),
+    valores_service: ValoresReferenciaService = Depends(get_valores_service),
+    respostas_service: RespostasMinisterioService = Depends(get_respostas_service),
+):
+    """Quanto a regra atual se aproxima do que o consultor informou à mão (só leitura)."""
+    editados = [e for e in municipio_editado_service.get_all_editados() if e.competencia >= desde and e.itens]
+    respostas = await respostas_service.todas()
+    valores_por_comp: dict = {}
+    entradas, sem_resposta = [], 0
+    for e in editados:
+        dados = respostas.get((e.codigo_ibge, e.competencia))
+        if not dados or not dados.get('pagamentos'):
+            sem_resposta += 1
+            continue
+        if e.competencia not in valores_por_comp:
+            valores_por_comp[e.competencia] = await valores_service.vigentes(e.competencia)
+        try:
+            sugestoes = sugerir(dados, valores_por_comp[e.competencia])
+        except KeyError:
+            sem_resposta += 1
+            continue
+        entradas.append((sugestoes, _itens(e)))
+    return montar_acerto(entradas, [_itens(e) for e in editados], desde, sem_resposta)
 
 
 @router.get("/{codigo_ibge}/{competencia}/sugestao", response_model=SugestaoResposta)
@@ -58,6 +125,28 @@ async def sugestao_preenchimento(
                  f"usando os de {ano_coberto}. Atualize em Valores de referência.")
     return SugestaoResposta(codigo_ibge=codigo_ibge, competencia=competencia, planos=planos,
                             vigencia_mais_antiga=mais_antiga, aviso=aviso)
+
+
+@router.get("/{codigo_ibge}/{competencia}/parecidos", response_model=ParecidosResposta)
+async def municipios_parecidos(
+    codigo_ibge: str,
+    competencia: str,
+    respostas_service: RespostasMinisterioService = Depends(get_respostas_service),
+):
+    """Como o consultor preencheu Demais e Promoção em municípios parecidos (só leitura)."""
+    dados = await respostas_service.obter(codigo_ibge, competencia)
+    if not dados:
+        dados = await saude_api_client.consultar_financiamento(codigo_ibge, competencia)
+    if not dados or not dados.get('resumosPlanosOrcamentarios'):
+        raise HTTPException(status_code=404, detail="Sem dados de financiamento do Ministério para este município")
+    respostas = await respostas_service.todas()
+    historico = []
+    for e in municipio_editado_service.get_all_editados():
+        resposta = respostas.get((e.codigo_ibge, e.competencia))
+        perf = perfil(resposta) if resposta else None
+        if perf and e.itens:
+            historico.append((e.codigo_ibge, e.competencia, perf, _itens(e)))
+    return montar_parecidos(codigo_ibge, competencia, dados, historico)
 
 
 def _publico(row) -> ValorReferencia:

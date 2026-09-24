@@ -58,3 +58,22 @@ def test_parecidos_so_manual_positivo_outro_municipio_e_ordenado():
 
 def test_mediana_vazia():
     assert mediana([]) is None
+
+
+def test_montar_parecidos_usa_posicao_dos_planos_municipais():
+    from app.api.endpoints.preenchimento import montar_parecidos
+    dados = {
+        'pagamentos': [{'qtPopulacao': 10000, 'qtEsfTotalPgto': 4, 'sgUf': 'BA', 'noMunicipio': 'Alvo'}],
+        'resumosPlanosOrcamentarios': [
+            {'dsPlanoOrcamentario': 'Equipes de Saúde da Família - eSF e equipes de Atenção Primária - eAP',
+             'dsEsferaAdministrativa': 'MUNICIPAL', 'vlIntegral': 1},
+            {'dsPlanoOrcamentario': 'Demais programas, serviços e equipes da Atenção Primária à Saúde',
+             'dsEsferaAdministrativa': 'MUNICIPAL', 'vlIntegral': 0},
+            {'dsPlanoOrcamentario': 'Incentivo financeiro da APS - Promoção à saúde',
+             'dsEsferaAdministrativa': 'MUNICIPAL', 'vlIntegral': 0},
+        ],
+    }
+    hist = [('111111', '202606', perfil(_resposta(10000, 4, nome='Boninal')), _itens(19900))]
+    r = montar_parecidos('999999', '202606', dados, hist)
+    assert [(p.indice, p.mediana) for p in r.planos] == [(1, 19900), (2, None)]
+    assert r.planos[0].exemplos[0].municipio == 'Boninal'
