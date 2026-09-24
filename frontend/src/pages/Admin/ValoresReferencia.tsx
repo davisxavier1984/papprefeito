@@ -23,7 +23,7 @@ const ValoresReferencia: React.FC = () => {
   const [form] = Form.useForm<ValorReferenciaCreate>();
   const [filtro, setFiltro] = useState('');
 
-  const { data: valores = [], isLoading } = useQuery({
+  const { data: valores = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['valores-referencia'],
     queryFn: () => apiClient.listarValoresReferencia(),
   });
@@ -136,6 +136,18 @@ const ValoresReferencia: React.FC = () => {
 
       <Card>
         <Space direction="vertical" style={{ width: '100%' }}>
+          {isError && (
+            <Alert
+              type="error"
+              showIcon
+              message="Não foi possível carregar os valores de referência. O cadastro fica indisponível até carregar."
+              action={
+                <Button size="small" onClick={() => refetch()}>
+                  Tentar novamente
+                </Button>
+              }
+            />
+          )}
           <Input.Search placeholder="Filtrar parâmetros" allowClear onChange={(e) => setFiltro(e.target.value)} style={{ maxWidth: 360 }} />
           <Table
             size="small"

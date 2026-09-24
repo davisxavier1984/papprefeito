@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Checkbox, InputNumber, Modal, Space, Spin, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Checkbox, Empty, InputNumber, Modal, Space, Spin, Tag, Typography } from 'antd';
 import { apiClient } from '../../services/api';
 import { useMunicipioStore } from '../../stores/municipioStore';
 import type { PlanoSugestao, SugestaoAplicada } from '../../types';
@@ -44,17 +44,30 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
 
   useEffect(() => {
     if (!open || !selectedMunicipio?.codigo_ibge || !selectedCompetencia) return;
+    // Cada abertura começa do zero: nada da busca anterior fica na tela se esta falhar
+    let atual = true;
     setCarregando(true);
     setErro(null);
+    setAviso(null);
+    setPlanos([]);
+    setSelecionados({});
     apiClient
       .getSugestaoPreenchimento(selectedMunicipio.codigo_ibge, selectedCompetencia)
       .then((r) => {
+        if (!atual) return;
         setPlanos(r.planos);
         setAviso(r.aviso ?? null);
         setSelecionados(Object.fromEntries(r.planos.filter((p) => p.aplicavel).map((p) => [p.indice, true])));
       })
-      .catch((e) => setErro(e?.message || 'Não foi possível calcular a sugestão.'))
-      .finally(() => setCarregando(false));
+      .catch((e) => {
+        if (atual) setErro(e?.message || 'Não foi possível calcular a sugestão.');
+      })
+      .finally(() => {
+        if (atual) setCarregando(false);
+      });
+    return () => {
+      atual = false;
+    };
   }, [open, selectedMunicipio?.codigo_ibge, selectedCompetencia]);
 
   const alterarComponente = (indice: number, id: string, mudanca: { incluido?: boolean; quantidade?: number }) =>
@@ -118,8 +131,12 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
         {erro && <Alert type="error" showIcon message={erro} />}
         {carregando ? (
           <div style={{ textAlign: 'center', padding: 32 }}>
-            <Spin />
+            <Spin tip="Calculando a sugestão…">
+              <div style={{ minHeight: 48 }} />
+            </Spin>
           </div>
+        ) : !erro && planos.length === 0 ? (
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Nenhum plano com cálculo automático para este município." />
         ) : (
           planos.map((p) => {
             const total = totalDoPlano(p);
