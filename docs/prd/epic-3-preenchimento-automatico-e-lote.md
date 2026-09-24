@@ -106,6 +106,12 @@ Outros achados:
 4. **Entregável:** `docs/analises/regras-perda-ministerio.md`, com a tabela de acerto por plano, as regras aprovadas, os valores unitários encontrados (e em que portaria se baseiam, se identificável) e as perguntas para o usuário.
 - **Critério para seguir:** regra com ≥ 90% de acerto entra como automática. Entre 60% e 90%, entra como sugestão destacada para revisar. Abaixo de 60%, o plano continua manual.
 
+### Story 3.1b: Spike: eMulti limitada pelos profissionais do CNES
+- Reaproveitar do repositório `maisprofissionais` os módulos `cnes_utils.py` (API CNES web, que exige o header `Referer`) e `emulti_utils.py` (Portaria 635/2023, composição fixa/variável e mapeamento de CBO).
+- Para cerca de 20 municípios do histórico: T (eSF + eAP) → combinação que cobre as equipes → limitar pela CH e pelas categorias disponíveis no CNES → comparar com a perda informada.
+- **Entregável:** taxa de acerto e regra final da eMulti, acrescentadas a `docs/analises/regras-perda-ministerio.md`.
+- **Decisão técnica a tomar:** copiar os módulos para `backend/app/services/cnes/` ou empacotar o `maisprofissionais` como dependência.
+
 ### Story 3.2: Registro estruturado e histórico das perdas
 - Gravar, para cada plano, `{dsPlanoOrcamentario, valor, origem: "regra"|"manual", regra_id, valor_sugerido}`, e não mais só o array posicional.
 - Manter compatibilidade: o array atual continua sendo lido e os PDFs continuam funcionando. Migração com script que lê o JSON existente, **sem apagá-lo**.

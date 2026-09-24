@@ -10,7 +10,7 @@
 |---|---|---|---|
 | **ACS** | (ACS credenciados − ACS pagos) × **R$ 3.242** | Desde 202512: 80% são múltiplos de 3.242, 76% ficam a ±2 ACS da regra e 39% batem exato | **Sugestão automática** (60–90%) |
 | **eSF/eAP** | equipes pagas × **R$ 4.000** + equipes novas até o teto × (fixo do estrato + R$ 16.000) | 39% exato (até 202510) e 30% (desde 202512) | **Sugestão automática**, com a quantidade de equipes novas ajustável |
-| **eMulti** | Equipes novas dentro do teto × custeio da modalidade (12k/24k/36k), às vezes com qualidade BOM (+18,75%) | Não é determinística: o usuário escolhe quantas equipes | **Sugestão guiada**: o usuário escolhe a quantidade por modalidade e o sistema calcula o valor |
+| **eMulti** | Combinação de equipes (Portaria 635/2023: Estratégica 1–4, Complementar 5–9, Ampliada 10–12 eSF/eAP) cobrindo as T equipes, limitada pelos profissionais disponíveis no CNES | Coerente com o teto; a variação é explicada pelo CNES (a validar na 3.1b) | **Sugestão automática** usando a lógica do `maisprofissionais` |
 | **Saúde Bucal** | Não encontrada (valor por equipe varia de R$ 900 a R$ 19 mil; às vezes entram CEO e UOM) | — | **Manual** até conversar com o usuário |
 | Demais, Manutenção, Promoção | Não encontrada (raros) | — | **Manual** |
 
@@ -48,12 +48,32 @@ Nas competências até 202510, as perdas eram mais "no olho" (100 mil, 80 mil, 1
 - Aparece um componente recorrente de **R$ 14.058** (e 28.116, 42.174) somado em vários municípios (292260, 292273, 292540, 292575, 291210, 291350, 291060). **Pergunta para o usuário:** o que é esse valor? Uma eAP nova? Algum incentivo?
 - Nas competências de 2026 (TO), aparecem R$ 6.000 por equipe em vez de 4.000 (170130, 170307). Pode ser uma classificação diferente de BOM.
 
-### eMulti
-- É a expansão do número de equipes dentro do teto, e **quem decide a quantidade é o usuário**. Municípios com o mesmo teto (1/2/10) aparecem com 36, 48 ou 60 mil.
-- Exemplos coerentes:
-  - 291480: 3 ampliadas pagas, teto 5 → 2 × 36.000;
-  - 290310: 1 credenciada e 0 paga → 12.000;
-  - 172049_202606: 14.250 = 12.000 + 2.250 (estratégica nova com qualidade BOM).
+### eMulti (revisado com o repositório `maisprofissionais`)
+**Regra da Portaria GM/MS 635/2023** (ver `emulti_utils.py` em github.com/davisxavier1984/maisprofissionais): a modalidade depende de **quantas eSF/eAP a eMulti vincula**.
+
+| Modalidade | eSF/eAP vinculadas | CH mínima da equipe | Custeio/mês | Composição fixa |
+|---|---|---|---|---|
+| Estratégica | 1 a 4 | 100 h | R$ 12.000 | Nutricionista ou Psicólogo |
+| Complementar | 5 a 9 | 200 h | R$ 24.000 | Grupo 1 (Assist. Social, Farmacêutico Clínico, Nutricionista, Psicólogo) + Grupo 2 (Fisio, Fono, Ed. Física, TO) |
+| Ampliada | 10 a 12 | 300 h | R$ 36.000 | Igual à Complementar |
+
+**Confirmado nos dados:** o teto que o Ministério devolve é `teto Estratégica = T`, `teto Complementar = ⌊T/5⌋` e `teto Ampliada = ⌊T/10⌋`, com T = eSF + eAP credenciadas. São **alternativas**, e não se somam. Exemplos:
+- T = 10 → teto (1, 2, 10);
+- T = 21 → teto (2, 4, 21);
+- T = 54 → teto (5, 10, 54).
+
+**O que o usuário faz:** escolhe uma **combinação de equipes** que cobre as T equipes (ex.: T = 21 e nenhuma eMulti → 4 Complementares = 96.000, igual em 290460 e 293070; T = 10–12 sem eMulti → 2 Complementares = 48.000 na maioria dos casos). A perda é **combinação alvo − custeio atual**.
+
+**Por que municípios com o mesmo T recebem valores diferentes:** a combinação depende de **haver profissionais no CNES** para compor as equipes (CH mínima e composição fixa). É justamente o que o `maisprofissionais` verifica, com a API do CNES web e a base do FTP. Por isso a regra da eMulti não aparece só com os dados de pagamento.
+
+**Regra proposta para a story 3.3:**
+1. Calcular T (eSF + eAP) a partir dos pagamentos.
+2. Gerar a combinação que cobre as T equipes, preferindo Complementar (5–9) e completando com Estratégica/Ampliada, respeitando o teto.
+3. **Limitar pela disponibilidade no CNES:** reaproveitar `cnes_utils.coletar_municipio` + `emulti_utils.construir_indice_cbo` do `maisprofissionais` para checar se há CH e categorias para cada equipe.
+4. Perda = custeio da combinação − custeio atual (+ qualidade BOM de 18,75% quando o usuário a inclui, como em 172049_202606: 12.000 + 2.250).
+5. O usuário pode trocar a combinação na tela, e o sistema recalcula o valor.
+
+**Próximo passo (spike 3.1b):** rodar a coleta do CNES para cerca de 20 municípios do histórico e medir se "combinação limitada pelo CNES" reproduz o valor informado.
 
 ### Saúde Bucal
 - Não há relação simples com o número de equipes nem com o valor por equipe. Como 77% dos valores têm centavos, o cálculo deve ser proporcional (qualidade, CEO, UOM, LRPD). **É preciso perguntar ao usuário como calcula.**
@@ -68,7 +88,7 @@ Nas competências até 202510, as perdas eram mais "no olho" (100 mil, 80 mil, 1
 ## Perguntas para o usuário (antes da story 3.3)
 1. eSF: o que é o valor de **R$ 14.058** que aparece somado em vários municípios?
 2. eSF: qual o critério para limitar as equipes novas quando o teto é muito maior do que o número de equipes atual?
-3. eMulti: qual o critério para decidir quantas equipes novas, e de que modalidade?
+3. eMulti: a combinação é limitada pelos profissionais disponíveis no CNES (lógica do `maisprofissionais`)? Existe outro critério?
 4. Saúde Bucal: como você calcula a perda?
 5. ACS: nos municípios grandes (292740, 354780, 352310, 310350), você usou o teto de ACS em vez dos credenciados?
 6. Em 2026, a eSF passou a R$ 6.000 por equipe em alguns municípios de TO: foi outra classificação?
