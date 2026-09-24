@@ -18,6 +18,8 @@ import type {
   LoteRequest,
   LoteStatus,
   SugestaoResposta,
+  ParecidosResposta,
+  AcertoResposta,
   ValorReferencia,
   ValorReferenciaCreate
 } from '../types';
@@ -234,6 +236,18 @@ class ApiClient {
     const response = await this.client.get<SugestaoResposta>(
       `/preenchimento/${codigoIbge}/${competencia}/sugestao`
     );
+    return response.data;
+  }
+
+  async getParecidos(codigoIbge: string, competencia: string): Promise<ParecidosResposta> {
+    const response = await this.client.get<ParecidosResposta>(
+      `/preenchimento/${codigoIbge}/${competencia}/parecidos`
+    );
+    return response.data;
+  }
+
+  async getAcerto(desde: string): Promise<AcertoResposta> {
+    const response = await this.client.get<AcertoResposta>('/preenchimento/acerto', { params: { desde } });
     return response.data;
   }
 

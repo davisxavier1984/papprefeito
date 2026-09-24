@@ -9,7 +9,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Checkbox, Empty, InputNumber, Modal, Space, Spin, Tag, Typography } from 'antd';
 import { apiClient } from '../../services/api';
 import { useMunicipioStore } from '../../stores/municipioStore';
-import type { PlanoSugestao, SugestaoAplicada } from '../../types';
+import type { PlanoParecidos, PlanoSugestao, SugestaoAplicada } from '../../types';
+import { REGRA_PARECIDOS, resumoParecidos } from '../../utils/parecidos';
 
 const { Text } = Typography;
 
@@ -41,6 +42,8 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
   const [aviso, setAviso] = useState<string | null>(null);
   const [planos, setPlanos] = useState<PlanoSugestao[]>([]);
   const [selecionados, setSelecionados] = useState<Record<number, boolean>>({});
+  const [parecidos, setParecidos] = useState<Record<number, PlanoParecidos>>({});
+  const [usarMediana, setUsarMediana] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     if (!open || !selectedMunicipio?.codigo_ibge || !selectedCompetencia) return;
@@ -51,6 +54,8 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
     setAviso(null);
     setPlanos([]);
     setSelecionados({});
+    setParecidos({});
+    setUsarMediana({});
     apiClient
       .getSugestaoPreenchimento(selectedMunicipio.codigo_ibge, selectedCompetencia)
       .then((r) => {
@@ -65,6 +70,13 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
       .finally(() => {
         if (atual) setCarregando(false);
       });
+    // Municípios parecidos são um complemento; falha aqui não deve travar o modal
+    apiClient
+      .getParecidos(selectedMunicipio.codigo_ibge, selectedCompetencia)
+      .then((r) => {
+        if (atual) setParecidos(Object.fromEntries(r.planos.map((p) => [p.indice, p])));
+      })
+      .catch(() => undefined);
     return () => {
       atual = false;
     };
@@ -81,6 +93,9 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
 
   const valorAtual = (indice: number) => dadosProcessados[indice]?.perda_recurso_mensal ?? 0;
   const aplicaveis = useMemo(() => planos.filter((p) => p.aplicavel && selecionados[p.indice]), [planos, selecionados]);
+  const quantidadeAplicar =
+    aplicaveis.length +
+    Object.entries(usarMediana).filter(([i, u]) => u && parecidos[Number(i)]?.mediana != null).length;
 
   const aplicar = () => {
     const { dadosEditados, sugestoesAplicadas, setDadosEditados, setSugestoesAplicadas } =
@@ -100,6 +115,14 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
         valor_aplicado: total,
       };
     }
+    // Mediana dos municípios parecidos (Demais e Promoção), só onde o consultor escolheu usar
+    for (const [indice, usar] of Object.entries(usarMediana)) {
+      const i = Number(indice);
+      const valor = parecidos[i]?.mediana;
+      if (!usar || valor == null || i >= perdas.length) continue;
+      perdas[i] = valor;
+      sugestoes[i] = { regra_id: REGRA_PARECIDOS, valor_sugerido: valor, valor_aplicado: valor };
+    }
     setSugestoesAplicadas(sugestoes);
     setDadosEditados({ ...dadosEditados, perda_recurso_mensal: perdas, data_edicao: new Date().toISOString() });
     onAplicado();
@@ -116,8 +139,8 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
         <Button key="cancelar" onClick={onClose}>
           Cancelar
         </Button>,
-        <Button key="aplicar" type="primary" onClick={aplicar} disabled={carregando || !aplicaveis.length}>
-          Aplicar {aplicaveis.length} plano(s) na tabela
+        <Button key="aplicar" type="primary" onClick={aplicar} disabled={carregando || !quantidadeAplicar}>
+          Aplicar {quantidadeAplicar} plano(s) na tabela
         </Button>,
       ]}
     >
@@ -161,6 +184,11 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
                     <Space>
                       <Text type="secondary">{moeda.format(valorAtual(p.indice))} →</Text>
                       <Text strong>{moeda.format(total)}</Text>
+                    </Space>
+                  ) : usarMediana[p.indice] ? (
+                    <Space>
+                      <Text type="secondary">{moeda.format(valorAtual(p.indice))} →</Text>
+                      <Text strong>{moeda.format(parecidos[p.indice]?.mediana ?? 0)}</Text>
                     </Space>
                   ) : (
                     <Text type="secondary">mantém {moeda.format(valorAtual(p.indice))}</Text>
@@ -206,7 +234,25 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
                     ))}
                   </Space>
                 ) : (
-                  <Text type="secondary">{p.observacao}</Text>
+                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                    <Text type="secondary">{p.observacao}</Text>
+                    {parecidos[p.indice] &&
+                      (parecidos[p.indice].exemplos.length ? (
+                        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                          <Text type="secondary">
+                            Municípios parecidos: {resumoParecidos(parecidos[p.indice].exemplos, moeda)}
+                          </Text>
+                          <Checkbox
+                            checked={!!usarMediana[p.indice]}
+                            onChange={(e) => setUsarMediana((u) => ({ ...u, [p.indice]: e.target.checked }))}
+                          >
+                            Usar a mediana: {moeda.format(parecidos[p.indice].mediana ?? 0)}
+                          </Checkbox>
+                        </Space>
+                      ) : (
+                        <Text type="secondary">Sem histórico parecido.</Text>
+                      ))}
+                  </Space>
                 )}
               </Card>
             );

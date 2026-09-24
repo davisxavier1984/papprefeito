@@ -510,6 +510,57 @@ export interface SugestaoAplicada {
   valor_aplicado: number;
 }
 
+// ================================
+// Municípios parecidos e acerto do automático (story 3.7)
+// ================================
+
+export interface ExemploParecido {
+  codigo_ibge: string;
+  competencia: string;
+  municipio: string;
+  uf: string;
+  valor: number;
+  distancia: number;
+}
+
+export interface PlanoParecidos {
+  indice: number;
+  plano: string;
+  mediana?: number | null;
+  exemplos: ExemploParecido[];
+}
+
+export interface ParecidosResposta {
+  codigo_ibge: string;
+  competencia: string;
+  planos: PlanoParecidos[];
+}
+
+export interface MetricasPlano {
+  tipo: string;
+  plano: string;
+  registros: number;
+  exatos: number;
+  erro_mediano?: number | null;
+  dentro_25: number;
+  zero_certo: number;
+  razao_soma?: number | null;
+  alerta: boolean;
+}
+
+export interface PreenchidosPlano {
+  plano: string;
+  registros: number;
+  preenchidos: number;
+}
+
+export interface AcertoResposta {
+  desde: string;
+  planos: MetricasPlano[];
+  manuais: PreenchidosPlano[];
+  sem_resposta: number;
+}
+
 export interface ValorReferencia {
   id: number;
   chave: string;
