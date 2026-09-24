@@ -12,8 +12,7 @@ import {
   TeamOutlined,
   DashboardOutlined,
   FileZipOutlined,
-  TableOutlined,
-  CalculatorOutlined
+  TableOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMunicipioInfo } from '../../stores/municipioStore';
@@ -46,12 +45,6 @@ const Header: React.FC = () => {
       icon: <FileZipOutlined />,
       label: 'Relatórios em lote',
       onClick: () => navigate('/relatorios-lote')
-    },
-    {
-      key: 'estimativa-emulti',
-      icon: <CalculatorOutlined />,
-      label: 'Estimativa eMulti',
-      onClick: () => navigate('/estimativa-emulti')
     },
     {
       key: 'profile',

@@ -152,7 +152,9 @@ Outros achados:
   - nenhum valor salvo muda sem o usuário clicar em "Preencher" e salvar;
   - uma competência sem valores cadastrados usa a vigência anterior e avisa.
 
-### Story 3.4: Seleção de vários municípios para relatórios ✅ FEITA
+### Story 3.4: Seleção de vários municípios para relatórios ✅ FEITA (simplificada em 24/09/2026)
+**Revisão após o uso:** a conferência de "perdas salvas" e as opções para municípios sem perdas foram **removidas da tela**, porque confundiam. A regra agora é única: usa os valores revisados no Dashboard e, se não houver na competência, calcula automaticamente (eSF, SB, ACS e eMulti) e salva. A tela mostra só "N com valores calculados agora", e o `erros.txt` lista apenas falhas reais.
+
 **Implementado:** página `/relatorios-lote` (`frontend/src/pages/RelatoriosLote.tsx`), com acesso pelo menu do usuário ("Relatórios em lote") e pelo botão "Vários municípios" no Dashboard. Seleção acumulada entre UFs, "selecionar todos da UF", competência, tipos, opção para municípios sem perdas e conferência (`POST /api/relatorios/lote/conferencia`). A opção "calcular pelas regras" (padrão) calcula as perdas dos municípios sem perdas salvas com o motor da 3.3, salva com origem `regra` e registra no histórico. A eMulti fica zerada.
 
 **Objetivo (definido pelo usuário):** selecionar vários municípios de uma vez para **gerar os relatórios**, escolhendo o tipo: **"Relatório PAP Prefeito"** (`/relatorios/pdf`) ou **"Relatório Detalhado"**/completo (`/relatorios/pdf-detalhado`).
@@ -180,16 +182,16 @@ Outros achados:
   - uma falha num município não derruba o lote (vai para um `erros.txt` dentro do ZIP);
   - o tipo escolhido é respeitado.
 
-### Story 3.6: Módulo opcional "Estimativa eMulti" (substitui o cálculo manual do usuário) ✅ FEITA
-**Implementado:**
-- Backend:
-  - `app/services/emulti_estimativa.py`: estimativa com cache do CNES de 12 h e aplicação;
-  - rotas `GET /api/preenchimento/emulti/{ibge}/{comp}/estimativa?divisor=` (só calcula) e `POST /api/preenchimento/emulti/aplicar`, que grava só a posição da eMulti com `origem: "estimativa"`, mantém as outras posições e registra no histórico;
-  - custeios, qualidade BOM e divisor ficam nos valores de referência.
-- Frontend:
-  - página `/estimativa-emulti` (menu do usuário e atalho na tela de preenchimento), com vários municípios, progresso, combinação editável (E/C/A), qualidade BOM opcional, detalhe dos profissionais por categoria, aplicação em lote com confirmação e exportação CSV;
-  - o seletor de vários municípios foi extraído para `components/Selectors/SeletorVariosMunicipios.tsx`, que os relatórios em lote também usam.
-- **Testado:** em 290240 e 291420 (202512), a estimativa bateu exatamente com o valor informado pelo usuário (12.000 e 24.000). Aplicar alterou só a posição da eMulti, e um município inválido não afetou os outros.
+### Story 3.6: Estimativa de eMulti integrada ao cálculo automático ✅ FEITA (revisada em 24/09/2026)
+**Decisão do usuário (após o primeiro deploy):** a eMulti não deve ser um módulo separado na tela; ela entra no **preenchimento automático** e no **cálculo dos relatórios em lote**, como os outros planos.
+- `app/services/emulti_estimativa.py` estima as eMulti possíveis pelos profissionais elegíveis do CNES (cache de 12 h) e é usada por:
+  - `GET /api/preenchimento/{ibge}/{comp}/sugestao`: o plano eMulti vem com os componentes "eMulti possíveis (Estratégica)" (quantidade editável) e "Custeio que já recebe (desconta)";
+  - o lote, para municípios sem valores na competência (`preencher_por_regras`), grava com origem `estimativa`.
+- Se o CNES falhar, só a eMulti fica sem cálculo (mantém o valor atual, ou zero no lote).
+- A página "Estimativa eMulti" e a rota de aplicar em lote foram **removidas**. `GET /api/preenchimento/emulti/{ibge}/{comp}/estimativa` continua disponível na API.
+- **Testado:** na sugestão para 290240/202512, a eMulti deu 12.000, o valor informado pelo usuário. No lote, municípios sem valores saíram com eSF, SB, ACS e eMulti calculados.
+
+**Proposta original (substituída):**
 
 **Contexto:** o usuário estima a quantidade de eMulti a partir dos **profissionais elegíveis existentes** no município. **Decisão: a estimativa não usa carga horária, só a quantidade de profissionais.** Calibrado nos 85 municípios do histórico, o estimador abaixo acerta a perda exatamente em 16% dos casos e dentro de ±1 equipe (±12 mil) em 39%, contra ≤14% das regras só por nº de equipes. É o melhor ponto de partida, desde que **transparente e revisável**.
 

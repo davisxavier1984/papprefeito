@@ -1,5 +1,5 @@
 /**
- * Utilitários da seleção de vários municípios (relatórios em lote e estimativa eMulti)
+ * Utilitários da seleção de vários municípios (relatórios em lote)
  */
 import type { MunicipioLote } from '../types';
 

@@ -15,15 +15,11 @@ import type {
   CompetenciaInfo,
   ApiError,
   RelatorioPDFRequest,
-  LoteConferenciaItem,
   LoteRequest,
   LoteStatus,
-  MunicipioLote,
   SugestaoResposta,
   ValorReferencia,
-  ValorReferenciaCreate,
-  EstimativaEmulti,
-  AplicarEmultiResultado
+  ValorReferenciaCreate
 } from '../types';
 import { useAuthStore } from '../stores/authStore';
 import { authService } from './authService';
@@ -207,17 +203,6 @@ class ApiClient {
   // ================================
 
   /**
-   * Situação das perdas salvas de cada município antes de gerar o lote
-   */
-  async conferirLote(competencia: string, municipios: MunicipioLote[]): Promise<LoteConferenciaItem[]> {
-    const response = await this.client.post<LoteConferenciaItem[]>(
-      '/relatorios/lote/conferencia',
-      { competencia, municipios }
-    );
-    return response.data;
-  }
-
-  /**
    * Inicia a geração em segundo plano
    */
   async criarLote(payload: LoteRequest): Promise<LoteStatus> {
@@ -264,30 +249,6 @@ class ApiClient {
 
   async removerValorReferencia(id: number): Promise<void> {
     await this.client.delete(`/preenchimento/valores-referencia/${id}`);
-  }
-
-  /**
-   * Estimativa de eMulti pelos profissionais elegíveis do CNES. Não grava nada.
-   * A coleta do CNES de um município grande pode levar mais de um minuto.
-   */
-  async getEstimativaEmulti(codigoIbge: string, competencia: string, divisor?: number): Promise<EstimativaEmulti> {
-    const response = await this.client.get<EstimativaEmulti>(
-      `/preenchimento/emulti/${codigoIbge}/${competencia}/estimativa`,
-      { params: divisor ? { divisor } : {}, timeout: 180000 }
-    );
-    return response.data;
-  }
-
-  async aplicarEmulti(
-    competencia: string,
-    itens: { codigo_ibge: string; valor: number; valor_sugerido: number }[]
-  ): Promise<AplicarEmultiResultado[]> {
-    const response = await this.client.post<AplicarEmultiResultado[]>(
-      '/preenchimento/emulti/aplicar',
-      { competencia, itens },
-      { timeout: 180000 }
-    );
-    return response.data;
   }
 
   /**

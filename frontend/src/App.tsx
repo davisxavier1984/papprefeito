@@ -11,7 +11,6 @@ import ptBR from 'antd/locale/pt_BR';
 import AppLayout from './components/Layout/AppLayout';
 import Dashboard from './pages/Dashboard';
 import RelatoriosLote from './pages/RelatoriosLote';
-import EstimativaEmulti from './pages/EstimativaEmulti';
 import { LoginForm } from './components/Auth/LoginForm';
 import { RegisterForm } from './components/Auth/RegisterForm';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
@@ -135,17 +134,6 @@ const App: React.FC = () => {
                 <ProtectedRoute>
                   <AppLayout>
                     <RelatoriosLote />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/estimativa-emulti"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <EstimativaEmulti />
                   </AppLayout>
                 </ProtectedRoute>
               }

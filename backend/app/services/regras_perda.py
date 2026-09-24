@@ -10,7 +10,7 @@ import math
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.models.schemas import ComponenteSugestao, PlanoSugestao
+from app.models.schemas import ComponenteSugestao, EstimativaEmulti, PlanoSugestao
 
 Valores = Dict[str, Tuple[Decimal, str]]
 
@@ -43,9 +43,12 @@ def _v(valores: Valores, chave: str) -> float:
 
 
 def _componente(id_: str, nome: str, quantidade: float, unitario: float, incluido: bool = True,
-                editavel: bool = False, detalhe: Optional[str] = None) -> ComponenteSugestao:
+                editavel: bool = False, detalhe: Optional[str] = None,
+                desconto: bool = False) -> ComponenteSugestao:
+    """Componente do cálculo. `desconto` permite valor negativo (ex.: o que o município já recebe)."""
     return ComponenteSugestao(
-        id=id_, nome=nome, quantidade=quantidade, valor_unitario=round(max(unitario, 0.0), 2),
+        id=id_, nome=nome, quantidade=quantidade,
+        valor_unitario=round(unitario if desconto else max(unitario, 0.0), 2),
         incluido=incluido, quantidade_editavel=editavel, detalhe=detalhe,
     )
 
@@ -141,7 +144,27 @@ def regra_sb(p: Dict[str, Any], valores: Valores) -> List[ComponenteSugestao]:
     return comps
 
 
-def sugerir(dados: Dict[str, Any], valores: Valores) -> List[PlanoSugestao]:
+def regra_emulti(est: EstimativaEmulti) -> List[ComponenteSugestao]:
+    """eMulti pelos profissionais elegíveis do CNES (story 3.6): alvo − o que já recebe."""
+    atuais = est.atuais
+    return [
+        _componente(
+            'emulti_alvo', 'eMulti possíveis pelos profissionais elegíveis (Estratégica)',
+            est.equipes_estimadas, est.custeio_modalidade['estrategica'], editavel=True,
+            detalhe=(f"mín(eSF + eAP = {est.equipes_aps}; elegíveis ÷ {est.divisor} = "
+                     f"{est.profissionais_elegiveis // est.divisor}; nutricionistas + psicólogos = "
+                     f"{est.nutricionistas_psicologos})" + (f". {est.aviso}" if est.aviso else "")),
+        ),
+        _componente(
+            'emulti_atual', 'Custeio que já recebe (desconta)', 1, -est.custeio_atual, desconto=True,
+            detalhe=f"Atuais: {atuais['estrategica']} Estratégica, {atuais['complementar']} Complementar, "
+                    f"{atuais['ampliada']} Ampliada",
+        ),
+    ]
+
+
+def sugerir(dados: Dict[str, Any], valores: Valores,
+            estimativa_emulti: Optional[EstimativaEmulti] = None) -> List[PlanoSugestao]:
     """Sugestão por plano, na mesma ordem posicional da tabela (planos municipais)."""
     pagamentos = dados.get('pagamentos') or []
     p = pagamentos[0] if pagamentos else {}
@@ -166,13 +189,18 @@ def sugerir(dados: Dict[str, Any], valores: Valores) -> List[PlanoSugestao]:
         elif tipo == 'sb':
             componentes = regra_sb(p, valores)
         elif tipo == 'emulti':
-            observacao = "Use o módulo Estimativa eMulti. O valor atual é mantido"
+            if estimativa_emulti:
+                componentes = regra_emulti(estimativa_emulti)
+            else:
+                observacao = "Não foi possível consultar o CNES agora: o valor atual é mantido"
         else:
             observacao = observacao or "Sem regra: mantém o valor atual (preencha manualmente, se houver)"
 
-        total = round(sum(c.quantidade * c.valor_unitario for c in componentes if c.incluido), 2)
+        # Nunca negativo: quem já recebe mais que o alvo não tem perda
+        total = max(round(sum(c.quantidade * c.valor_unitario for c in componentes if c.incluido), 2), 0.0)
+        regra_id = ('emulti_estimativa_v1' if tipo == 'emulti' else f"{tipo}_v1") if componentes else None
         planos.append(PlanoSugestao(
-            indice=indice, plano=nome, tipo=tipo, regra_id=f"{tipo}_v1" if componentes else None,
+            indice=indice, plano=nome, tipo=tipo, regra_id=regra_id,
             aplicavel=bool(componentes), componentes=componentes, total_sugerido=total,
             observacao=observacao,
         ))

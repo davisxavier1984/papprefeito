@@ -1,39 +1,19 @@
 /**
  * Relatórios em lote (stories 3.4 e 3.5)
- * Seleciona vários municípios, confere as perdas salvas e gera os relatórios
- * PAP Prefeito e/ou Detalhado num único ZIP.
+ * Seleciona vários municípios e gera os relatórios PAP Prefeito e/ou Detalhado num único ZIP.
+ * Para cada município, o backend usa os valores revisados no Dashboard; se não houver para a
+ * competência, calcula automaticamente (regras da story 3.3) e salva.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  App,
-  Button,
-  Card,
-  Checkbox,
-  Progress,
-  Radio,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { CheckCircleOutlined, DownloadOutlined, FileSearchOutlined } from '@ant-design/icons';
+import { Alert, App, Button, Card, Checkbox, Progress, Space, Typography } from 'antd';
+import { CheckCircleOutlined, DownloadOutlined } from '@ant-design/icons';
 import { apiClient } from '../services/api';
 import SeletorVariosMunicipios from '../components/Selectors/SeletorVariosMunicipios';
 import { competenciaValida, ordenarMunicipios } from '../utils/municipiosLote';
-import type { LoteConferenciaItem, LoteStatus, MunicipioLote, TipoRelatorio } from '../types';
+import type { LoteStatus, MunicipioLote, TipoRelatorio } from '../types';
 
 const { Title, Text } = Typography;
-
-const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-
-const ORIGEM_LABEL: Record<string, string> = {
-  manual: 'manual',
-  regra: 'regra',
-  estimativa: 'estimativa',
-};
 
 const baixarArquivo = (blob: Blob, nome: string) => {
   const url = window.URL.createObjectURL(blob);
@@ -53,40 +33,15 @@ const RelatoriosLote: React.FC = () => {
   const [selecionados, setSelecionados] = useState<Record<string, MunicipioLote>>({});
   const [competencia, setCompetencia] = useState('');
   const [tipos, setTipos] = useState<TipoRelatorio[]>(['prefeito']);
-  const [semPerdas, setSemPerdas] = useState<'ignorar' | 'zero' | 'regras'>('regras');
-
-  const [conferencia, setConferencia] = useState<LoteConferenciaItem[] | null>(null);
-  const [conferindo, setConferindo] = useState(false);
   const [lote, setLote] = useState<LoteStatus | null>(null);
   const baixadoRef = useRef<string | null>(null);
 
   const listaSelecionados = useMemo(() => ordenarMunicipios(selecionados), [selecionados]);
 
-  // Qualquer mudança na seleção invalida a conferência anterior
-  useEffect(() => {
-    setConferencia(null);
-  }, [selecionados, competencia]);
-
-  const conferir = async () => {
-    try {
-      setConferindo(true);
-      const resultado = await apiClient.conferirLote(competencia, listaSelecionados);
-      setConferencia(resultado);
-      const com = resultado.filter((c) => c.tem_perdas).length;
-      message.info(`Conferido: ${com} com perdas salvas e ${resultado.length - com} sem, em ${competencia.slice(4)}/${competencia.slice(0, 4)}.`);
-    } catch {
-      message.error('Não foi possível conferir os municípios. Tente novamente.');
-    } finally {
-      setConferindo(false);
-    }
-  };
-
   const gerar = async () => {
     try {
       baixadoRef.current = null;
-      setLote(
-        await apiClient.criarLote({ competencia, tipos, municipios: listaSelecionados, sem_perdas: semPerdas })
-      );
+      setLote(await apiClient.criarLote({ competencia, tipos, municipios: listaSelecionados, sem_perdas: 'regras' }));
     } catch {
       message.error('Não foi possível iniciar a geração dos relatórios.');
     }
@@ -99,7 +54,7 @@ const RelatoriosLote: React.FC = () => {
       try {
         setLote(await apiClient.statusLote(lote.id));
       } catch {
-        message.error('Perdi o acompanhamento do lote. Gere novamente.');
+        message.error('Perdi o acompanhamento da geração. Gere novamente.');
         setLote(null);
       }
     }, 2000);
@@ -110,7 +65,7 @@ const RelatoriosLote: React.FC = () => {
     if (!lote || lote.status !== 'concluido' || baixadoRef.current === lote.id) return;
     baixadoRef.current = lote.id;
     if (lote.arquivos === 0) {
-      message.warning('Nenhum relatório foi gerado. Veja os avisos abaixo.');
+      message.warning('Nenhum relatório foi gerado. Veja o motivo abaixo.');
       return;
     }
     apiClient
@@ -131,55 +86,16 @@ const RelatoriosLote: React.FC = () => {
   };
 
   const gerando = lote?.status === 'processando';
-  const podeConferir = listaSelecionados.length > 0 && competenciaValida(competencia) && !gerando;
-  const semPerdasCount = conferencia?.filter((c) => !c.tem_perdas).length ?? 0;
-  const aGerar = conferencia
-    ? semPerdas === 'ignorar'
-      ? conferencia.length - semPerdasCount
-      : conferencia.length
-    : 0;
-
-  const colunas: ColumnsType<LoteConferenciaItem> = [
-    { title: 'Município', dataIndex: 'nome', key: 'nome' },
-    { title: 'UF', dataIndex: 'uf', key: 'uf', width: 70 },
-    {
-      title: 'Perdas salvas',
-      key: 'tem_perdas',
-      width: 150,
-      render: (_, r) =>
-        r.tem_perdas ? (
-          <Tag color="green">Sim</Tag>
-        ) : (
-          <Tag color={semPerdas === 'ignorar' ? 'default' : semPerdas === 'regras' ? 'blue' : 'orange'}>
-            {semPerdas === 'ignorar' ? 'Não (fica de fora)' : semPerdas === 'regras' ? 'Não (será calculado)' : 'Não (perda zero)'}
-          </Tag>
-        ),
-    },
-    {
-      title: 'Perda mensal',
-      key: 'total',
-      align: 'right',
-      width: 160,
-      render: (_, r) => (r.tem_perdas ? moeda.format(r.total_perda_mensal) : '—'),
-    },
-    {
-      title: 'Origem dos valores',
-      key: 'origens',
-      render: (_, r) =>
-        Object.keys(r.origens).length
-          ? Object.entries(r.origens).map(([o, n]) => <Tag key={o}>{`${ORIGEM_LABEL[o] ?? o}: ${n}`}</Tag>)
-          : r.tem_perdas
-            ? <Text type="secondary">não informada</Text>
-            : null,
-    },
-  ];
+  const podeGerar = listaSelecionados.length > 0 && competenciaValida(competencia) && tipos.length > 0 && !gerando;
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
         <Title level={3} style={{ marginBottom: 4 }}>Relatórios em lote</Title>
         <Text type="secondary">
-          Selecione vários municípios, confira as perdas salvas e gere os relatórios de uma vez, num arquivo ZIP.
+          Selecione os municípios e o tipo de relatório. Os valores usados são os revisados no Dashboard; quando o
+          município ainda não tiver valores na competência, eles são calculados automaticamente e ficam disponíveis
+          para revisão no Dashboard.
         </Text>
       </div>
 
@@ -193,7 +109,7 @@ const RelatoriosLote: React.FC = () => {
       </Card>
 
       <Card title="2. Tipo de relatório">
-        <Space direction="vertical">
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <Checkbox.Group
             value={tipos}
             onChange={(v) => setTipos(v as TipoRelatorio[])}
@@ -202,95 +118,43 @@ const RelatoriosLote: React.FC = () => {
               { label: 'Relatório Detalhado', value: 'detalhado' },
             ]}
           />
-          <Radio.Group value={semPerdas} onChange={(e) => setSemPerdas(e.target.value)}>
-            <Space direction="vertical">
-              <Radio value="regras">
-                Municípios sem perdas salvas: calcular pelas regras (eSF, ACS e Saúde Bucal) e salvar
-              </Radio>
-              <Radio value="ignorar">Municípios sem perdas salvas ficam de fora</Radio>
-              <Radio value="zero">Municípios sem perdas salvas saem com perda zero</Radio>
+          <Space wrap>
+            <Button type="primary" icon={<DownloadOutlined />} onClick={gerar} loading={gerando} disabled={!podeGerar}>
+              Gerar {listaSelecionados.length * tipos.length} relatório(s)
+            </Button>
+            {!tipos.length && <Text type="danger">Escolha ao menos um tipo de relatório.</Text>}
+          </Space>
+
+          {lote && (
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Progress
+                percent={lote.total ? Math.round((lote.processados / lote.total) * 100) : 0}
+                status={lote.status === 'erro' ? 'exception' : lote.status === 'concluido' ? 'success' : 'active'}
+              />
+              <Text>
+                {lote.processados} de {lote.total} municípios · {lote.arquivos} relatório(s) gerado(s)
+                {lote.calculados > 0 && ` · ${lote.calculados} com valores calculados agora (revise no Dashboard, se quiser)`}
+              </Text>
+              {lote.status === 'concluido' && lote.arquivos > 0 && (
+                <Button icon={<CheckCircleOutlined />} onClick={baixarNovamente}>
+                  Baixar o ZIP novamente
+                </Button>
+              )}
+              {lote.erros.length > 0 && (
+                <Alert
+                  type="error"
+                  showIcon
+                  message="Não foi possível gerar para alguns municípios"
+                  description={
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {lote.erros.map((e) => <li key={e}>{e}</li>)}
+                    </ul>
+                  }
+                />
+              )}
             </Space>
-          </Radio.Group>
+          )}
         </Space>
-      </Card>
-
-      <Card
-        title="3. Conferir e gerar"
-        extra={
-          <Button icon={<FileSearchOutlined />} onClick={conferir} loading={conferindo} disabled={!podeConferir}>
-            Conferir
-          </Button>
-        }
-      >
-        {!conferencia ? (
-          <Text type="secondary">Confira os municípios selecionados antes de gerar.</Text>
-        ) : (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            {semPerdasCount > 0 && (
-              <Alert
-                type="warning"
-                showIcon
-                message={`${semPerdasCount} município(s) sem perdas salvas nesta competência`}
-                description={
-                  semPerdas === 'ignorar'
-                    ? 'Eles ficarão de fora. Para incluí-los, escolha "calcular pelas regras" ou salve as perdas no Dashboard.'
-                    : semPerdas === 'regras'
-                      ? 'As perdas deles serão calculadas pelas regras do preenchimento automático e salvas (origem "regra"). A eMulti fica zerada; revise depois no Dashboard, se quiser.'
-                      : 'Os relatórios deles vão mostrar perda zero.'
-                }
-              />
-            )}
-            <Table
-              size="small"
-              rowKey="codigo_ibge"
-              columns={colunas}
-              dataSource={conferencia}
-              pagination={{ pageSize: 20, hideOnSinglePage: true }}
-              scroll={{ x: 700 }}
-            />
-            <Space wrap>
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                onClick={gerar}
-                loading={gerando}
-                disabled={!tipos.length || aGerar === 0 || gerando}
-              >
-                Gerar {aGerar * tipos.length} relatório(s)
-              </Button>
-              {!tipos.length && <Text type="danger">Escolha ao menos um tipo de relatório.</Text>}
-            </Space>
-          </Space>
-        )}
-
-        {lote && (
-          <Space direction="vertical" size="small" style={{ width: '100%', marginTop: 16 }}>
-            <Progress
-              percent={lote.total ? Math.round((lote.processados / lote.total) * 100) : 0}
-              status={lote.status === 'erro' ? 'exception' : lote.status === 'concluido' ? 'success' : 'active'}
-            />
-            <Text>
-              {lote.processados} de {lote.total} municípios processados · {lote.arquivos} arquivo(s)
-            </Text>
-            {lote.status === 'concluido' && lote.arquivos > 0 && (
-              <Button icon={<CheckCircleOutlined />} onClick={baixarNovamente}>
-                Baixar o ZIP novamente
-              </Button>
-            )}
-            {lote.erros.length > 0 && (
-              <Alert
-                type={lote.status === 'erro' ? 'error' : 'info'}
-                showIcon
-                message="Avisos (também estão no erros.txt do ZIP)"
-                description={
-                  <ul style={{ margin: 0, paddingLeft: 18 }}>
-                    {lote.erros.map((e) => <li key={e}>{e}</li>)}
-                  </ul>
-                }
-              />
-            )}
-          </Space>
-        )}
       </Card>
     </Space>
   );

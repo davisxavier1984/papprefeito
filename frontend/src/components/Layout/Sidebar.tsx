@@ -12,7 +12,6 @@ import {
   MenuUnfoldOutlined,
   DashboardOutlined,
   FileZipOutlined,
-  CalculatorOutlined,
   TableOutlined,
   TeamOutlined
 } from '@ant-design/icons';
@@ -59,7 +58,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const menuItems = [
     { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/relatorios-lote', icon: <FileZipOutlined />, label: 'Relatórios em lote' },
-    { key: '/estimativa-emulti', icon: <CalculatorOutlined />, label: 'Estimativa eMulti' },
     ...(isSuperuser
       ? [
           { key: '/admin/valores-referencia', icon: <TableOutlined />, label: 'Valores de referência' },

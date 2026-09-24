@@ -1,6 +1,6 @@
 /**
  * Seleção de vários municípios (entre UFs) e competência.
- * Usado em Relatórios em lote e na Estimativa eMulti.
+ * Usado em Relatórios em lote.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';

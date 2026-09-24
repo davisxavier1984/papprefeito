@@ -533,7 +533,7 @@ class LoteRequest(BaseModel):
     tipos: List[Literal['prefeito', 'detalhado']] = Field(..., min_length=1, max_length=2)
     municipios: List[MunicipioLote] = Field(..., min_length=1, max_length=300)
     sem_perdas: Literal['ignorar', 'zero', 'regras'] = Field(
-        'ignorar',
+        'regras',
         description="Municípios sem perdas salvas: ignorar, gerar com perda zero, ou calcular pelas regras "
                     "do preenchimento automático (salvando com origem 'regra')",
     )
@@ -554,7 +554,8 @@ class LoteStatus(BaseModel):
     total: int
     processados: int
     arquivos: int
-    erros: List[str] = Field(default_factory=list)
+    calculados: int = Field(0, description="Municípios cujos valores foram calculados automaticamente neste lote")
+    erros: List[str] = Field(default_factory=list, description="Falhas reais (também no erros.txt do ZIP)")
     criado_em: datetime
     concluido_em: Optional[datetime] = None
 
@@ -645,20 +646,3 @@ class EstimativaEmulti(BaseModel):
     indice_plano: Optional[int] = Field(None, description="Posição do plano eMulti na tabela")
     plano: Optional[str] = None
     aviso: Optional[str] = None
-
-
-class AplicarEmultiItem(BaseModel):
-    codigo_ibge: str = Field(..., min_length=6, max_length=7)
-    valor: float = Field(..., ge=0)
-    valor_sugerido: float = Field(..., ge=0)
-
-
-class AplicarEmultiRequest(BaseModel):
-    competencia: str = Field(..., min_length=6, max_length=6)
-    itens: List[AplicarEmultiItem] = Field(..., min_length=1, max_length=300)
-
-
-class AplicarEmultiResultado(BaseModel):
-    codigo_ibge: str
-    ok: bool
-    mensagem: str

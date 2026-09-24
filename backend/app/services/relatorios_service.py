@@ -76,12 +76,14 @@ def renderizar_pdf(
 async def preencher_por_regras(codigo_ibge: str, competencia: str, usuario_id: Optional[str]) -> bool:
     """Calcula as perdas pelas regras da story 3.3 (valores padrão) e salva com origem "regra".
 
-    Usado no lote para municípios sem perdas salvas, quando o usuário escolhe essa opção.
-    eMulti e planos sem regra ficam zerados. Retorna False se não houver dados do Ministério.
+    Usado no lote para municípios sem perdas salvas. Inclui a eMulti estimada pelo CNES
+    (se o CNES falhar, ela fica zerada); planos sem regra ficam zerados.
+    Retorna False se não houver dados do Ministério.
     """
     # Imports locais: evitam ciclo com os serviços de banco
     from app.core.database import async_session
     from app.models.schemas import ItemPerda, MunicipioEditadoCreate
+    from app.services.emulti_estimativa import estimar_ou_none
     from app.services.historico_perdas import HistoricoPerdasService
     from app.services.regras_perda import sugerir
     from app.services.valores_referencia import ValoresReferenciaService
@@ -91,10 +93,11 @@ async def preencher_por_regras(codigo_ibge: str, competencia: str, usuario_id: O
         return False
     async with async_session() as session:
         valores = await ValoresReferenciaService(session).vigentes(competencia)
-        planos = sugerir(dados, valores)
+        planos = sugerir(dados, valores, await estimar_ou_none(codigo_ibge, competencia, valores, dados))
         perdas = [p.total_sugerido if p.aplicavel else 0.0 for p in planos]
         itens = [
-            ItemPerda(plano=p.plano, valor=v, origem='regra' if p.aplicavel else 'manual',
+            ItemPerda(plano=p.plano, valor=v,
+                      origem=('estimativa' if p.tipo == 'emulti' else 'regra') if p.aplicavel else 'manual',
                       regra_id=p.regra_id if p.aplicavel else None,
                       valor_sugerido=p.total_sugerido if p.aplicavel else None)
             for p, v in zip(planos, perdas)

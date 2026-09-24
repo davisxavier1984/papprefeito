@@ -11,15 +11,8 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.dependencies import (
-    get_current_authorized_user,
-    get_current_superuser,
-    get_historico_service,
-    get_valores_service,
-)
+from app.core.dependencies import get_current_superuser, get_valores_service
 from app.models.schemas import (
-    AplicarEmultiRequest,
-    AplicarEmultiResultado,
     EstimativaEmulti,
     SugestaoResposta,
     User,
@@ -27,7 +20,6 @@ from app.models.schemas import (
     ValorReferenciaCreate,
 )
 from app.services import emulti_estimativa
-from app.services.historico_perdas import HistoricoPerdasService
 from app.services.relatorios_service import DadosNaoEncontrados
 from app.services.api_client import saude_api_client
 from app.services.regras_perda import sugerir
@@ -54,7 +46,8 @@ async def sugestao_preenchimento(
         logger.error(f"Valores de referência ausentes para {competencia}: {faltando}")
         raise HTTPException(status_code=409, detail="Valores de referência não cadastrados para esta competência")
 
-    planos = sugerir(dados, valores)
+    estimativa = await emulti_estimativa.estimar_ou_none(codigo_ibge, competencia, valores, dados)
+    planos = sugerir(dados, valores, estimativa)
     mais_antiga = min(v for _, v in valores.values())
     mais_recente = max(v for _, v in valores.values())
     # Ano coberto pelos valores: os iniciais valem como conferidos para 2025
@@ -129,13 +122,3 @@ async def estimativa_emulti(
     except Exception as exc:
         logger.error(f"Erro na estimativa eMulti de {codigo_ibge}/{competencia}: {exc}", exc_info=True)
         raise HTTPException(status_code=502, detail="Não foi possível consultar o CNES agora. Tente novamente.")
-
-
-@router.post("/emulti/aplicar", response_model=List[AplicarEmultiResultado])
-async def aplicar_emulti(
-    request: AplicarEmultiRequest,
-    current_user: User = Depends(get_current_authorized_user),
-    historico: HistoricoPerdasService = Depends(get_historico_service),
-):
-    """Grava a perda da eMulti (origem "estimativa") em cada município; falhas não afetam os demais."""
-    return await emulti_estimativa.aplicar(request.competencia, request.itens, current_user.id, historico)

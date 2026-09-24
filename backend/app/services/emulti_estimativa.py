@@ -1,8 +1,8 @@
 """
 Estimativa de eMulti a partir dos profissionais elegíveis do CNES (story 3.6).
 
-Módulo opcional: calcula quantas eMulti o município poderia ter e a perda correspondente,
-sem gravar nada; o usuário revisa e aplica (um ou vários municípios).
+Faz parte do preenchimento automático (story 3.3) e do cálculo dos relatórios em lote:
+calcula quantas eMulti o município poderia ter; o usuário revisa junto com os outros planos.
 
 Regra calibrada nos 85 municípios do histórico (docs/analises/regras-perda-ministerio.md):
     equipes = mín(eSF + eAP, profissionais elegíveis ÷ 6, nutricionistas + psicólogos)
@@ -13,23 +13,13 @@ import asyncio
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.models.schemas import (
-    AplicarEmultiItem,
-    AplicarEmultiResultado,
-    EstimativaEmulti,
-    ItemPerda,
-    MunicipioEditadoCreate,
-    ProfissionalElegivel,
-)
+from app.models.schemas import EstimativaEmulti, ProfissionalElegivel
 from app.services.api_client import saude_api_client
 from app.services.cnes import cnes_client, emulti_regras
-from app.services.historico_perdas import HistoricoPerdasService
-from app.services.municipios_editados import municipio_editado_service
 from app.services.regras_perda import Valores, filtrar_resumos_municipais, tipo_do_plano
 from app.services.relatorios_service import DadosNaoEncontrados
 from app.utils.logger import logger
 
-REGRA_ID = "emulti_estimativa_v1"
 MODALIDADES = ('estrategica', 'complementar', 'ampliada')
 CNES_TTL_SEGUNDOS = 12 * 3600
 NUTRI_PSI = ('2237-10', '2515-10')
@@ -70,8 +60,10 @@ def _plano_emulti(dados: Dict[str, Any]) -> Tuple[Optional[int], Optional[str], 
 
 
 async def estimar(codigo_ibge: str, competencia: str, valores: Valores,
-                  divisor: Optional[int] = None) -> EstimativaEmulti:
-    dados = await saude_api_client.consultar_financiamento(codigo_ibge, competencia)
+                  divisor: Optional[int] = None, dados: Optional[Dict[str, Any]] = None) -> EstimativaEmulti:
+    """`dados` permite reaproveitar a resposta do Ministério já consultada."""
+    if dados is None:
+        dados = await saude_api_client.consultar_financiamento(codigo_ibge, competencia)
     if not dados or not dados.get('resumosPlanosOrcamentarios'):
         raise DadosNaoEncontrados("Sem dados de financiamento do Ministério para este município")
     p = (dados.get('pagamentos') or [{}])[0]
@@ -123,54 +115,11 @@ async def estimar(codigo_ibge: str, competencia: str, valores: Valores,
     )
 
 
-async def aplicar(competencia: str, itens: List[AplicarEmultiItem], usuario_id: str,
-                  historico: HistoricoPerdasService) -> List[AplicarEmultiResultado]:
-    """Grava o valor na posição da eMulti de cada município, com origem "estimativa"."""
-    resultados = []
-    for item in itens:
-        try:
-            dados = await saude_api_client.consultar_financiamento(item.codigo_ibge, competencia)
-            if not dados:
-                raise DadosNaoEncontrados("Sem dados de financiamento do Ministério")
-            indice, plano, nomes = _plano_emulti(dados)
-            if indice is None:
-                resultados.append(AplicarEmultiResultado(codigo_ibge=item.codigo_ibge, ok=False,
-                                                         mensagem="O município não tem o plano eMulti nesta competência"))
-                continue
-            editado = municipio_editado_service.get_editado(item.codigo_ibge, competencia)
-            perdas = list(editado.perda_recurso_mensal) if editado else [0.0] * len(nomes)
-            if len(perdas) > len(nomes):
-                resultados.append(AplicarEmultiResultado(
-                    codigo_ibge=item.codigo_ibge, ok=False,
-                    mensagem="As perdas salvas têm mais posições que os planos atuais; ajuste pelo Dashboard"))
-                continue
-            perdas += [0.0] * (len(nomes) - len(perdas))
-            perdas[indice] = round(item.valor, 2)
-
-            # Mantém a origem já gravada das outras posições
-            anteriores = editado.itens if editado and editado.itens and len(editado.itens) == len(nomes) else None
-            novos_itens = []
-            for i, (nome, valor) in enumerate(zip(nomes, perdas)):
-                if i == indice:
-                    novos_itens.append(ItemPerda(plano=nome, valor=valor, origem='estimativa',
-                                                 regra_id=REGRA_ID, valor_sugerido=round(item.valor_sugerido, 2)))
-                elif anteriores:
-                    novos_itens.append(anteriores[i].model_copy(update={'valor': valor}))
-                else:
-                    novos_itens.append(ItemPerda(plano=nome, valor=valor, origem='manual'))
-
-            salvo = municipio_editado_service.upsert_editado(MunicipioEditadoCreate(
-                codigo_ibge=item.codigo_ibge, competencia=competencia,
-                perda_recurso_mensal=perdas, itens=novos_itens))
-            if not salvo:
-                raise RuntimeError("falha ao gravar")
-            await historico.registrar(item.codigo_ibge, competencia, 'upsert', perdas, novos_itens, usuario_id)
-            resultados.append(AplicarEmultiResultado(codigo_ibge=item.codigo_ibge, ok=True,
-                                                     mensagem=f"eMulti gravada em {plano}"))
-        except DadosNaoEncontrados as exc:
-            resultados.append(AplicarEmultiResultado(codigo_ibge=item.codigo_ibge, ok=False, mensagem=str(exc)))
-        except Exception as exc:
-            logger.error(f"Erro ao aplicar eMulti em {item.codigo_ibge}/{competencia}: {exc}", exc_info=True)
-            resultados.append(AplicarEmultiResultado(codigo_ibge=item.codigo_ibge, ok=False,
-                                                     mensagem="Erro ao gravar"))
-    return resultados
+async def estimar_ou_none(codigo_ibge: str, competencia: str, valores: Valores,
+                          dados: Dict[str, Any]) -> Optional[EstimativaEmulti]:
+    """Para o preenchimento automático: se o CNES falhar, só a eMulti fica sem cálculo."""
+    try:
+        return await estimar(codigo_ibge, competencia, valores, dados=dados)
+    except Exception as exc:
+        logger.warning(f"Estimativa eMulti indisponível para {codigo_ibge}/{competencia}: {exc}")
+        return None

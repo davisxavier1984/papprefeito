@@ -68,6 +68,7 @@ class Lote:
     status: str = 'processando'
     processados: int = 0
     arquivos: int = 0
+    calculados: int = 0
     erros: List[str] = field(default_factory=list)
     criado_em: datetime = field(default_factory=datetime.now)
     concluido_em: Optional[datetime] = None
@@ -80,7 +81,8 @@ class Lote:
         return LoteStatus(
             id=self.id, status=self.status, competencia=self.pedido.competencia,
             tipos=list(self.pedido.tipos), total=len(self.pedido.municipios),
-            processados=self.processados, arquivos=self.arquivos, erros=list(self.erros),
+            processados=self.processados, arquivos=self.arquivos, calculados=self.calculados,
+            erros=list(self.erros),
             criado_em=self.criado_em, concluido_em=self.concluido_em,
         )
 
@@ -132,7 +134,7 @@ class GerenciadorLotes:
                                 calculou = await preencher_por_regras(m.codigo_ibge, pedido.competencia, lote.usuario_id)
                             if not calculou:
                                 raise DadosNaoEncontrados("sem dados do Ministério")
-                            lote.erros.append(f"{rotulo}: perdas calculadas pelas regras e salvas (revise no Dashboard)")
+                            lote.calculados += 1
                         async with consultas:
                             dados = await preparar_dados(m.codigo_ibge, pedido.competencia)
                         for tipo in pedido.tipos:

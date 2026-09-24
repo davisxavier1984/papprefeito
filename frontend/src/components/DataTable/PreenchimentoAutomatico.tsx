@@ -7,7 +7,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Checkbox, InputNumber, Modal, Space, Spin, Tag, Typography } from 'antd';
-import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/api';
 import { useMunicipioStore } from '../../stores/municipioStore';
 import type { PlanoSugestao, SugestaoAplicada } from '../../types';
@@ -26,7 +25,7 @@ const TIPO_LABEL: Record<PlanoSugestao['tipo'], string> = {
 };
 
 const totalDoPlano = (plano: PlanoSugestao) =>
-  arred(plano.componentes.filter((c) => c.incluido).reduce((s, c) => s + c.quantidade * c.valor_unitario, 0));
+  Math.max(arred(plano.componentes.filter((c) => c.incluido).reduce((s, c) => s + c.quantidade * c.valor_unitario, 0)), 0);
 
 interface Props {
   open: boolean;
@@ -36,7 +35,6 @@ interface Props {
 }
 
 const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado }) => {
-  const navigate = useNavigate();
   const { selectedMunicipio, selectedCompetencia, dadosProcessados } = useMunicipioStore();
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -189,16 +187,6 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
                         )}
                       </div>
                     ))}
-                  </Space>
-                ) : p.tipo === 'emulti' ? (
-                  <Space wrap>
-                    <Text type="secondary">
-                      A eMulti tem um módulo próprio e opcional, que estima pelos profissionais elegíveis do CNES. Aqui o
-                      valor atual é mantido.
-                    </Text>
-                    <Button size="small" onClick={() => navigate('/estimativa-emulti')}>
-                      Abrir Estimativa eMulti
-                    </Button>
                   </Space>
                 ) : (
                   <Text type="secondary">{p.observacao}</Text>
