@@ -98,8 +98,15 @@ const RelatoriosLote: React.FC = () => {
     };
   }, [loteId, loteStatus, message]);
 
+  // Lote terminou (com sucesso ou erro): para de tentar retomar ao voltar à página;
+  // só baixa o ZIP quando concluído.
   useEffect(() => {
-    if (!lote || lote.status !== 'concluido' || baixadoRef.current === lote.id) return;
+    if (!lote) return;
+    if (lote.status === 'erro') {
+      guardarLoteAtivo(null);
+      return;
+    }
+    if (lote.status !== 'concluido' || baixadoRef.current === lote.id) return;
     baixadoRef.current = lote.id;
     guardarLoteAtivo(null);
     if (lote.arquivos === 0) {
@@ -114,11 +121,6 @@ const RelatoriosLote: React.FC = () => {
       })
       .catch(() => message.error('Os relatórios foram gerados, mas o download falhou. Tente baixar de novo.'));
   }, [lote, message]);
-
-  // Lote terminou com erro: para de tentar retomar ao voltar à página
-  useEffect(() => {
-    if (lote?.status === 'erro') guardarLoteAtivo(null);
-  }, [lote?.status]);
 
   const baixarNovamente = () => {
     if (!lote) return;
