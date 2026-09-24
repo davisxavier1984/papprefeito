@@ -1,7 +1,7 @@
 # ÉPICO BROWNFIELD: Preenchimento automático das perdas e relatórios em lote
 
 **ID:** EPIC-AUTO-003
-**Status:** Em andamento: 3.0, 3.1, 3.1b, 3.2, 3.3, 3.4 e 3.5 feitas; falta a 3.6 (ver `docs/analises/regras-perda-ministerio.md`)
+**Status:** ✅ Concluído (3.0 a 3.6). Pendências de uso: cadastrar os valores de referência de 2026 e validar no navegador (ver `docs/analises/regras-perda-ministerio.md`)
 **Prioridade:** Alta
 **Branch de origem do planejamento:** `chore/limpeza-seguranca`
 
@@ -180,7 +180,17 @@ Outros achados:
   - uma falha num município não derruba o lote (vai para um `erros.txt` dentro do ZIP);
   - o tipo escolhido é respeitado.
 
-### Story 3.6: Módulo opcional "Estimativa eMulti" (substitui o cálculo manual do usuário)
+### Story 3.6: Módulo opcional "Estimativa eMulti" (substitui o cálculo manual do usuário) ✅ FEITA
+**Implementado:**
+- Backend:
+  - `app/services/emulti_estimativa.py`: estimativa com cache do CNES de 12 h e aplicação;
+  - rotas `GET /api/preenchimento/emulti/{ibge}/{comp}/estimativa?divisor=` (só calcula) e `POST /api/preenchimento/emulti/aplicar`, que grava só a posição da eMulti com `origem: "estimativa"`, mantém as outras posições e registra no histórico;
+  - custeios, qualidade BOM e divisor ficam nos valores de referência.
+- Frontend:
+  - página `/estimativa-emulti` (menu do usuário e atalho na tela de preenchimento), com vários municípios, progresso, combinação editável (E/C/A), qualidade BOM opcional, detalhe dos profissionais por categoria, aplicação em lote com confirmação e exportação CSV;
+  - o seletor de vários municípios foi extraído para `components/Selectors/SeletorVariosMunicipios.tsx`, que os relatórios em lote também usam.
+- **Testado:** em 290240 e 291420 (202512), a estimativa bateu exatamente com o valor informado pelo usuário (12.000 e 24.000). Aplicar alterou só a posição da eMulti, e um município inválido não afetou os outros.
+
 **Contexto:** o usuário estima a quantidade de eMulti a partir dos **profissionais elegíveis existentes** no município. **Decisão: a estimativa não usa carga horária, só a quantidade de profissionais.** Calibrado nos 85 municípios do histórico, o estimador abaixo acerta a perda exatamente em 16% dos casos e dentro de ±1 equipe (±12 mil) em 39%, contra ≤14% das regras só por nº de equipes. É o melhor ponto de partida, desde que **transparente e revisável**.
 
 **Módulo próprio e opcional:**

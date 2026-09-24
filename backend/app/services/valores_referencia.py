@@ -37,6 +37,11 @@ CATALOGO: Dict[str, Tuple[str, str, str]] = {
     "lrpd_faixa_2": ("LRPD: faixa 2", "18000.00", "Pagamentos do Ministério"),
     "lrpd_faixa_3": ("LRPD: faixa 3", "27000.00", "Pagamentos do Ministério"),
     "lrpd_faixa_4": ("LRPD: faixa 4", "33750.00", "Pagamentos do Ministério"),
+    "emulti_custeio_estrategica": ("eMulti Estratégica: custeio mensal", "12000.00", "Portaria GM/MS 635/2023"),
+    "emulti_custeio_complementar": ("eMulti Complementar: custeio mensal", "24000.00", "Portaria GM/MS 635/2023"),
+    "emulti_custeio_ampliada": ("eMulti Ampliada: custeio mensal", "36000.00", "Portaria GM/MS 635/2023"),
+    "emulti_qualidade_bom_pct": ("eMulti: qualidade BOM (fração do custeio)", "0.1875", "Pagamentos do Ministério"),
+    "emulti_profissionais_por_equipe": ("eMulti: profissionais elegíveis por equipe estimada", "6", "Calibrado no histórico (story 3.6)"),
 }
 
 

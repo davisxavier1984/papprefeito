@@ -11,10 +11,8 @@ import {
   Button,
   Card,
   Checkbox,
-  Input,
   Progress,
   Radio,
-  Select,
   Space,
   Table,
   Tag,
@@ -22,8 +20,9 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { CheckCircleOutlined, DownloadOutlined, FileSearchOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient, queryKeys } from '../services/api';
+import { apiClient } from '../services/api';
+import SeletorVariosMunicipios from '../components/Selectors/SeletorVariosMunicipios';
+import { competenciaValida, ordenarMunicipios } from '../utils/municipiosLote';
 import type { LoteConferenciaItem, LoteStatus, MunicipioLote, TipoRelatorio } from '../types';
 
 const { Title, Text } = Typography;
@@ -35,9 +34,6 @@ const ORIGEM_LABEL: Record<string, string> = {
   regra: 'regra',
   estimativa: 'estimativa',
 };
-
-const competenciaValida = (c: string) =>
-  /^\d{6}$/.test(c) && Number(c.slice(4)) >= 1 && Number(c.slice(4)) <= 12;
 
 const baixarArquivo = (blob: Blob, nome: string) => {
   const url = window.URL.createObjectURL(blob);
@@ -53,7 +49,6 @@ const baixarArquivo = (blob: Blob, nome: string) => {
 const RelatoriosLote: React.FC = () => {
   const { message } = App.useApp();
 
-  const [uf, setUf] = useState<string | undefined>();
   // Seleção acumulada entre UFs, indexada pelo código IBGE
   const [selecionados, setSelecionados] = useState<Record<string, MunicipioLote>>({});
   const [competencia, setCompetencia] = useState('');
@@ -65,68 +60,12 @@ const RelatoriosLote: React.FC = () => {
   const [lote, setLote] = useState<LoteStatus | null>(null);
   const baixadoRef = useRef<string | null>(null);
 
-  const { data: ufs = [], isLoading: carregandoUfs } = useQuery({
-    queryKey: queryKeys.ufs,
-    queryFn: () => apiClient.getUFs(),
-    staleTime: 1000 * 60 * 60,
-  });
-
-  const { data: municipios = [], isLoading: carregandoMunicipios } = useQuery({
-    queryKey: queryKeys.municipios(uf ?? ''),
-    queryFn: () => apiClient.getMunicipiosPorUF(uf!),
-    enabled: !!uf,
-    staleTime: 1000 * 60 * 60,
-  });
-
-  const { data: ultimaCompetencia } = useQuery({
-    queryKey: queryKeys.competencia,
-    queryFn: () => apiClient.getUltimaCompetencia(),
-    staleTime: 1000 * 60 * 10,
-  });
-
-  useEffect(() => {
-    if (!competencia && ultimaCompetencia?.competencia) {
-      setCompetencia(ultimaCompetencia.competencia);
-    }
-  }, [ultimaCompetencia, competencia]);
-
-  const listaSelecionados = useMemo(
-    () => Object.values(selecionados).sort((a, b) => (a.uf + a.nome).localeCompare(b.uf + b.nome, 'pt-BR')),
-    [selecionados]
-  );
+  const listaSelecionados = useMemo(() => ordenarMunicipios(selecionados), [selecionados]);
 
   // Qualquer mudança na seleção invalida a conferência anterior
   useEffect(() => {
     setConferencia(null);
   }, [selecionados, competencia]);
-
-  const valoresUfAtual = useMemo(
-    () => listaSelecionados.filter((m) => m.uf === uf).map((m) => m.codigo_ibge),
-    [listaSelecionados, uf]
-  );
-
-  const aoMudarSelecaoUf = (codigos: string[]) => {
-    if (!uf) return;
-    setSelecionados((atual) => {
-      const novo = Object.fromEntries(Object.entries(atual).filter(([, m]) => m.uf !== uf));
-      for (const codigo of codigos) {
-        const m = municipios.find((x) => x.codigo_ibge === codigo);
-        if (m) novo[codigo] = { codigo_ibge: m.codigo_ibge, nome: m.nome, uf };
-      }
-      return novo;
-    });
-  };
-
-  const selecionarTodosDaUf = () => aoMudarSelecaoUf(municipios.map((m) => m.codigo_ibge));
-
-  const removerUf = (sigla: string) =>
-    setSelecionados((atual) => Object.fromEntries(Object.entries(atual).filter(([, m]) => m.uf !== sigla)));
-
-  const porUf = useMemo(() => {
-    const cont: Record<string, number> = {};
-    for (const m of listaSelecionados) cont[m.uf] = (cont[m.uf] ?? 0) + 1;
-    return cont;
-  }, [listaSelecionados]);
 
   const conferir = async () => {
     try {
@@ -242,58 +181,12 @@ const RelatoriosLote: React.FC = () => {
       </div>
 
       <Card title="1. Municípios e competência">
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Space wrap>
-            <Select
-              placeholder="UF"
-              style={{ width: 120 }}
-              loading={carregandoUfs}
-              value={uf}
-              onChange={setUf}
-              showSearch
-              options={ufs.map((u) => ({ value: u.sigla, label: u.sigla }))}
-            />
-            <Button onClick={selecionarTodosDaUf} disabled={!uf || !municipios.length}>
-              Selecionar todos da UF
-            </Button>
-            <Input
-              addonBefore="Competência"
-              placeholder="AAAAMM"
-              style={{ width: 220 }}
-              value={competencia}
-              maxLength={6}
-              status={competencia && !competenciaValida(competencia) ? 'error' : undefined}
-              onChange={(e) => setCompetencia(e.target.value.replace(/\D/g, ''))}
-            />
-          </Space>
-
-          <Select
-            mode="multiple"
-            placeholder={uf ? 'Busque e selecione os municípios' : 'Escolha a UF primeiro'}
-            style={{ width: '100%' }}
-            disabled={!uf}
-            loading={carregandoMunicipios}
-            value={valoresUfAtual}
-            onChange={aoMudarSelecaoUf}
-            optionFilterProp="label"
-            maxTagCount="responsive"
-            options={municipios.map((m) => ({ value: m.codigo_ibge, label: m.nome }))}
-          />
-
-          <Space wrap>
-            <Text strong>{listaSelecionados.length} município(s) selecionado(s)</Text>
-            {Object.entries(porUf).map(([sigla, n]) => (
-              <Tag key={sigla} closable onClose={() => removerUf(sigla)}>
-                {sigla}: {n}
-              </Tag>
-            ))}
-            {listaSelecionados.length > 0 && (
-              <Button type="link" size="small" onClick={() => setSelecionados({})}>
-                Limpar seleção
-              </Button>
-            )}
-          </Space>
-        </Space>
+        <SeletorVariosMunicipios
+          selecionados={selecionados}
+          onChange={setSelecionados}
+          competencia={competencia}
+          onCompetenciaChange={setCompetencia}
+        />
       </Card>
 
       <Card title="2. Tipo de relatório">

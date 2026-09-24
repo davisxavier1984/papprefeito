@@ -610,3 +610,53 @@ class ValorReferenciaCreate(BaseModel):
         if not v.isdigit() or not (1 <= int(v[4:]) <= 12):
             raise ValueError('Vigência deve estar no formato AAAAMM')
         return v
+
+
+# === Estimativa eMulti (story 3.6) ===
+
+class ProfissionalElegivel(BaseModel):
+    """Categoria da Portaria 635/2023 encontrada no CNES do município"""
+    categoria: str
+    cbo: str
+    pessoas: int
+    composicao_fixa: bool
+
+
+class EstimativaEmulti(BaseModel):
+    """Estimativa de eMulti de um município a partir dos profissionais elegíveis do CNES"""
+    codigo_ibge: str
+    competencia: str
+    equipes_aps: int = Field(..., description="eSF + eAP credenciadas (Ministério)")
+    equipes_aps_cnes: int = Field(..., description="eSF + eAP ativas no CNES")
+    atuais: Dict[str, int] = Field(..., description="eMulti pagas por modalidade")
+    teto: Dict[str, int] = Field(..., description="Teto do Ministério por modalidade")
+    custeio_atual: float
+    profissionais_elegiveis: int
+    nutricionistas_psicologos: int
+    profissionais: List[ProfissionalElegivel]
+    divisor: int
+    equipes_estimadas: int
+    combinacao: Dict[str, int] = Field(..., description="Combinação sugerida (total de equipes por modalidade)")
+    custeio_modalidade: Dict[str, float]
+    qualidade_pct: float
+    perda_estimada: float = Field(..., description="Custeio da combinação − custeio atual (sem qualidade)")
+    indice_plano: Optional[int] = Field(None, description="Posição do plano eMulti na tabela")
+    plano: Optional[str] = None
+    aviso: Optional[str] = None
+
+
+class AplicarEmultiItem(BaseModel):
+    codigo_ibge: str = Field(..., min_length=6, max_length=7)
+    valor: float = Field(..., ge=0)
+    valor_sugerido: float = Field(..., ge=0)
+
+
+class AplicarEmultiRequest(BaseModel):
+    competencia: str = Field(..., min_length=6, max_length=6)
+    itens: List[AplicarEmultiItem] = Field(..., min_length=1, max_length=300)
+
+
+class AplicarEmultiResultado(BaseModel):
+    codigo_ibge: str
+    ok: bool
+    mensagem: str

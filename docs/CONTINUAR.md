@@ -37,7 +37,7 @@ A produção roda **da própria pasta do repositório** no servidor (uvicorn em 
    `cd backend && .venv/bin/python scripts/estudo_regras_perda.py baixar municipios_editados.json` e depois `.venv/bin/python scripts/migrar_itens_perda.py municipios_editados.json`.
 5. ~~3.4 + 3.5 (relatórios Prefeito/Detalhado em lote)~~: **feitas**. Página `/relatorios-lote`. Falta testar no navegador.
 6. ~~3.3 (preenchimento automático)~~: **feita**. Falta testar no navegador. **Pendência do usuário:** cadastrar os valores de referência de 2026 em Menu → Valores de referência.
-7. Próxima: 3.6 (módulo opcional de estimativa eMulti).
+7. ~~3.6 (Estimativa eMulti)~~: **feita**. Página `/estimativa-emulti`. **O épico 3 está concluído.**
 8. Épico 2 (animações): stories 2.1 → 2.5.
 
 Documentos:

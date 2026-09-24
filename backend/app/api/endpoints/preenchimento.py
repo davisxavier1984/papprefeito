@@ -7,10 +7,28 @@ ao aplicar, os valores seguem pelo salvamento normal (upsert com itens de origem
 from decimal import Decimal
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
 
-from app.core.dependencies import get_current_superuser, get_valores_service
-from app.models.schemas import SugestaoResposta, User, ValorReferencia, ValorReferenciaCreate
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.core.dependencies import (
+    get_current_authorized_user,
+    get_current_superuser,
+    get_historico_service,
+    get_valores_service,
+)
+from app.models.schemas import (
+    AplicarEmultiRequest,
+    AplicarEmultiResultado,
+    EstimativaEmulti,
+    SugestaoResposta,
+    User,
+    ValorReferencia,
+    ValorReferenciaCreate,
+)
+from app.services import emulti_estimativa
+from app.services.historico_perdas import HistoricoPerdasService
+from app.services.relatorios_service import DadosNaoEncontrados
 from app.services.api_client import saude_api_client
 from app.services.regras_perda import sugerir
 from app.services.valores_referencia import ANO_CONFIRMADO_INICIAL, CATALOGO, VIGENCIA_INICIAL, ValoresReferenciaService
@@ -87,3 +105,37 @@ async def remover_valor_referencia(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"message": "Removido"}
+
+
+# ================================
+# ESTIMATIVA eMULTI (story 3.6)
+# ================================
+
+@router.get("/emulti/{codigo_ibge}/{competencia}/estimativa", response_model=EstimativaEmulti)
+async def estimativa_emulti(
+    codigo_ibge: str,
+    competencia: str,
+    divisor: Optional[int] = Query(None, ge=1, le=50, description="Profissionais elegíveis por equipe"),
+    valores_service: ValoresReferenciaService = Depends(get_valores_service),
+):
+    """Estima as eMulti possíveis pelos profissionais elegíveis do CNES. Não grava nada."""
+    valores = await valores_service.vigentes(competencia)
+    try:
+        return await emulti_estimativa.estimar(codigo_ibge, competencia, valores, divisor)
+    except DadosNaoEncontrados as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except KeyError:
+        raise HTTPException(status_code=409, detail="Valores de referência da eMulti não cadastrados")
+    except Exception as exc:
+        logger.error(f"Erro na estimativa eMulti de {codigo_ibge}/{competencia}: {exc}", exc_info=True)
+        raise HTTPException(status_code=502, detail="Não foi possível consultar o CNES agora. Tente novamente.")
+
+
+@router.post("/emulti/aplicar", response_model=List[AplicarEmultiResultado])
+async def aplicar_emulti(
+    request: AplicarEmultiRequest,
+    current_user: User = Depends(get_current_authorized_user),
+    historico: HistoricoPerdasService = Depends(get_historico_service),
+):
+    """Grava a perda da eMulti (origem "estimativa") em cada município; falhas não afetam os demais."""
+    return await emulti_estimativa.aplicar(request.competencia, request.itens, current_user.id, historico)

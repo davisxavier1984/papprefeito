@@ -531,3 +531,44 @@ export interface ValorReferenciaCreate {
   valor: number;
   fonte?: string;
 }
+
+// ================================
+// Estimativa eMulti (story 3.6)
+// ================================
+
+export type ModalidadeEmulti = 'estrategica' | 'complementar' | 'ampliada';
+
+export interface ProfissionalElegivel {
+  categoria: string;
+  cbo: string;
+  pessoas: number;
+  composicao_fixa: boolean;
+}
+
+export interface EstimativaEmulti {
+  codigo_ibge: string;
+  competencia: string;
+  equipes_aps: number;
+  equipes_aps_cnes: number;
+  atuais: Record<ModalidadeEmulti, number>;
+  teto: Record<ModalidadeEmulti, number>;
+  custeio_atual: number;
+  profissionais_elegiveis: number;
+  nutricionistas_psicologos: number;
+  profissionais: ProfissionalElegivel[];
+  divisor: number;
+  equipes_estimadas: number;
+  combinacao: Record<ModalidadeEmulti, number>;
+  custeio_modalidade: Record<ModalidadeEmulti, number>;
+  qualidade_pct: number;
+  perda_estimada: number;
+  indice_plano?: number | null;
+  plano?: string | null;
+  aviso?: string | null;
+}
+
+export interface AplicarEmultiResultado {
+  codigo_ibge: string;
+  ok: boolean;
+  mensagem: string;
+}

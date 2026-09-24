@@ -89,13 +89,16 @@ export const useAutoSave = (debounceMs = 2000) => {
       const { dadosProcessados, sugestoesAplicadas } = useMunicipioStore.getState();
       if (dadosProcessados.length === perdas.length) {
         payload.itens = perdas.map((valor, i) => {
-          // Valor calculado (story 3.3): continua "regra" enquanto o usuário não alterar;
+          // Valor calculado (stories 3.3/3.6): mantém a origem enquanto o usuário não alterar;
           // se alterar, vira "manual" mas guarda a sugestão para o aprendizado
           const sug = sugestoesAplicadas[i];
           return {
             plano: dadosProcessados[i].recurso,
             valor,
-            origem: sug && Math.abs(valor - sug.valor_aplicado) < 0.005 ? 'regra' : 'manual',
+            origem:
+              sug && Math.abs(valor - sug.valor_aplicado) < 0.005
+                ? sug.regra_id.startsWith('emulti_estimativa') ? 'estimativa' : 'regra'
+                : 'manual',
             regra_id: sug?.regra_id ?? null,
             valor_sugerido: sug?.valor_sugerido ?? null,
           };
