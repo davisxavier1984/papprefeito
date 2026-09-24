@@ -90,12 +90,17 @@ def regra_esf(p: Dict[str, Any], valores: Valores) -> List[ComponenteSugestao]:
 
 
 def regra_acs(p: Dict[str, Any], valores: Valores) -> List[ComponenteSugestao]:
+    """ACS credenciados ainda não pagos (como o consultor preenche); o teto é opcional."""
     teto, pagos = int(_n(p, 'qtTetoAcs')), int(_n(p, 'qtAcsDiretoPgto'))
     cred = int(_n(p, 'qtAcsDiretoCredenciado'))
-    return [_componente(
-        'acs_teto', 'ACS até o teto', max(teto - pagos, 0), _v(valores, 'acs_valor'), editavel=True,
-        detalhe=f"Teto {teto}, pagos {pagos}. Pela diferença credenciados − pagos seriam {max(cred - pagos, 0)}",
-    )]
+    valor = _v(valores, 'acs_valor')
+    return [
+        _componente('acs_credenciados', 'ACS credenciados ainda não pagos', max(cred - pagos, 0), valor,
+                    editavel=True, detalhe=f"Credenciados {cred}, pagos {pagos}, teto {teto}"),
+        # Acima do que já está credenciado ou pago, para não contar os mesmos ACS duas vezes
+        _componente('acs_teto', 'ACS até o teto (acima dos credenciados)', max(teto - max(cred, pagos), 0), valor,
+                    incluido=False, editavel=True),
+    ]
 
 
 def regra_sb(p: Dict[str, Any], valores: Valores) -> List[ComponenteSugestao]:
@@ -198,7 +203,7 @@ def sugerir(dados: Dict[str, Any], valores: Valores,
 
         # Nunca negativo: quem já recebe mais que o alvo não tem perda
         total = max(round(sum(c.quantidade * c.valor_unitario for c in componentes if c.incluido), 2), 0.0)
-        regra_id = ('emulti_estimativa_v1' if tipo == 'emulti' else f"{tipo}_v1") if componentes else None
+        regra_id = ({'emulti': 'emulti_estimativa_v1', 'acs': 'acs_v2'}.get(tipo, f"{tipo}_v1")) if componentes else None
         planos.append(PlanoSugestao(
             indice=indice, plano=nome, tipo=tipo, regra_id=regra_id,
             aplicavel=bool(componentes), componentes=componentes, total_sugerido=total,

@@ -51,10 +51,28 @@ def test_opcionais_de_saude_bucal_nao_entram_por_padrao():
     assert comps['lrpd'].valor_unitario == 6750.00  # 11.250 → 18.000
 
 
-def test_acs_usa_teto_menos_pagos_e_nunca_negativo():
-    assert _planos()['acs'].total_sugerido == 0  # teto 29 < 44 pagos
-    p = dict(PAGAMENTO_290240, qtTetoAcs=60)
-    assert _planos(p)['acs'].total_sugerido == 16 * 3242.00
+def test_acs_usa_credenciados_menos_pagos_e_nunca_negativo():
+    acs = _planos()['acs']  # 44 credenciados, 44 pagos, teto 29
+    assert acs.total_sugerido == 0
+    assert acs.regra_id == 'acs_v2'
+    p = dict(PAGAMENTO_290240, qtAcsDiretoCredenciado=50)
+    assert _planos(p)['acs'].total_sugerido == 6 * 3242.00
+    p = dict(PAGAMENTO_290240, qtAcsDiretoCredenciado=40)  # menos credenciados que pagos
+    assert _planos(p)['acs'].total_sugerido == 0
+
+
+def test_acs_teto_fica_desmarcado_e_nao_conta_duas_vezes():
+    p = dict(PAGAMENTO_290240, qtAcsDiretoCredenciado=50, qtTetoAcs=60)
+    comps = {c.id: c for c in _planos(p)['acs'].componentes}
+    assert comps['acs_credenciados'].incluido and comps['acs_credenciados'].quantidade == 6
+    assert not comps['acs_teto'].incluido and comps['acs_teto'].quantidade == 10  # 60 − 50
+    assert _planos(p)['acs'].total_sugerido == 6 * 3242.00
+
+
+def test_acs_caso_real_do_historico():
+    # 292070 (Maraú) 202512: 46 credenciados, 39 pagos, teto 64; o consultor informou 22.694,00
+    p = dict(PAGAMENTO_290240, qtAcsDiretoCredenciado=46, qtAcsDiretoPgto=39, qtTetoAcs=64)
+    assert _planos(p)['acs'].total_sugerido == 22694.00
 
 
 def test_sesb_nao_entra_acima_de_20_mil_habitantes_nem_se_ja_recebe():

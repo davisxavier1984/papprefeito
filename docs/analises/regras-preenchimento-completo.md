@@ -20,7 +20,7 @@ A perda de cada plano é o **potencial** do município (o que ele poderia recebe
 |---|---|---|
 | **eSF/eAP** | equipes eSF pagas × (vínculo ÓTIMO − pago + qualidade ÓTIMO − paga) **+** N equipes novas × (fixo do estrato + vínculo ÓTIMO + qualidade ÓTIMO) | N segue o padrão dos dados: se faltam **até 2** equipes até o teto, N = todas; se faltam mais, N = ⌈diferença ÷ 3⌉ |
 | eSF: constante R$ 14.058 | Constante do próprio usuário, somada caso a caso | O sistema sugere **0 vezes**, e o usuário informa quantas |
-| **ACS** | **(teto de ACS − ACS pagos) × valor por ACS** (R$ 3.242) | Teto (potencial máximo). O valor por credenciados − pagos aparece como informação |
+| **ACS** | **(ACS diretos credenciados − pagos) × valor por ACS** (R$ 3.242). O teto (teto − credenciados) aparece como componente opcional, desmarcado | Trocado em 24/09/2026: bate ao centavo em 49 de 87 registros do histórico (a regra do teto batia em 3 de 51) |
 | **eMulti** | Módulo "Estimativa eMulti" (story 3.6): nº de equipes = mín(T, profissionais elegíveis ÷ 6, nutricionistas + psicólogos) × custeio − custeio atual | Opcional, o usuário aplica |
 | **Saúde Bucal** | Soma dos componentes abaixo | Potencial do município |
 | Demais programas, Manutenção, Promoção, Academia | **Zero**, destacado como "preencher manualmente, se houver" | — |
@@ -75,6 +75,6 @@ Rodado com os valores padrão sobre os 241 registros do histórico (competência
 |---|---|---|
 | eSF | 29% | 1,03 |
 | Saúde Bucal | 11% exato, 23% dentro de ±10% | 0,98 |
-| ACS (teto − pagos, decisão do usuário) | 4% | 2,56. O teto dá bem mais do que o usuário informava pelos credenciados |
+| ACS (credenciados − pagos) | 56% (49/87) | erro mediano 4% nos preenchidos |
 
 Testes: `backend/tests/test_regras_perda.py`, com o caso 290240/202512, que reproduz os valores informados de eSF (24.000,00) e Saúde Bucal (12.710,22).
