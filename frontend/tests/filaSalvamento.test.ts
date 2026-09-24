@@ -201,6 +201,33 @@ test('falha com pendente mais novo → só o mais novo é enviado', async () => 
   assert.deepEqual(enviados, ['b']);
 });
 
+test('a falha depois de b já ter saído da fila → a não é reenviado', async () => {
+  const r = relogioFalso();
+  const fila = criarFilaSalvamento<string>(2000, r.relogio);
+  const primeiraTentativa = adiado();
+  const servidor: string[] = [];
+
+  fila.agendar('a', () => primeiraTentativa.promessa);
+  r.disparar(); // dispara o envio de 'a', que fica pendurado até rejeitarmos
+
+  // 'b' é agendado e retirado da fila por um descarregar explícito, ainda com 'a' em voo
+  fila.agendar('b', async (p) => {
+    servidor.push(p);
+  });
+  const descarregaB = fila.descarregar();
+
+  // só agora 'a' falha - depois de 'b' já ter sido retirado da fila (pendente === null)
+  primeiraTentativa.rejeitar(new Error('falhou'));
+  await descarregaB;
+
+  assert.deepEqual(servidor, ['b']);
+  assert.equal(fila.temPendente(), false, 'a não deve voltar para a fila depois de b já ter saído');
+
+  // Um próximo descarregar não deve reenviar 'a' por cima de 'b'
+  await fila.descarregar();
+  assert.deepEqual(servidor, ['b']);
+});
+
 test('envios acontecem em ordem', async () => {
   const r = relogioFalso();
   const fila = criarFilaSalvamento<string>(2000, r.relogio);

@@ -31,8 +31,14 @@ export const criarFilaSalvamento = <T>(
   relogio: Relogio = relogioPadrao
 ): FilaSalvamento<T> => {
   let timer: unknown = null;
-  let pendente: { payload: T; enviar: (payload: T) => Promise<unknown>; retentativa?: boolean } | null = null;
+  let pendente:
+    | { payload: T; enviar: (payload: T) => Promise<unknown>; retentativa?: boolean; geracao: number }
+    | null = null;
   let emCurso: Promise<unknown> | null = null;
+  // Incrementada a cada `agendar`: identifica qual foi o último item agendado, para
+  // saber (na hora de uma falha) se algo mais novo já tomou o lugar do item que falhou -
+  // inclusive quando esse item mais novo já foi retirado da fila por um `descarregar`.
+  let geracao = 0;
 
   const enviarAgora = (): Promise<unknown> => {
     if (timer !== null) {
@@ -53,7 +59,10 @@ export const criarFilaSalvamento = <T>(
         // item para uma retentativa (sem reagendar timer: só um novo agendar ou um
         // descarregar explícito reenviam). Uma retentativa que falha de novo é descartada,
         // para a fila não ficar travada.
-        if (!item.retentativa && pendente === null) {
+        // A comparação de geração cobre também o caso em que o item mais novo já foi
+        // retirado da fila (por um `descarregar` concorrente) antes deste falhar: mesmo
+        // com `pendente === null`, a geração atual já avançou e este item não volta.
+        if (!item.retentativa && pendente === null && geracao === item.geracao) {
           pendente = { ...item, retentativa: true };
         }
         throw erro;
@@ -69,7 +78,8 @@ export const criarFilaSalvamento = <T>(
 
   return {
     agendar: (payload, enviar) => {
-      pendente = { payload, enviar };
+      geracao += 1;
+      pendente = { payload, enviar, geracao };
       if (timer !== null) relogio.clearTimeout(timer);
       timer = relogio.setTimeout(() => {
         timer = null;
