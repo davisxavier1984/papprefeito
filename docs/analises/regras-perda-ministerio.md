@@ -68,7 +68,7 @@ Nas competências até 202510, as perdas eram mais "no olho" (100 mil, 80 mil, 1
 
 **Regra proposta para a story 3.3:**
 1. Calcular T (eSF + eAP) a partir dos pagamentos.
-2. Gerar a combinação que cobre as T equipes, preferindo Complementar (5–9) e completando com Estratégica/Ampliada, respeitando o teto.
+2. Gerar a combinação que cobre as T equipes, respeitando o teto. **Hipótese a confirmar na 3.1b:** o usuário prefere Complementar (5–9) e completa com Estratégica/Ampliada.
 3. **Limitar pela disponibilidade no CNES:** reaproveitar `cnes_utils.coletar_municipio` + `emulti_utils.construir_indice_cbo` do `maisprofissionais` para checar se há CH e categorias para cada equipe.
 4. Perda = custeio da combinação − custeio atual (+ qualidade BOM de 18,75% quando o usuário a inclui, como em 172049_202606: 12.000 + 2.250).
 5. O usuário pode trocar a combinação na tela, e o sistema recalcula o valor.
@@ -80,7 +80,7 @@ Nas competências até 202510, as perdas eram mais "no olho" (100 mil, 80 mil, 1
 
 ## Implicações para as stories 3.2 a 3.5
 
-1. **Story 3.3:** a tabela passa a vir com ACS e eSF preenchidos pela regra. A eMulti ganha um seletor "equipes novas por modalidade" (padrão: 1 da maior modalidade que ainda cabe no teto). Saúde Bucal e os demais planos continuam manuais, destacados.
+1. **Story 3.3:** a tabela passa a vir com ACS e eSF preenchidos pela regra, e a eMulti com a combinação sugerida (T equipes, limitada pelo CNES, depois da spike 3.1b), que o usuário pode trocar. Saúde Bucal e os demais planos continuam manuais, destacados.
 2. **Parâmetros ajustáveis:** valor por ACS, valores ÓTIMO da eSF e custeio da eMulti ficam numa tabela de parâmetros por competência, e não fixos no código, porque os valores mudam por portaria.
 3. **Story 3.2:** gravar `valor_sugerido`, `valor_final` e `regra_id`. Com o uso, a taxa de aceite mostra se a regra está boa, e as correções do usuário mostram o que falta (ex.: o componente de 14.058).
 4. **Lote (3.4 e 3.5):** para lotes, ACS e eSF já saem calculados. Os planos manuais aparecem como "pendente de revisão" na lista de municípios.
