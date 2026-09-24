@@ -22,7 +22,7 @@ async def main(desde: str) -> None:
     await init_db()
     async with async_session() as session:
         existentes = set(await RespostasMinisterioService(session).todas())
-    pendentes = sorted({(e.codigo_ibge, e.competencia) for e in municipio_editado_service.get_all_editados()
+    pendentes = sorted({(e.codigo_ibge[:6], e.competencia) for e in municipio_editado_service.get_all_editados()
                         if e.competencia >= desde} - existentes)
     print(f"{len(pendentes)} consultas pendentes")
     falhas = 0

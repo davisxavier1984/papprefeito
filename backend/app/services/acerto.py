@@ -32,6 +32,7 @@ def metricas(pares: List[Tuple[float, float]]) -> Dict[str, Any]:
         'registros': len(pares),
         'exatos': sum(abs(s - i) < 1 for s, i in pares),
         'erro_mediano': erro_mediano,
+        'com_valor': len(positivos),
         'dentro_25': sum(e <= 0.25 for e in erros),
         'zero_certo': sum((s > 0) == (i > 0) for s, i in pares),
         'razao_soma': razao,

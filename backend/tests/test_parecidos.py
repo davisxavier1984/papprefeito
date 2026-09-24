@@ -77,3 +77,13 @@ def test_montar_parecidos_usa_posicao_dos_planos_municipais():
     r = montar_parecidos('999999', '202606', dados, hist)
     assert [(p.indice, p.mediana) for p in r.planos] == [(1, 19900), (2, None)]
     assert r.planos[0].exemplos[0].municipio == 'Boninal'
+
+
+def test_tem_manual_parecidos_so_conta_manual_com_valor_em_demais_ou_promocao():
+    from app.api.endpoints.preenchimento import _tem_manual_parecidos
+
+    assert _tem_manual_parecidos(_itens(19900)) is True
+    assert _tem_manual_parecidos(_itens(0)) is False                        # zero não conta
+    assert _tem_manual_parecidos(_itens(19900, origem='regra')) is False    # não é do consultor
+    assert _tem_manual_parecidos([{'plano': 'ACS', 'valor': 6484, 'origem': 'manual'}]) is False  # outro plano
+    assert _tem_manual_parecidos([]) is False

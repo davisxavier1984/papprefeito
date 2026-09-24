@@ -542,6 +542,7 @@ export interface MetricasPlano {
   registros: number;
   exatos: number;
   erro_mediano?: number | null;
+  com_valor: number;
   dentro_25: number;
   zero_certo: number;
   razao_soma?: number | null;

@@ -678,6 +678,7 @@ class MetricasPlano(BaseModel):
     registros: int
     exatos: int
     erro_mediano: Optional[float] = None
+    com_valor: int
     dentro_25: int
     zero_certo: int
     razao_soma: Optional[float] = None

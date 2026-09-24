@@ -116,10 +116,13 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
       };
     }
     // Mediana dos municípios parecidos (Demais e Promoção), só onde o consultor escolheu usar
+    // e só se o índice do plano de parecidos ainda corresponder ao mesmo plano da sugestão
     for (const [indice, usar] of Object.entries(usarMediana)) {
       const i = Number(indice);
-      const valor = parecidos[i]?.mediana;
-      if (!usar || valor == null || i >= perdas.length) continue;
+      const plano = planos.find((p) => p.indice === i);
+      const parecido = parecidos[i];
+      const valor = parecido?.mediana;
+      if (!usar || !plano || parecido?.plano !== plano.plano || valor == null || i >= perdas.length) continue;
       perdas[i] = valor;
       sugestoes[i] = { regra_id: REGRA_PARECIDOS, valor_sugerido: valor, valor_aplicado: valor };
     }
@@ -236,7 +239,7 @@ const PreenchimentoAutomatico: React.FC<Props> = ({ open, onClose, onAplicado })
                 ) : (
                   <Space direction="vertical" size={4} style={{ width: '100%' }}>
                     <Text type="secondary">{p.observacao}</Text>
-                    {parecidos[p.indice] &&
+                    {parecidos[p.indice]?.plano === p.plano &&
                       (parecidos[p.indice].exemplos.length ? (
                         <Space direction="vertical" size={4} style={{ width: '100%' }}>
                           <Text type="secondary">

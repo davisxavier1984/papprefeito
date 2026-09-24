@@ -8,6 +8,7 @@ def test_metricas_basicas():
     assert m['registros'] == 5
     assert m['exatos'] == 2                 # (100,100) e (0,0)
     assert m['zero_certo'] == 3             # (100,100), (120,100), (0,0)
+    assert m['com_valor'] == 3              # informado > 0: (100,100), (120,100), (0,200)
     assert m['dentro_25'] == 2              # entre os 3 com informado > 0: 0%, 20%, 100%
     assert m['erro_mediano'] == 0.2
     assert m['razao_soma'] == round(270 / 400, 4)
@@ -16,11 +17,14 @@ def test_metricas_basicas():
 
 def test_metricas_sem_informado_nao_divide_por_zero():
     m = metricas([(0, 0), (10, 0)])
+    assert m['com_valor'] == 0
     assert m['erro_mediano'] is None and m['razao_soma'] is None and m['alerta'] is False
 
 
 def test_metricas_vazias():
-    assert metricas([])['registros'] == 0
+    m = metricas([])
+    assert m['registros'] == 0
+    assert m['com_valor'] == 0
 
 
 def _sug(tipo, total):

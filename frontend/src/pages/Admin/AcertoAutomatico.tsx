@@ -20,8 +20,13 @@ const colunas: ColumnsType<MetricasPlano> = [
   { title: 'Plano', dataIndex: 'plano' },
   { title: 'Registros', dataIndex: 'registros', align: 'right' },
   { title: 'Exatos', key: 'exatos', align: 'right', render: (_, m) => `${m.exatos} de ${m.registros}` },
-  { title: 'Erro mediano', dataIndex: 'erro_mediano', align: 'right', render: pct },
-  { title: 'Dentro de ±25%', dataIndex: 'dentro_25', align: 'right' },
+  { title: 'Erro mediano (entre os preenchidos)', dataIndex: 'erro_mediano', align: 'right', render: pct },
+  {
+    title: 'Dentro de ±25%',
+    key: 'dentro_25',
+    align: 'right',
+    render: (_, m) => `${m.dentro_25} de ${m.com_valor}`,
+  },
   { title: 'Zero certo', key: 'zero', align: 'right', render: (_, m) => `${m.zero_certo} de ${m.registros}` },
   { title: 'Sugerido ÷ informado', dataIndex: 'razao_soma', align: 'right', render: razao },
   {
@@ -46,7 +51,7 @@ const AcertoAutomatico: React.FC = () => {
         <Title level={2} style={{ marginBottom: 0 }}>Acerto do automático</Title>
         <Text type="secondary">
           Compara o preenchimento automático com o que o consultor informou à mão. Só valores digitados pelo consultor
-          entram; o que veio da própria regra não conta.
+          entram; o que veio da própria regra não conta. Sugestões aceitas sem alteração não entram na comparação.
         </Text>
       </div>
 
@@ -79,7 +84,7 @@ const AcertoAutomatico: React.FC = () => {
         <Alert
           type="info"
           showIcon
-          message={`${data.sem_resposta} registro(s) ficaram de fora por não ter a resposta do Ministério guardada.`}
+          message={`${data.sem_resposta} registro(s) ficaram de fora (sem resposta do Ministério guardada ou com dados incompletos).`}
         />
       )}
 

@@ -73,16 +73,38 @@ def renderizar_pdf(
     raise ValueError(f"Tipo de relatório desconhecido: {tipo}")
 
 
+def montar_itens_lote(planos: List[Any]) -> List[Any]:
+    """Converte os planos sugeridos em `ItemPerda` para o lote (função pura, sem rede/banco).
+
+    Planos aplicáveis mantêm a regra (ou estimativa, no caso da eMulti). Planos sem regra
+    também são gravados com origem "regra" — o zero foi uma decisão do sistema, não uma
+    ausência de preenchimento do consultor — usando o `regra_id` sinalizador `sem_regra_v1`.
+    """
+    from app.models.schemas import ItemPerda
+
+    return [
+        ItemPerda(
+            plano=p.plano,
+            valor=p.total_sugerido if p.aplicavel else 0.0,
+            origem='estimativa' if p.tipo == 'emulti' else 'regra',
+            regra_id=p.regra_id if p.aplicavel else 'sem_regra_v1',
+            valor_sugerido=p.total_sugerido if p.aplicavel else 0.0,
+        )
+        for p in planos
+    ]
+
+
 async def preencher_por_regras(codigo_ibge: str, competencia: str, usuario_id: Optional[str]) -> bool:
     """Calcula as perdas pelas regras da story 3.3 (valores padrão) e salva com origem "regra".
 
     Usado no lote para municípios sem perdas salvas. Inclui a eMulti estimada pelo CNES
-    (se o CNES falhar, ela fica zerada); planos sem regra ficam zerados.
+    (se o CNES falhar, ela fica zerada); planos sem regra ficam zerados, mas com origem
+    "regra" (decisão do sistema, não ausência de preenchimento do consultor).
     Retorna False se não houver dados do Ministério.
     """
     # Imports locais: evitam ciclo com os serviços de banco
     from app.core.database import async_session
-    from app.models.schemas import ItemPerda, MunicipioEditadoCreate
+    from app.models.schemas import MunicipioEditadoCreate
     from app.services.emulti_estimativa import estimar_ou_none
     from app.services.historico_perdas import HistoricoPerdasService
     from app.services.regras_perda import sugerir
@@ -94,14 +116,8 @@ async def preencher_por_regras(codigo_ibge: str, competencia: str, usuario_id: O
     async with async_session() as session:
         valores = await ValoresReferenciaService(session).vigentes(competencia)
         planos = sugerir(dados, valores, await estimar_ou_none(codigo_ibge, competencia, valores, dados))
-        perdas = [p.total_sugerido if p.aplicavel else 0.0 for p in planos]
-        itens = [
-            ItemPerda(plano=p.plano, valor=v,
-                      origem=('estimativa' if p.tipo == 'emulti' else 'regra') if p.aplicavel else 'manual',
-                      regra_id=p.regra_id if p.aplicavel else None,
-                      valor_sugerido=p.total_sugerido if p.aplicavel else None)
-            for p, v in zip(planos, perdas)
-        ]
+        itens = montar_itens_lote(planos)
+        perdas = [item.valor for item in itens]
         salvo = municipio_editado_service.upsert_editado(MunicipioEditadoCreate(
             codigo_ibge=codigo_ibge, competencia=competencia, perda_recurso_mensal=perdas, itens=itens))
         if not salvo:

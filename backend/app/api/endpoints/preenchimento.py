@@ -44,6 +44,16 @@ def _itens(editado) -> List[dict]:
     return [i.model_dump() if hasattr(i, 'model_dump') else dict(i) for i in (editado.itens or [])]
 
 
+def _tem_manual_parecidos(itens: List[dict]) -> bool:
+    """True se algum item de origem manual com valor > 0 estiver em Demais ou Promoção."""
+    for item in itens:
+        nome = item.get('plano') or ''
+        if (any(nome.startswith(p) for p in PREFIXOS_PARECIDOS)
+                and item.get('origem', 'manual') == 'manual' and item.get('valor')):
+            return True
+    return False
+
+
 def montar_parecidos(codigo_ibge: str, competencia: str, dados: dict, historico) -> ParecidosResposta:
     """Para cada plano municipal de 'Demais' ou 'Promoção', os municípios parecidos preenchidos à mão."""
     alvo = perfil(dados)
@@ -77,11 +87,12 @@ async def acerto_automatico(
 ):
     """Quanto a regra atual se aproxima do que o consultor informou à mão (só leitura)."""
     editados = [e for e in municipio_editado_service.get_all_editados() if e.competencia >= desde and e.itens]
-    respostas = await respostas_service.todas()
+    chaves = [(e.codigo_ibge[:6], e.competencia) for e in editados]
+    respostas = await respostas_service.listar(chaves)
     valores_por_comp: dict = {}
     entradas, sem_resposta = [], 0
     for e in editados:
-        dados = respostas.get((e.codigo_ibge, e.competencia))
+        dados = respostas.get((e.codigo_ibge[:6], e.competencia))
         if not dados or not dados.get('pagamentos'):
             sem_resposta += 1
             continue
@@ -89,7 +100,8 @@ async def acerto_automatico(
             valores_por_comp[e.competencia] = await valores_service.vigentes(e.competencia)
         try:
             sugestoes = sugerir(dados, valores_por_comp[e.competencia])
-        except KeyError:
+        except Exception as exc:
+            logger.warning(f"Não foi possível sugerir para {e.codigo_ibge}/{e.competencia}: {exc}")
             sem_resposta += 1
             continue
         entradas.append((sugestoes, _itens(e)))
@@ -134,18 +146,29 @@ async def municipios_parecidos(
     respostas_service: RespostasMinisterioService = Depends(get_respostas_service),
 ):
     """Como o consultor preencheu Demais e Promoção em municípios parecidos (só leitura)."""
+    codigo_ibge = codigo_ibge[:6]
     dados = await respostas_service.obter(codigo_ibge, competencia)
     if not dados:
         dados = await saude_api_client.consultar_financiamento(codigo_ibge, competencia)
     if not dados or not dados.get('resumosPlanosOrcamentarios'):
         raise HTTPException(status_code=404, detail="Sem dados de financiamento do Ministério para este município")
-    respostas = await respostas_service.todas()
+    # Só os editados que têm chance de contribuir: item manual com valor > 0 em Demais/Promoção
+    candidatos = [e for e in municipio_editado_service.get_all_editados()
+                  if e.itens and _tem_manual_parecidos(_itens(e))]
+    chaves = [(e.codigo_ibge[:6], e.competencia) for e in candidatos]
+    respostas = await respostas_service.listar(chaves)
     historico = []
-    for e in municipio_editado_service.get_all_editados():
-        resposta = respostas.get((e.codigo_ibge, e.competencia))
-        perf = perfil(resposta) if resposta else None
-        if perf and e.itens:
-            historico.append((e.codigo_ibge, e.competencia, perf, _itens(e)))
+    for e in candidatos:
+        resposta = respostas.get((e.codigo_ibge[:6], e.competencia))
+        if not resposta:
+            continue
+        try:
+            perf = perfil(resposta)
+        except Exception as exc:
+            logger.warning(f"Não foi possível calcular o perfil de {e.codigo_ibge}/{e.competencia}: {exc}")
+            continue
+        if perf:
+            historico.append((e.codigo_ibge[:6], e.competencia, perf, _itens(e)))
     return montar_parecidos(codigo_ibge, competencia, dados, historico)
 
 
