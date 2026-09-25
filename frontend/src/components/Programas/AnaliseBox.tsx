@@ -59,7 +59,7 @@ export const AnaliseBox: React.FC<AnaliseBoxProps> = ({ programas }) => {
 
         {/* Estatísticas */}
         <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
-          <Col xs={12} sm={6}>
+          <Col xs={24} sm={12} md={6}>
             <Statistic
               title="Total Repasse"
               value={totalRepasse}
@@ -68,7 +68,7 @@ export const AnaliseBox: React.FC<AnaliseBoxProps> = ({ programas }) => {
               valueStyle={{ fontSize: '18px', color: '#22c55e' }}
             />
           </Col>
-          <Col xs={12} sm={6}>
+          <Col xs={24} sm={12} md={6}>
             <Statistic
               title="Total Descontos"
               value={totalDescontos}
@@ -77,7 +77,7 @@ export const AnaliseBox: React.FC<AnaliseBoxProps> = ({ programas }) => {
               valueStyle={{ fontSize: '18px', color: '#ef4444' }}
             />
           </Col>
-          <Col xs={12} sm={6}>
+          <Col xs={24} sm={12} md={6}>
             <Statistic
               title="Programas Ativos"
               value={programasAtivos}
@@ -86,7 +86,7 @@ export const AnaliseBox: React.FC<AnaliseBoxProps> = ({ programas }) => {
               valueStyle={{ fontSize: '18px', color: '#0ea5e9' }}
             />
           </Col>
-          <Col xs={12} sm={6}>
+          <Col xs={24} sm={12} md={6}>
             <Statistic
               title="Oportunidades"
               value={todasOportunidades.length}
@@ -100,7 +100,7 @@ export const AnaliseBox: React.FC<AnaliseBoxProps> = ({ programas }) => {
 
         {/* Resumo de Status */}
         <div style={{ marginBottom: '16px' }}>
-          <Text strong style={{ fontSize: '13px', color: '#475569', display: 'block', marginBottom: '8px' }}>
+          <Text strong style={{ fontSize: '13px', color: 'var(--text-tertiary)', display: 'block', marginBottom: '8px' }}>
             Status dos Programas:
           </Text>
           <Space size="small" wrap>
@@ -120,7 +120,7 @@ export const AnaliseBox: React.FC<AnaliseBoxProps> = ({ programas }) => {
               </Text>
             )}
             {programasInativos > 0 && (
-              <Text style={{ fontSize: '12px', color: '#64748b' }}>
+              <Text style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 ❌ {programasInativos} inativo{programasInativos > 1 ? 's' : ''}
               </Text>
             )}
@@ -161,7 +161,7 @@ export const AnaliseBox: React.FC<AnaliseBoxProps> = ({ programas }) => {
                     </li>
                   ))}
                   {todasOportunidades.length > 5 && (
-                    <li style={{ fontSize: '12px', color: '#64748b' }}>
+                    <li style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                       ... e mais {todasOportunidades.length - 5} oportunidades
                     </li>
                   )}

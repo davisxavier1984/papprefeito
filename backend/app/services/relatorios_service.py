@@ -2,7 +2,7 @@
 Preparação e renderização dos relatórios PDF, compartilhadas entre as rotas
 individuais (/relatorios/pdf e /relatorios/pdf-detalhado) e a geração em lote.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from app.services.api_client import saude_api_client
@@ -18,12 +18,25 @@ class DadosNaoEncontrados(Exception):
     """A API do Ministério não devolveu dados de financiamento."""
 
 
+def _so_municipais(resumos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Mesmo filtro do frontend (processarDados): as perdas salvas são indexadas por esta lista."""
+    return [
+        r for r in resumos
+        if not r.get('dsEsferaAdministrativa') or r.get('dsEsferaAdministrativa') == 'MUNICIPAL'
+    ]
+
+
 @dataclass
 class DadosRelatorio:
     resumos: List[Dict[str, Any]]
     pagamentos: List[Dict[str, Any]]
     resumo: Any  # ResumoFinanceiro
     tem_perdas_salvas: bool
+    # Relatório detalhado: só recursos municipais + simulação por componente (SIAPS)
+    resumos_municipais: List[Dict[str, Any]] = field(default_factory=list)
+    resumo_municipal: Any = None
+    perdas_vinculo: Optional[List[float]] = None
+    perdas_qualidade: Optional[List[float]] = None
 
 
 async def preparar_dados(codigo_ibge: str, competencia: str) -> DadosRelatorio:
@@ -38,11 +51,18 @@ async def preparar_dados(codigo_ibge: str, competencia: str) -> DadosRelatorio:
     editado = municipio_editado_service.get_editado(codigo_ibge, competencia)
     perdas = editado.perda_recurso_mensal if editado else [0.0] * len(resumos)
 
+    municipais = _so_municipais(resumos)
+    perdas_municipais = editado.perda_recurso_mensal if editado else [0.0] * len(municipais)
+
     return DadosRelatorio(
         resumos=resumos,
         pagamentos=dados.get('pagamentos', []),
         resumo=compute_financial_summary(resumos, perdas),
         tem_perdas_salvas=editado is not None,
+        resumos_municipais=municipais,
+        resumo_municipal=compute_financial_summary(municipais, perdas_municipais),
+        perdas_vinculo=editado.perda_vinculo_mensal if editado else None,
+        perdas_qualidade=editado.perda_qualidade_mensal if editado else None,
     )
 
 
@@ -67,8 +87,11 @@ def renderizar_pdf(
             municipio_nome=municipio_nome,
             uf=uf,
             competencia=competencia,
-            resumo=dados.resumo,
+            resumo=dados.resumo_municipal,
             pagamentos=dados.pagamentos,
+            resumos=dados.resumos_municipais,
+            perdas_vinculo=dados.perdas_vinculo,
+            perdas_qualidade=dados.perdas_qualidade,
         )
     raise ValueError(f"Tipo de relatório desconhecido: {tipo}")
 

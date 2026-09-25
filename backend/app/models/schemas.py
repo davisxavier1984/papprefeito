@@ -108,6 +108,9 @@ class MunicipioEditado(BaseModel):
     competencia: str = Field(..., description="Competência")
     perda_recurso_mensal: List[float] = Field(default_factory=list, description="Lista de perdas mensais por recurso")
     itens: Optional[List[ItemPerda]] = Field(None, description="Perdas por plano (mesma ordem de perda_recurso_mensal)")
+    perda_recurso_mensal: List[float] = Field(default_factory=list, description="Lista de perdas mensais por recurso (total por linha)")
+    perda_vinculo_mensal: Optional[List[float]] = Field(default=None, description="Perda mensal do componente Vínculo e Acompanhamento (CVAT) por recurso")
+    perda_qualidade_mensal: Optional[List[float]] = Field(default=None, description="Perda mensal do componente Qualidade por recurso")
     data_edicao: datetime = Field(default_factory=datetime.now, description="Data da última edição")
 
 class MunicipioEditadoCreate(BaseModel):
@@ -120,6 +123,8 @@ class MunicipioEditadoCreate(BaseModel):
     @validator('itens')
     def itens_coerentes(cls, v, values):
         return _validar_itens(v, values.get('perda_recurso_mensal', []))
+    perda_vinculo_mensal: Optional[List[float]] = None
+    perda_qualidade_mensal: Optional[List[float]] = None
 
 class MunicipioEditadoUpdate(BaseModel):
     """Modelo para atualização de dados editados"""
@@ -434,6 +439,18 @@ class UserUpdate(BaseModel):
         return v.lower() if v else v
 
 
+class UserSelfUpdate(BaseModel):
+    """Schema para o próprio usuário atualizar o perfil (SEM campos de privilégio)"""
+    nome: Optional[str] = Field(None, description="Nome completo do usuário")
+    email: Optional[str] = Field(None, description="Email do usuário")
+
+    @validator('email')
+    def validate_email(cls, v):
+        if v and ('@' not in v or '.' not in v):
+            raise ValueError('Email inválido')
+        return v.lower() if v else v
+
+
 class UserPasswordChange(BaseModel):
     """Schema para mudança de senha"""
     current_password: str = Field(..., description="Senha atual")
@@ -697,3 +714,52 @@ class AcertoResposta(BaseModel):
     planos: List[MetricasPlano]
     manuais: List[PreenchidosPlano]
     sem_resposta: int = Field(..., description="Registros sem resposta do Ministério guardada")
+# --- SIAPS (classificação das equipes + lacuna financeira) -------------------
+
+class SiapsRegistro(BaseModel):
+    """Registro bruto da API SIAPS (classificação de uma equipe num quadrimestre)."""
+    nuQuadrimestre: str = Field(..., description="Quadrimestre (AAAAQN)")
+    sgEquipe: str = Field(..., description="Tipo de equipe: eSF, eSB, eAP, eMulti")
+    tipoOrigem: str = Field(..., description="Componente: CVAT ou QUALIDADE")
+    qtdClassificacaoOtimo: int = Field(default=0)
+    qtdClassificacaoBom: int = Field(default=0)
+    qtdClassificacaoSuficiente: int = Field(default=0)
+    qtdClassificacaoRegular: int = Field(default=0)
+    totalEquipesValidasParaComponente: int = Field(default=0)
+    model_config = ConfigDict(extra="ignore")
+
+
+class SiapsClassificacaoResponse(BaseModel):
+    """Envelope da classificação SIAPS de um município."""
+    ibge: str
+    uf: str
+    municipio: Optional[str] = None
+    quadrimestres: List[str] = Field(default_factory=list)
+    extraido_em: Optional[str] = None
+    registros: List[SiapsRegistro] = Field(default_factory=list)
+    model_config = ConfigDict(extra="ignore")
+
+
+class SiapsGapDetalhe(BaseModel):
+    """Lacuna financeira por equipe × componente × quadrimestre."""
+    sgEquipe: str
+    componente: str
+    quadrimestre: str
+    variante: str
+    contagens: Dict[str, int] = Field(default_factory=dict)
+    totalEquipes: int = 0
+    gap_vigente: float = 0.0
+    gap_potencial: float = 0.0
+
+
+class SiapsGapResponse(BaseModel):
+    """Resultado do cálculo de lacuna do SIAPS para uma competência."""
+    competencia: str
+    quadrimestre_aplicado: str
+    estrato: int
+    perda_por_recurso_vigente: List[float] = Field(default_factory=list)
+    perda_por_recurso_potencial: List[float] = Field(default_factory=list)
+    total_vigente: float = 0.0
+    total_potencial: float = 0.0
+    detalhe: List[SiapsGapDetalhe] = Field(default_factory=list)
+    valores_validados: bool = False

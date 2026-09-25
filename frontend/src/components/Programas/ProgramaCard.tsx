@@ -81,7 +81,7 @@ export const ProgramaCard: React.FC<ProgramaCardProps> = ({ programa }) => {
                 margin: 0,
                 fontSize: '16px',
                 fontWeight: 600,
-                color: '#1e293b',
+                color: 'var(--text-primary)',
               }}
             >
               <span style={{ marginRight: '8px' }}>{programa.icone}</span>
@@ -99,7 +99,7 @@ export const ProgramaCard: React.FC<ProgramaCardProps> = ({ programa }) => {
       {/* Quantidades com barra de progresso */}
       {programa.quantidades && (
         <div style={{ marginBottom: '16px' }}>
-          <Text strong style={{ fontSize: '13px', color: '#475569' }}>
+          <Text strong style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
             Quantidades
           </Text>
           <div style={{ marginTop: '8px' }}>
@@ -112,7 +112,7 @@ export const ProgramaCard: React.FC<ProgramaCardProps> = ({ programa }) => {
                 />
               )}
             {programa.quantidades.detalhes && (
-              <Text style={{ fontSize: '12px', color: '#64748b', display: 'block', marginTop: '4px' }}>
+              <Text style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginTop: '4px' }}>
                 {programa.quantidades.detalhes}
               </Text>
             )}
@@ -123,7 +123,7 @@ export const ProgramaCard: React.FC<ProgramaCardProps> = ({ programa }) => {
       {/* Quantidades Secundárias */}
       {programa.quantidadesSecundarias && programa.quantidadesSecundarias.detalhes && (
         <div style={{ marginBottom: '16px' }}>
-          <Text style={{ fontSize: '12px', color: '#64748b' }}>
+          <Text style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
             {programa.quantidadesSecundarias.detalhes}
           </Text>
         </div>
@@ -131,7 +131,7 @@ export const ProgramaCard: React.FC<ProgramaCardProps> = ({ programa }) => {
 
       {/* Valores Financeiros */}
       <div style={{ marginBottom: '16px' }}>
-        <Text strong style={{ fontSize: '13px', color: '#475569' }}>
+        <Text strong style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
           Valores
         </Text>
         <div style={{ marginTop: '8px' }}>
@@ -140,7 +140,7 @@ export const ProgramaCard: React.FC<ProgramaCardProps> = ({ programa }) => {
             {programa.vlIntegral !== undefined && programa.vlIntegral > 0 && (
               <Col span={24}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: '12px', color: '#64748b' }}>Integral:</Text>
+                  <Text style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Integral:</Text>
                   <Text strong style={{ fontSize: '12px' }}>
                     {formatarValor(programa.vlIntegral)}
                   </Text>
@@ -168,13 +168,13 @@ export const ProgramaCard: React.FC<ProgramaCardProps> = ({ programa }) => {
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  backgroundColor: '#f8fafc',
+                  backgroundColor: 'var(--bg-elevated)',
                   padding: '8px',
                   borderRadius: '6px',
                   marginTop: '4px',
                 }}
               >
-                <Text strong style={{ fontSize: '13px', color: '#1e293b' }}>
+                <Text strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
                   Efetivo:
                 </Text>
                 <Text
@@ -195,7 +195,7 @@ export const ProgramaCard: React.FC<ProgramaCardProps> = ({ programa }) => {
       {/* Componentes de Valor */}
       {programa.componentesValor && programa.componentesValor.length > 0 && (
         <div style={{ marginBottom: '16px' }}>
-          <Text strong style={{ fontSize: '12px', color: '#64748b' }}>
+          <Text strong style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
             Componentes:
           </Text>
           <div style={{ marginTop: '4px' }}>
@@ -206,12 +206,12 @@ export const ProgramaCard: React.FC<ProgramaCardProps> = ({ programa }) => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   fontSize: '11px',
-                  color: '#64748b',
+                  color: 'var(--text-secondary)',
                   marginTop: '2px',
                 }}
               >
-                <Text style={{ fontSize: '11px', color: '#64748b' }}>{componente.nome}:</Text>
-                <Text style={{ fontSize: '11px', color: '#64748b' }}>
+                <Text style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{componente.nome}:</Text>
+                <Text style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                   {formatarValor(componente.valor)}
                 </Text>
               </div>
@@ -225,14 +225,14 @@ export const ProgramaCard: React.FC<ProgramaCardProps> = ({ programa }) => {
         <div style={{ marginBottom: '16px' }}>
           <Row gutter={[8, 4]}>
             <Col span={24}>
-              <Text style={{ fontSize: '12px', color: '#64748b' }}>
+              <Text style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 População ({programa.anoReferencia}): {programa.populacao.toLocaleString('pt-BR')} hab
               </Text>
             </Col>
             <Col span={24}>
               <div
                 style={{
-                  backgroundColor: '#f0f9ff',
+                  backgroundColor: 'var(--bg-elevated)',
                   padding: '8px',
                   borderRadius: '6px',
                   textAlign: 'center',

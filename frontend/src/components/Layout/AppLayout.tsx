@@ -2,11 +2,12 @@
  * Layout principal da aplicação
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Layout, Button, Affix } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 const { Content } = Layout;
 
@@ -15,23 +16,10 @@ interface AppLayoutProps {
 }
 
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(350);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      const w = window.innerWidth;
-      // Histerese para evitar flicker ao redor do breakpoint
-      setIsMobile((prev) => (w < 760 ? true : w > 780 ? false : prev));
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   const handleDrawerClose = () => {
     setIsDrawerOpen(false);
@@ -80,13 +68,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           <Content
             className="fade-in-up"
             style={{
-              background: '#fff',
+              background: 'var(--bg-container)',
               padding: isMobile ? '16px' : '24px',
               margin: 0,
               minHeight: 280,
               borderRadius: '12px',
               boxShadow: '0 4px 12px rgba(14, 165, 233, 0.08)',
-              border: '1px solid #e2e8f0'
+              border: '1px solid var(--border-color)'
             }}
           >
             {children}

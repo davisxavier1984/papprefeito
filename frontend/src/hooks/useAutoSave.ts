@@ -42,6 +42,8 @@ export const useAutoSave = () => {
           codigo_ibge: payload.codigo_ibge,
           competencia: payload.competencia,
           perda_recurso_mensal: payload.perda_recurso_mensal,
+          perda_vinculo_mensal: payload.perda_vinculo_mensal,
+          perda_qualidade_mensal: payload.perda_qualidade_mensal,
           data_edicao: new Date().toISOString(),
         };
         queryClient.setQueryData(
@@ -84,13 +86,17 @@ export const useAutoSave = () => {
       // valor do render em que triggerSave foi criado: assim a edição recém-confirmada
       // entra no payload. Ler aqui, e não no disparo do timer, evita salvar dados de
       // outro município se o usuário trocar de seleção durante o debounce.
-      const perdas = overridePerdas ?? useMunicipioStore.getState().dadosEditados?.perda_recurso_mensal;
+      const editados = useMunicipioStore.getState().dadosEditados;
+      const perdas = overridePerdas ?? editados?.perda_recurso_mensal;
       if (!perdas) return;
 
       const payload: MunicipioEditadoCreate = {
         codigo_ibge: selectedMunicipio.codigo_ibge,
         competencia: selectedCompetencia,
         perda_recurso_mensal: perdas,
+        // Decomposição por componente (SIAPS)
+        perda_vinculo_mensal: editados?.perda_vinculo_mensal,
+        perda_qualidade_mensal: editados?.perda_qualidade_mensal,
       };
 
       // Nome do plano de cada posição (story 3.2). Só envia quando a tabela e o

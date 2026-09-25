@@ -4,6 +4,7 @@
 
 import axios from 'axios';
 import type { AxiosInstance, AxiosResponse } from 'axios';
+import { useAuthStore } from '../stores/authStore';
 import type {
   UF,
   Municipio,
@@ -21,9 +22,10 @@ import type {
   ParecidosResposta,
   AcertoResposta,
   ValorReferencia,
-  ValorReferenciaCreate
+  ValorReferenciaCreate,
+  SiapsClassificacaoResponse,
+  SiapsGapResponse
 } from '../types';
-import { useAuthStore } from '../stores/authStore';
 import { authService } from './authService';
 
 // Configuração base da API
@@ -53,7 +55,7 @@ class ApiClient {
       },
     });
 
-    // Interceptor para enviar o token de acesso
+    // Interceptor para anexar o token JWT nas requisições (endpoints exigem login)
     this.client.interceptors.request.use((config) => {
       const token = useAuthStore.getState().accessToken;
       if (token) {
@@ -169,6 +171,42 @@ class ApiClient {
    */
   async consultarDadosFinanciamentoPOST(params: FinanciamentoParams): Promise<DadosFinanciamento> {
     const response = await this.client.post<DadosFinanciamento>('/financiamento/dados/consultar', params);
+    return response.data;
+  }
+
+  // ================================
+  // ENDPOINTS SIAPS
+  // ================================
+
+  /**
+   * Consulta a classificação SIAPS (CVAT + Qualidade) por equipe
+   */
+  async getSiapsClassificacao(
+    codigoIbge: string,
+    competencia: string,
+    quadrimestre?: string
+  ): Promise<SiapsClassificacaoResponse> {
+    const params = quadrimestre ? { quadrimestre } : {};
+    const response = await this.client.get<SiapsClassificacaoResponse>(
+      `/siaps/classificacao/${codigoIbge}/${competencia}`,
+      { params }
+    );
+    return response.data;
+  }
+
+  /**
+   * Consulta a lacuna financeira (vigente e potencial) derivada do SIAPS
+   */
+  async getSiapsGap(
+    codigoIbge: string,
+    competencia: string,
+    quadrimestre?: string
+  ): Promise<SiapsGapResponse> {
+    const params = quadrimestre ? { quadrimestre } : {};
+    const response = await this.client.get<SiapsGapResponse>(
+      `/siaps/gap/${codigoIbge}/${competencia}`,
+      { params }
+    );
     return response.data;
   }
 
@@ -389,4 +427,6 @@ export const queryKeys = {
   competencia: ['competencia', 'latest'] as const,
   editados: ['municipios-editados'] as const,
   editado: (codigo: string, competencia: string) => ['municipio-editado', codigo, competencia] as const,
+  siaps: (codigo: string, competencia: string) => ['siaps', codigo, competencia] as const,
+  siapsGap: (codigo: string, competencia: string) => ['siaps-gap', codigo, competencia] as const,
 } as const;

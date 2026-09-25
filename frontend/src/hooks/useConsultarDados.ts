@@ -21,8 +21,15 @@ let ultimaConsulta = 0;
 
 export const useConsultarDados = () => {
   const queryClient = useQueryClient();
-  const { setLoading, setError, setDadosFinanciamento, setDadosEditados, setSugestoesAplicadas } =
-    useMunicipioStore();
+  const {
+    setLoading,
+    setError,
+    setDadosFinanciamento,
+    setDadosEditados,
+    setSugestoesAplicadas,
+    setSiapsGap,
+    setSiapsLoading,
+  } = useMunicipioStore();
 
   const mutation = useMutation({
     mutationFn: async ({ codigo_ibge, competencia }: Selecao) => {
@@ -56,6 +63,8 @@ export const useConsultarDados = () => {
             codigo_ibge,
             competencia,
             perda_recurso_mensal: zeros,
+            perda_vinculo_mensal: [...zeros],
+            perda_qualidade_mensal: [...zeros],
             data_edicao: new Date().toISOString(),
           };
         } else {
@@ -96,6 +105,27 @@ export const useConsultarDados = () => {
       setSugestoesAplicadas(sugestoes);
       setDadosFinanciamento(dados);
       setDadosEditados(editados);
+
+      // SIAPS (best-effort): a lacuna não bloqueia a consulta principal.
+      // Usa a seleção desta consulta e descarta a resposta se o usuário já trocou.
+      const selecaoAtual = () => {
+        const s = useMunicipioStore.getState();
+        return mesmaSelecao(selecao, { codigo_ibge: s.selectedMunicipio?.codigo_ibge ?? '', competencia: s.selectedCompetencia });
+      };
+      setSiapsLoading(true);
+      apiClient
+        .getSiapsGap(selecao.codigo_ibge, selecao.competencia)
+        .then((gap) => {
+          queryClient.setQueryData(queryKeys.siapsGap(selecao.codigo_ibge, selecao.competencia), gap);
+          if (selecaoAtual()) setSiapsGap(gap);
+        })
+        .catch(() => {
+          // Sem dados SIAPS para o quadrimestre: segue sem sugestões.
+          if (selecaoAtual()) setSiapsGap(null);
+        })
+        .finally(() => {
+          if (selecaoAtual()) setSiapsLoading(false);
+        });
     },
     onError: (err: any, selecao) => {
       // O usuário trocou de município/competência: o erro não é mais relevante

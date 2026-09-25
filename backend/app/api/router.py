@@ -3,56 +3,63 @@ Router principal da API que inclui todos os endpoints
 """
 from fastapi import APIRouter, Depends
 
+from app.api.endpoints import municipios, financiamento, municipios_editados, relatorios, edicoes, auth, users, preenchimento, siaps
 from app.core.dependencies import get_current_authorized_user
-
-from app.api.endpoints import municipios, financiamento, municipios_editados, relatorios, edicoes, auth, users, preenchimento
 
 # Router principal
 api_router = APIRouter()
 
-# Rotas de dados exigem usuário ativo e autorizado
-requer_autorizacao = [Depends(get_current_authorized_user)]
+# Login obrigatório (usuário ativo e autorizado) nos endpoints de negócio
+_auth_required = [Depends(get_current_authorized_user)]
 
 # Incluir routers dos endpoints
 api_router.include_router(
     municipios.router,
     prefix="/municipios",
-    tags=["Municípios"]
+    tags=["Municípios"],
+    dependencies=_auth_required,
 )
 
 api_router.include_router(
     financiamento.router,
     prefix="/financiamento",
-    dependencies=requer_autorizacao,
-    tags=["Financiamento"]
+    tags=["Financiamento"],
+    dependencies=_auth_required,
 )
 
 api_router.include_router(
     municipios_editados.router,
     prefix="/municipios-editados",
-    dependencies=requer_autorizacao,
-    tags=["Dados Editados"]
+    tags=["Dados Editados"],
+    dependencies=_auth_required,
 )
 
 api_router.include_router(
     relatorios.router,
     prefix="/relatorios",
-    dependencies=requer_autorizacao,
-    tags=["Relatórios"]
+    tags=["Relatórios"],
+    dependencies=_auth_required,
 )
 
 api_router.include_router(
     preenchimento.router,
     prefix="/preenchimento",
     tags=["Preenchimento automático"],
-    dependencies=requer_autorizacao,
+    dependencies=_auth_required,
 )
 
 api_router.include_router(
     edicoes.router,
     prefix="",
-    dependencies=requer_autorizacao,
-    tags=["Edições"]
+    tags=["Edições"],
+    dependencies=_auth_required,
+)
+
+api_router.include_router(
+    siaps.router,
+    prefix="/siaps",
+    tags=["SIAPS"],
+    dependencies=_auth_required,
 )
 
 # Endpoints de autenticação

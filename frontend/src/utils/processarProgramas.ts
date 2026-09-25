@@ -547,11 +547,11 @@ export function processarSaudeBucalDetalhado(
     lrpd.municipal +
     lrpd.estadual;
 
+  // Quilombolas/assentamentos são SUBCONJUNTO das credenciadas 40h (qtSb40hCredenciada é o teto);
+  // somá-las separadamente conta em dobro. Total = ESB 40h + CH diferenciada (20h/30h) + UOM.
   const qtTotalEquipes =
     esb.modalidade40h.credenciadas +
     esb.chDiferenciada.credenciadas +
-    esb.quilombolasAssentamentos.modalidadeI +
-    esb.quilombolasAssentamentos.modalidadeII +
     uom.credenciadas;
 
   const totais = {

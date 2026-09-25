@@ -1356,11 +1356,12 @@ def _processar_saude_bucal_detalhado(pagamentos: List[Dict[str, Any]]) -> Option
         lrpd['estadual']
     )
 
+    # As equipes de quilombolas/assentamentos são um SUBCONJUNTO das credenciadas 40h
+    # (qtSb40hCredenciada é o teto); somá-las separadamente conta em dobro. O total é
+    # ESB 40h + CH diferenciada (20h/30h, modalidade distinta) + UOM (unidade móvel).
     qt_total_equipes = (
         esb['modalidade40h']['credenciadas'] +
         esb['chDiferenciada']['credenciadas'] +
-        esb['quilombolasAssentamentos']['modalidadeI'] +
-        esb['quilombolasAssentamentos']['modalidadeII'] +
         uom['credenciadas']
     )
 
@@ -1906,6 +1907,96 @@ def _gerar_paginas_por_card(
     return "\n".join(pages)
 
 
+def _gerar_html_simulacao_componentes(
+    resumos: Optional[List[Dict[str, Any]]],
+    perdas_vinculo: Optional[List[float]],
+    perdas_qualidade: Optional[List[float]],
+) -> str:
+    """Gera a tabela da simulação por componente (Vínculo e Acompanhamento / Qualidade).
+
+    Os valores são o GANHO projetado por componente (lacuna SIAPS), adicional ao recebido.
+
+    IMPORTANTE: os arrays `perdas_vinculo`/`perdas_qualidade` são indexados pela lista de recursos
+    MUNICIPAIS (mesmo filtro do frontend em `processarDados`), não pela lista completa. Por isso
+    filtramos os resumos aqui antes de parear por índice — senão os ganhos caem na linha errada
+    quando há recurso não-municipal (estadual).
+    """
+    resumos = [
+        r for r in (resumos or [])
+        if not r.get('dsEsferaAdministrativa') or r.get('dsEsferaAdministrativa') == 'MUNICIPAL'
+    ]
+    pv = list(perdas_vinculo or [])
+    pq = list(perdas_qualidade or [])
+
+    def _at(arr: List[float], i: int) -> float:
+        return float(arr[i]) if i < len(arr) and arr[i] is not None else 0.0
+
+    td = "padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;"
+    td_r = td + "text-align:right;"
+
+    linhas = []
+    tot_receb = tot_vinc = tot_qual = 0.0
+    for i, r in enumerate(resumos):
+        vinc = _at(pv, i)
+        qual = _at(pq, i)
+        if vinc <= 0 and qual <= 0:
+            continue
+        recebido = float(r.get('vlEfetivoRepasse', 0) or 0)
+        total = vinc + qual
+        potencial = recebido + total
+        tot_receb += recebido
+        tot_vinc += vinc
+        tot_qual += qual
+        nome = _sanitize_text(r.get('dsPlanoOrcamentario', '') or '')
+        linhas.append(
+            f"<tr>"
+            f"<td style=\"{td}\">{nome}</td>"
+            f"<td style=\"{td_r}\">R$ {_br_number(recebido, 0)}</td>"
+            f"<td style=\"{td_r}color:#0ea5e9;\">R$ {_br_number(vinc, 0)}</td>"
+            f"<td style=\"{td_r}color:#8b5cf6;\">R$ {_br_number(qual, 0)}</td>"
+            f"<td style=\"{td_r}font-weight:700;\">R$ {_br_number(total, 0)}</td>"
+            f"<td style=\"{td_r}color:#10b981;font-weight:700;\">R$ {_br_number(potencial, 0)}</td>"
+            f"</tr>"
+        )
+
+    if not linhas:
+        return (
+            '<p style="font-size:13px;color:#6b7280;line-height:1.6;">'
+            'A simulação por componente (Vínculo e Acompanhamento / Qualidade) ainda não foi '
+            'preenchida para este município/competência. Use o botão “Autopreencher com SIAPS” '
+            'na tela de simulação para projetar o ganho por componente.'
+            '</p>'
+        )
+
+    tot_total = tot_vinc + tot_qual
+    tot_potencial = tot_receb + tot_total
+    th = "padding:8px 10px;font-size:11px;font-weight:700;color:#fff;text-align:right;"
+    th_l = th + "text-align:left;"
+    tf = "padding:8px 10px;border-top:2px solid #cbd5e1;font-size:12px;font-weight:700;text-align:right;"
+
+    return (
+        '<table style="width:100%;border-collapse:collapse;margin-top:6px;">'
+        '<thead><tr style="background:#0ea5e9;">'
+        f'<th style="{th_l}">Recurso</th>'
+        f'<th style="{th}">Recebido Mensal</th>'
+        f'<th style="{th}">Vínculo e Acomp.</th>'
+        f'<th style="{th}">Qualidade</th>'
+        f'<th style="{th}">Perda Mensal (total)</th>'
+        f'<th style="{th}">Potencial Mensal</th>'
+        '</tr></thead>'
+        f'<tbody>{"".join(linhas)}</tbody>'
+        '<tfoot><tr style="background:#f1f5f9;">'
+        f'<td style="{tf}text-align:left;">Total</td>'
+        f'<td style="{tf}">R$ {_br_number(tot_receb, 0)}</td>'
+        f'<td style="{tf}color:#0ea5e9;">R$ {_br_number(tot_vinc, 0)}</td>'
+        f'<td style="{tf}color:#8b5cf6;">R$ {_br_number(tot_qual, 0)}</td>'
+        f'<td style="{tf}">R$ {_br_number(tot_total, 0)}</td>'
+        f'<td style="{tf}color:#10b981;">R$ {_br_number(tot_potencial, 0)}</td>'
+        '</tr></tfoot>'
+        '</table>'
+    )
+
+
 def create_detailed_pdf_report(
     *,
     municipio_nome: Optional[str],
@@ -1913,6 +2004,9 @@ def create_detailed_pdf_report(
     competencia: str,
     resumo: ResumoFinanceiro,
     pagamentos: Optional[List[Dict[str, Any]]] = None,
+    resumos: Optional[List[Dict[str, Any]]] = None,
+    perdas_vinculo: Optional[List[float]] = None,
+    perdas_qualidade: Optional[List[float]] = None,
 ) -> bytes:
     """Cria relatório PDF detalhado com separação por temas e detalhamento de Saúde Bucal."""
 
@@ -2001,6 +2095,14 @@ def create_detailed_pdf_report(
     html_content = html_content.replace('__CEO_CONTENT__', ceo_html or '<p>Dados não disponíveis</p>')
     html_content = html_content.replace('__LRPD_CONTENT__', lrpd_html or '<p>Dados não disponíveis</p>')
     html_content = html_content.replace('__EMULTI_CONTENT__', emulti_html or '<p>Dados não disponíveis</p>')
+
+    # Simulação por componente (Vínculo e Acompanhamento / Qualidade) — ganho projetado (SIAPS)
+    simulacao_componentes_html = _gerar_html_simulacao_componentes(
+        resumos, perdas_vinculo, perdas_qualidade
+    )
+    html_content = html_content.replace(
+        '__SIMULACAO_COMPONENTES_CONTENT__', simulacao_componentes_html
+    )
 
     # Substituir valores do resumo financeiro
     replacements = {
