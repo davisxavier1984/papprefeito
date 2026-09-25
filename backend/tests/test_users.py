@@ -83,3 +83,39 @@ def test_admin_nao_remove_o_proprio_acesso(campos):
         return exc.value.status_code
 
     assert _rodar(fluxo) == 400
+
+
+def test_admin_redefine_senha_de_outro_usuario():
+    async def fluxo(service, _):
+        user = await service.create_user(UserCreate(email='bia@x.com', nome='Bia', password=SENHA))
+        await service.admin_set_password(user.id, 'NovaSenha9')
+        return (await service.authenticate_user('bia@x.com', 'NovaSenha9'),
+                await service.authenticate_user('bia@x.com', SENHA))
+
+    nova, antiga = _rodar(fluxo)
+    assert nova is not None and antiga is None
+
+
+def test_redefinir_senha_de_usuario_inexistente_da_404():
+    async def fluxo(service, _):
+        with pytest.raises(HTTPException) as exc:
+            await service.admin_set_password('nao-existe', 'NovaSenha9')
+        return exc.value.status_code
+
+    assert _rodar(fluxo) == 404
+
+
+@pytest.mark.parametrize('senha', ['curta1A', 'semmaiuscula1', 'SEMMINUSCULA1', 'SemNumeroAqui'])
+def test_redefinir_senha_exige_senha_forte(senha):
+    from pydantic import ValidationError
+    from app.models.schemas import AdminPasswordReset
+    with pytest.raises(ValidationError):
+        AdminPasswordReset(new_password=senha)
+
+
+def test_rota_de_redefinir_senha_e_so_para_admin():
+    from main import app
+    from app.core.dependencies import get_current_superuser
+    rota = next(r for r in app.routes
+                if getattr(r, 'path', '') == '/api/users/{user_id}/password' and 'PUT' in r.methods)
+    assert any(d.call is get_current_superuser for d in rota.dependant.dependencies)

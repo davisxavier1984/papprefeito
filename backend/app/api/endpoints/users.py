@@ -8,6 +8,7 @@ from app.models.schemas import (
     User,
     UserCreate,
     UserUpdate,
+    AdminPasswordReset,
     UserListResponse,
     ResponseBase
 )
@@ -195,6 +196,39 @@ async def update_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro ao atualizar usuário"
+        )
+
+
+@router.put(
+    "/{user_id}/password",
+    response_model=ResponseBase,
+    summary="Redefinir senha",
+    description="Define uma nova senha para o usuário (apenas superusuários)"
+)
+async def reset_user_password(
+    user_id: str,
+    password_data: AdminPasswordReset,
+    current_user: User = Depends(get_current_superuser),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    Redefine a senha de um usuário sem exigir a senha atual.
+
+    Requer permissões de administrador.
+
+    - **new_password**: Nova senha (mínimo 8 caracteres, maiúscula, minúscula, número)
+    """
+    try:
+        await user_service.admin_set_password(user_id, password_data.new_password)
+        logger.info(f"Admin {current_user.email} redefiniu a senha do usuário {user_id}")
+        return ResponseBase(success=True, message="Senha redefinida com sucesso")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao redefinir senha: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao redefinir senha"
         )
 
 
