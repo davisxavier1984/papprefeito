@@ -1,7 +1,7 @@
 /**
  * Página de administração de usuários
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Card,
   Button,
@@ -27,7 +27,8 @@ import {
 import { UserTable } from '../../components/Admin/UserTable';
 import { CreateUserModal } from '../../components/Admin/CreateUserModal';
 import { EditUserModal } from '../../components/Admin/EditUserModal';
-import { userManagementService } from '../../services/userManagementService';
+import { userManagementService, isAtivo } from '../../services/userManagementService';
+import { mensagemDeErro } from '../../utils/mensagemDeErro';
 import type { User } from '../../services/authService';
 import type { CreateUserRequest, UpdateUserRequest } from '../../services/userManagementService';
 
@@ -38,34 +39,40 @@ export const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [filterActive, setFilterActive] = useState<boolean | undefined>(true);
-  const [filterSuperuser, setFilterSuperuser] = useState<boolean | undefined>(undefined);
+  const [filterSituacao, setFilterSituacao] = useState<'ativos' | 'inativos' | undefined>(undefined);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // Carregar usuários
-  const loadUsers = async () => {
+  // Carrega todos os usuários; filtros e contagens são feitos na tela
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await userManagementService.listUsers({
-        is_active: filterActive,
-        is_superuser: filterSuperuser,
-        search: searchText || undefined
-      });
+      const response = await userManagementService.listUsers({ limit: 1000 });
       setUsers(response.users);
     } catch (error) {
-      message.error('Erro ao carregar usuários');
+      message.error(mensagemDeErro(error, 'Erro ao carregar usuários'));
       console.error('Erro ao carregar usuários:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [message]);
 
-  // Carregar usuários ao montar o componente ou quando os filtros mudarem
   useEffect(() => {
     loadUsers();
-  }, [filterActive, filterSuperuser]);
+  }, [loadUsers]);
+
+  const filteredUsers = useMemo(() => {
+    const termo = searchText.trim().toLowerCase();
+    return users.filter((u) => {
+      if (filterSituacao === 'ativos' && !isAtivo(u)) return false;
+      if (filterSituacao === 'inativos' && isAtivo(u)) return false;
+      if (termo && !u.nome.toLowerCase().includes(termo) && !u.email.toLowerCase().includes(termo)) {
+        return false;
+      }
+      return true;
+    });
+  }, [users, filterSituacao, searchText]);
 
   // Criar usuário
   const handleCreateUser = async (data: CreateUserRequest) => {
@@ -74,7 +81,7 @@ export const UserManagement: React.FC = () => {
       await loadUsers();
       setCreateModalOpen(false);
     } catch (error) {
-      throw new Error('Falha ao criar usuário. Verifique os dados e tente novamente.');
+      throw new Error(mensagemDeErro(error, 'Verifique os dados e tente novamente.'));
     }
   };
 
@@ -91,7 +98,7 @@ export const UserManagement: React.FC = () => {
       setEditModalOpen(false);
       setSelectedUser(null);
     } catch (error) {
-      throw new Error('Falha ao atualizar usuário. Verifique os dados e tente novamente.');
+      throw new Error(mensagemDeErro(error, 'Verifique os dados e tente novamente.'));
     }
   };
 
@@ -107,27 +114,15 @@ export const UserManagement: React.FC = () => {
       }
       await loadUsers();
     } catch (error) {
-      message.error('Erro ao alterar status do usuário');
+      message.error(mensagemDeErro(error, 'Erro ao alterar a situação do usuário'));
       console.error('Erro ao alternar status:', error);
-    }
-  };
-
-  // Desativar usuário
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      await userManagementService.deleteUser(userId);
-      message.success('Usuário desativado com sucesso');
-      await loadUsers();
-    } catch (error) {
-      message.error('Erro ao desativar usuário');
-      console.error('Erro ao desativar usuário:', error);
     }
   };
 
   // Estatísticas
   const totalUsers = users.length;
-  const activeUsers = users.filter((u) => u.is_active).length;
-  const inactiveUsers = users.filter((u) => !u.is_active).length;
+  const activeUsers = users.filter(isAtivo).length;
+  const inactiveUsers = totalUsers - activeUsers;
   const superusers = users.filter((u) => u.is_superuser).length;
 
   return (
@@ -171,7 +166,7 @@ export const UserManagement: React.FC = () => {
         <Col xs={24} sm={24} md={12} lg={6}>
           <Card>
             <Statistic
-              title="Superusuários"
+              title="Administradores"
               value={superusers}
               prefix={<CrownOutlined />}
               valueStyle={{ color: '#f59e0b' }}
@@ -204,36 +199,20 @@ export const UserManagement: React.FC = () => {
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              onPressEnter={loadUsers}
               style={{ width: 'min(300px, 100%)' }}
               allowClear
             />
 
             <Select
-              placeholder="Status"
+              placeholder="Situação"
               style={{ width: 150 }}
-              value={filterActive}
-              onChange={setFilterActive}
+              value={filterSituacao}
+              onChange={setFilterSituacao}
               allowClear
             >
-              <Select.Option value={true}>Ativos</Select.Option>
-              <Select.Option value={false}>Inativos</Select.Option>
+              <Select.Option value="ativos">Ativos</Select.Option>
+              <Select.Option value="inativos">Inativos</Select.Option>
             </Select>
-
-            <Select
-              placeholder="Tipo"
-              style={{ width: 150 }}
-              value={filterSuperuser}
-              onChange={setFilterSuperuser}
-              allowClear
-            >
-              <Select.Option value={true}>Superusuários</Select.Option>
-              <Select.Option value={false}>Usuários comuns</Select.Option>
-            </Select>
-
-            <Button icon={<SearchOutlined />} onClick={loadUsers}>
-              Buscar
-            </Button>
           </Space>
         </Space>
       </Card>
@@ -246,10 +225,9 @@ export const UserManagement: React.FC = () => {
           </div>
         ) : (
           <UserTable
-            users={users}
+            users={filteredUsers}
             loading={loading}
             onEdit={handleEditUser}
-            onDelete={handleDeleteUser}
             onToggleActive={handleToggleActive}
           />
         )}

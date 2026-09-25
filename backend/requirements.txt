@@ -14,3 +14,4 @@ pyufbr==0.1.0
 fpdf2==2.7.6
 pydyf<0.12.0
 weasyprint==62.3
+pydyf==0.10.0  # weasyprint 62.3 usa Stream.transform, removido no pydyf 0.11+

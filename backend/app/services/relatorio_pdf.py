@@ -714,8 +714,8 @@ def create_html_pdf_report(
         atual_indicador = f"Cobertura atual de {recebimento_percent}%"
 
         # Substituir variáveis no template
-        html_content = html_template.replace('{{ municipio_nome }}', municipio_nome or 'Município')
-        html_content = html_content.replace('{{ uf }}', uf or '')
+        html_content = html_template.replace('{{ municipio_nome }}', html.escape(municipio_nome or 'Município'))
+        html_content = html_content.replace('{{ uf }}', html.escape(uf or ''))
         html_content = html_content.replace('{{ css_content }}', css_content)
 
         # Processar todas as substituições de template
@@ -2072,8 +2072,8 @@ def create_detailed_pdf_report(
         logger.debug("Nenhum dado de eMulti processado")
 
     # Substituir variáveis básicas
-    html_content = html_template.replace('{{ municipio_nome }}', municipio_nome or 'Município')
-    html_content = html_content.replace('{{ uf }}', uf or '')
+    html_content = html_template.replace('{{ municipio_nome }}', html.escape(municipio_nome or 'Município'))
+    html_content = html_content.replace('{{ uf }}', html.escape(uf or ''))
     html_content = html_content.replace('{{ css_content }}', css_content)
     html_content = html_content.replace('{{ img_base64 }}', img_base64)
 

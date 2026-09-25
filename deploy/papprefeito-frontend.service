@@ -1,0 +1,18 @@
+[Unit]
+Description=papprefeito frontend (build estático -> 127.0.0.1:5173)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=davi
+Group=davi
+WorkingDirectory=/home/davi/python/MG/papprefeito-dev
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /home/davi/python/MG/papprefeito-dev/deploy/serve_spa.py --bind 127.0.0.1 --port 5173 --directory /home/davi/python/MG/papprefeito-dev/frontend/dist
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

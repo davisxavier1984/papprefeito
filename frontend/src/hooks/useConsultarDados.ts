@@ -7,48 +7,61 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, queryKeys } from '../services/api';
-import { useMunicipioStore } from '../stores/municipioStore';
-import type { DadosFinanciamento, MunicipioEditado } from '../types';
+import { filtrarResumosMunicipais, useMunicipioStore } from '../stores/municipioStore';
+import type { DadosFinanciamento, MunicipioEditado, SugestaoAplicada } from '../types';
+import { descarregarAutosave } from './useAutoSave';
+import { mesmaSelecao, type Selecao } from '../utils/selecao';
+import { ehConsultaAtual } from '../utils/consultaAtual';
+
+// Compartilhado entre todas as instâncias do hook (Sidebar e CompetenciaInput têm cada
+// uma seu próprio useMutation, mas escrevem no mesmo isLoading global da store): identifica
+// qual foi a última consulta disparada, para o onSettled de uma consulta obsoleta não
+// desligar o loading enquanto uma consulta mais nova ainda está em andamento.
+let ultimaConsulta = 0;
 
 export const useConsultarDados = () => {
   const queryClient = useQueryClient();
   const {
-    selectedMunicipio,
-    selectedCompetencia,
     setLoading,
     setError,
     setDadosFinanciamento,
     setDadosEditados,
+    setSugestoesAplicadas,
     setSiapsGap,
     setSiapsLoading,
   } = useMunicipioStore();
 
   const mutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedMunicipio?.codigo_ibge || !selectedCompetencia) {
+    mutationFn: async ({ codigo_ibge, competencia }: Selecao) => {
+      if (!codigo_ibge || !competencia) {
         throw new Error('Parâmetros incompletos para consulta');
       }
 
+      // Grava a edição pendente antes de recarregar, para a tela não voltar a um valor antigo.
+      // Erro aqui é do autosave, não da consulta: relança com mensagem própria para o
+      // usuário não confundir as duas falhas.
+      try {
+        await descarregarAutosave();
+      } catch (err) {
+        const mensagem = err instanceof Error ? err.message : 'erro desconhecido';
+        throw new Error(`Não foi possível salvar a alteração anterior: ${mensagem}`);
+      }
+
       // 1) Buscar dados de financiamento
-      const dados: DadosFinanciamento = await apiClient.consultarDadosFinanciamento(
-        selectedMunicipio.codigo_ibge,
-        selectedCompetencia
-      );
+      const dados: DadosFinanciamento = await apiClient.consultarDadosFinanciamento(codigo_ibge, competencia);
 
       // 2) Tentar carregar dados editados
       let editados: MunicipioEditado | null = null;
       try {
-        editados = await apiClient.getMunicipioEditado(
-          selectedMunicipio.codigo_ibge,
-          selectedCompetencia
-        );
+        editados = await apiClient.getMunicipioEditado(codigo_ibge, competencia);
       } catch (err: any) {
         // Se não existir (404), iniciamos com zeros
         if (err?.error_code === '404') {
-          const zeros = (dados.resumosPlanosOrcamentarios || []).map(() => 0);
+          // Mesmo tamanho da tabela: só os planos da esfera municipal
+          const zeros = filtrarResumosMunicipais(dados.resumosPlanosOrcamentarios || []).map(() => 0);
           editados = {
-            codigo_ibge: selectedMunicipio.codigo_ibge,
-            competencia: selectedCompetencia,
+            codigo_ibge,
+            competencia,
             perda_recurso_mensal: zeros,
             perda_vinculo_mensal: [...zeros],
             perda_qualidade_mensal: [...zeros],
@@ -65,54 +78,78 @@ export const useConsultarDados = () => {
     onMutate: () => {
       setLoading(true);
       setError(null);
+      return { id: ++ultimaConsulta };
     },
-    onSuccess: ({ dados, editados }) => {
+    onSuccess: ({ dados, editados }, selecao) => {
+      // O usuário trocou de município/competência enquanto esta consulta estava em andamento
+      const { selectedMunicipio: atualMun, selectedCompetencia: atualComp } = useMunicipioStore.getState();
+      if (!mesmaSelecao(selecao, { codigo_ibge: atualMun?.codigo_ibge ?? '', competencia: atualComp })) return;
+
       // Atualizar cache de queries relevantes
-      if (selectedMunicipio?.codigo_ibge && selectedCompetencia) {
-        queryClient.setQueryData(
-          queryKeys.financiamento(selectedMunicipio.codigo_ibge, selectedCompetencia),
-          dados
-        );
-        queryClient.setQueryData(
-          queryKeys.editado(selectedMunicipio.codigo_ibge, selectedCompetencia),
-          editados
-        );
-      }
+      queryClient.setQueryData(queryKeys.financiamento(selecao.codigo_ibge, selecao.competencia), dados);
+      queryClient.setQueryData(queryKeys.editado(selecao.codigo_ibge, selecao.competencia), editados);
+
+      // Posições que vieram do cálculo automático (story 3.3): mantém a origem nas próximas gravações
+      const sugestoes: Record<number, SugestaoAplicada> = {};
+      (editados.itens ?? []).forEach((item, i) => {
+        if (item.regra_id && item.valor_sugerido != null) {
+          sugestoes[i] = {
+            regra_id: item.regra_id,
+            valor_sugerido: item.valor_sugerido,
+            valor_aplicado: item.origem === 'manual' ? item.valor_sugerido : item.valor,
+          };
+        }
+      });
 
       // Atualizar store e processar
+      setSugestoesAplicadas(sugestoes);
       setDadosFinanciamento(dados);
       setDadosEditados(editados);
 
       // SIAPS (best-effort): a lacuna não bloqueia a consulta principal.
-      if (selectedMunicipio?.codigo_ibge && selectedCompetencia) {
-        setSiapsLoading(true);
-        apiClient
-          .getSiapsGap(selectedMunicipio.codigo_ibge, selectedCompetencia)
-          .then((gap) => {
-            setSiapsGap(gap);
-            queryClient.setQueryData(
-              queryKeys.siapsGap(selectedMunicipio.codigo_ibge, selectedCompetencia),
-              gap
-            );
-          })
-          .catch(() => {
-            // Sem dados SIAPS para o quadrimestre: segue sem sugestões.
-            setSiapsGap(null);
-          })
-          .finally(() => setSiapsLoading(false));
-      }
+      // Usa a seleção desta consulta e descarta a resposta se o usuário já trocou.
+      const selecaoAtual = () => {
+        const s = useMunicipioStore.getState();
+        return mesmaSelecao(selecao, { codigo_ibge: s.selectedMunicipio?.codigo_ibge ?? '', competencia: s.selectedCompetencia });
+      };
+      setSiapsLoading(true);
+      apiClient
+        .getSiapsGap(selecao.codigo_ibge, selecao.competencia)
+        .then((gap) => {
+          queryClient.setQueryData(queryKeys.siapsGap(selecao.codigo_ibge, selecao.competencia), gap);
+          if (selecaoAtual()) setSiapsGap(gap);
+        })
+        .catch(() => {
+          // Sem dados SIAPS para o quadrimestre: segue sem sugestões.
+          if (selecaoAtual()) setSiapsGap(null);
+        })
+        .finally(() => {
+          if (selecaoAtual()) setSiapsLoading(false);
+        });
     },
-    onError: (err: any) => {
+    onError: (err: any, selecao) => {
+      // O usuário trocou de município/competência: o erro não é mais relevante
+      const { selectedMunicipio: atualMun, selectedCompetencia: atualComp } = useMunicipioStore.getState();
+      if (!mesmaSelecao(selecao, { codigo_ibge: atualMun?.codigo_ibge ?? '', competencia: atualComp })) return;
+
       const message = err?.message || err?.details?.message || 'Erro ao consultar dados';
       setError(message);
     },
-    onSettled: () => {
-      setLoading(false);
+    onSettled: (_data, _err, _selecao, context) => {
+      // Só desliga o loading se esta ainda for a consulta mais recente: uma resposta
+      // atrasada de uma consulta já substituída não pode reabilitar o botão Consultar
+      // enquanto a consulta atual ainda está em voo.
+      if (context && ehConsultaAtual(context.id, ultimaConsulta)) {
+        setLoading(false);
+      }
     },
   });
 
   return {
-    consultar: () => mutation.mutate(),
+    consultar: () => {
+      const { selectedMunicipio: mun, selectedCompetencia: comp } = useMunicipioStore.getState();
+      mutation.mutate({ codigo_ibge: mun?.codigo_ibge ?? '', competencia: comp });
+    },
     isLoading: mutation.isPending,
     isSuccess: mutation.isSuccess,
     isError: mutation.isError,

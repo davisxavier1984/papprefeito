@@ -11,7 +11,8 @@ import type {
   MunicipioEditado,
   DadosProcessados,
   ResumoFinanceiro,
-  DetalhamentoPrograma
+  DetalhamentoPrograma,
+  SugestaoAplicada
 } from '../types';
 import { processarProgramas } from '../utils/processarProgramas';
 import { sugestoesPorComponente } from '../utils/siaps';
@@ -46,6 +47,8 @@ const initialState = {
   // Dados processados para cards de programas
   dadosProgramas: [],
 
+  // Posições da tabela preenchidas pelo cálculo automático (story 3.3)
+  sugestoesAplicadas: {},
   // SIAPS — lacuna financeira derivada da classificação das equipes
   siapsGap: null,
   siapsModo: 'potencial' as const,
@@ -55,6 +58,13 @@ const initialState = {
 /**
  * Store principal da aplicação usando Zustand
  */
+/**
+ * Planos orçamentários da esfera municipal (os estaduais não entram na tabela).
+ * O array de perdas é posicional em relação a esta lista.
+ */
+export const filtrarResumosMunicipais = <T extends { dsEsferaAdministrativa?: string | null }>(resumos: T[]): T[] =>
+  resumos.filter(r => !r.dsEsferaAdministrativa || r.dsEsferaAdministrativa === 'MUNICIPAL');
+
 export const useMunicipioStore = create<AppStore>()(
   devtools(
     persist(
@@ -76,7 +86,9 @@ export const useMunicipioStore = create<AppStore>()(
             dadosProcessados: [],
             resumoFinanceiro: null,
             dadosProgramas: [],
+            sugestoesAplicadas: {},
             siapsGap: null,
+            siapsLoading: false,
             error: null
           }), false, 'setSelectedUF');
         },
@@ -93,7 +105,9 @@ export const useMunicipioStore = create<AppStore>()(
             dadosProcessados: [],
             resumoFinanceiro: null,
             dadosProgramas: [],
+            sugestoesAplicadas: {},
             siapsGap: null,
+            siapsLoading: false,
             error: null
           }), false, 'setSelectedMunicipio');
         },
@@ -107,7 +121,9 @@ export const useMunicipioStore = create<AppStore>()(
             dadosProcessados: [],
             resumoFinanceiro: null,
             dadosProgramas: [],
+            sugestoesAplicadas: {},
             siapsGap: null,
+            siapsLoading: false,
             error: null
           }), false, 'setSelectedCompetencia');
         },
@@ -124,6 +140,10 @@ export const useMunicipioStore = create<AppStore>()(
             get().processarDados();
             get().processarProgramas();
           }
+        },
+
+        setSugestoesAplicadas: (sugestoes: Record<number, SugestaoAplicada>) => {
+          set({ sugestoesAplicadas: sugestoes }, false, 'setSugestoesAplicadas');
         },
 
         setDadosEditados: (dados: MunicipioEditado | null) => {
@@ -274,8 +294,7 @@ export const useMunicipioStore = create<AppStore>()(
           }
 
           // Filtrar apenas recursos municipais (ignorar estaduais)
-          const resumosMunicipais = dadosFinanciamento.resumosPlanosOrcamentarios
-            .filter(r => !r.dsEsferaAdministrativa || r.dsEsferaAdministrativa === 'MUNICIPAL');
+          const resumosMunicipais = filtrarResumosMunicipais(dadosFinanciamento.resumosPlanosOrcamentarios);
 
           const dadosProcessados: DadosProcessados[] = resumosMunicipais.map((resumo, index) => {
             const perdaMensal = dadosEditados?.perda_recurso_mensal?.[index] || 0;
@@ -404,10 +423,11 @@ export const useMunicipioInfo = () => {
  * Hook para atualizar perda de recurso de um item específico
  */
 export const useUpdatePerdaRecurso = () => {
-  const { dadosEditados, setDadosEditados, dadosProcessados } = useMunicipioStore();
+  const setDadosEditados = useMunicipioStore((state) => state.setDadosEditados);
 
   return (index: number, novoValor: number) => {
-    // Atualizar dados editados
+    // Lê o estado atual (e não o do render) para não descartar edições anteriores
+    const { dadosEditados, dadosProcessados } = useMunicipioStore.getState();
     const perdasAtuais = dadosEditados?.perda_recurso_mensal || Array(dadosProcessados.length).fill(0);
     const novasPerdas = [...perdasAtuais];
     novasPerdas[index] = novoValor;

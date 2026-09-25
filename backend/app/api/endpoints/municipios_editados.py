@@ -2,15 +2,19 @@
 Endpoints para gerenciamento de dados editados de municípios
 """
 from typing import List
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.core.dependencies import get_current_authorized_user, get_historico_service
 from app.models.schemas import (
+    HistoricoPerda,
     MunicipioEditado,
     MunicipioEditadoCreate,
     MunicipioEditadoUpdate,
     ResponseBase,
+    User,
     validate_codigo_ibge_uf,
 )
+from app.services.historico_perdas import HistoricoPerdasService
 from app.services.municipios_editados import municipio_editado_service
 from app.services.municipios import municipio_service
 from app.utils.logger import logger
@@ -80,7 +84,11 @@ async def obter_municipio_editado(codigo_ibge: str, competencia: str):
         )
 
 @router.post("/", response_model=MunicipioEditado, status_code=status.HTTP_201_CREATED)
-async def criar_municipio_editado(municipio_data: MunicipioEditadoCreate):
+async def criar_municipio_editado(
+    municipio_data: MunicipioEditadoCreate,
+    current_user: User = Depends(get_current_authorized_user),
+    historico: HistoricoPerdasService = Depends(get_historico_service),
+):
     """
     Cria novos dados editados para um município
 
@@ -123,6 +131,11 @@ async def criar_municipio_editado(municipio_data: MunicipioEditadoCreate):
                 detail="Erro ao criar dados editados"
             )
 
+        await historico.registrar(
+            editado.codigo_ibge, editado.competencia, "create",
+            editado.perda_recurso_mensal, editado.itens, current_user.id,
+        )
+
         return editado
 
     except HTTPException:
@@ -138,7 +151,9 @@ async def criar_municipio_editado(municipio_data: MunicipioEditadoCreate):
 async def atualizar_municipio_editado(
     codigo_ibge: str,
     competencia: str,
-    update_data: MunicipioEditadoUpdate
+    update_data: MunicipioEditadoUpdate,
+    current_user: User = Depends(get_current_authorized_user),
+    historico: HistoricoPerdasService = Depends(get_historico_service),
 ):
     """
     Atualiza dados editados de um município
@@ -170,6 +185,11 @@ async def atualizar_municipio_editado(
                 detail="Dados editados não encontrados para atualização"
             )
 
+        await historico.registrar(
+            editado.codigo_ibge, editado.competencia, "update",
+            editado.perda_recurso_mensal, editado.itens, current_user.id,
+        )
+
         return editado
 
     except HTTPException:
@@ -182,7 +202,12 @@ async def atualizar_municipio_editado(
         )
 
 @router.delete("/{codigo_ibge}/{competencia}")
-async def deletar_municipio_editado(codigo_ibge: str, competencia: str):
+async def deletar_municipio_editado(
+    codigo_ibge: str,
+    competencia: str,
+    current_user: User = Depends(get_current_authorized_user),
+    historico: HistoricoPerdasService = Depends(get_historico_service),
+):
     """
     Remove dados editados de um município
 
@@ -201,12 +226,20 @@ async def deletar_municipio_editado(codigo_ibge: str, competencia: str):
                 detail="Código IBGE inválido"
             )
 
+        anterior = municipio_editado_service.get_editado(codigo_ibge, competencia)
         success = municipio_editado_service.delete_editado(codigo_ibge, competencia)
         if not success:
             raise HTTPException(
                 status_code=404,
                 detail="Dados editados não encontrados para remoção"
             )
+
+        # Guarda no histórico os valores que foram removidos
+        await historico.registrar(
+            codigo_ibge, competencia, "delete",
+            anterior.perda_recurso_mensal if anterior else [],
+            anterior.itens if anterior else None, current_user.id,
+        )
 
         return {
             "message": "Dados editados removidos com sucesso",
@@ -224,7 +257,11 @@ async def deletar_municipio_editado(codigo_ibge: str, competencia: str):
         )
 
 @router.post("/upsert", response_model=MunicipioEditado)
-async def upsert_municipio_editado(municipio_data: MunicipioEditadoCreate):
+async def upsert_municipio_editado(
+    municipio_data: MunicipioEditadoCreate,
+    current_user: User = Depends(get_current_authorized_user),
+    historico: HistoricoPerdasService = Depends(get_historico_service),
+):
     """
     Cria ou atualiza dados editados (upsert)
 
@@ -256,6 +293,11 @@ async def upsert_municipio_editado(municipio_data: MunicipioEditadoCreate):
                 detail="Erro ao salvar dados editados"
             )
 
+        await historico.registrar(
+            editado.codigo_ibge, editado.competencia, "upsert",
+            editado.perda_recurso_mensal, editado.itens, current_user.id,
+        )
+
         return editado
 
     except HTTPException:
@@ -266,3 +308,12 @@ async def upsert_municipio_editado(municipio_data: MunicipioEditadoCreate):
             status_code=500,
             detail="Erro interno do servidor ao salvar dados editados"
         )
+
+@router.get("/{codigo_ibge}/{competencia}/historico", response_model=List[HistoricoPerda])
+async def historico_municipio_editado(
+    codigo_ibge: str,
+    competencia: str,
+    historico: HistoricoPerdasService = Depends(get_historico_service),
+):
+    """Histórico append-only das gravações de perdas do município na competência."""
+    return await historico.listar(codigo_ibge, competencia)

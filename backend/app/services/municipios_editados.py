@@ -26,20 +26,27 @@ class MunicipioEditadoService:
 
     def _load_data(self) -> Dict[str, Any]:
         """Carrega dados do arquivo JSON"""
+        if not os.path.exists(self.data_file):
+            return {}
         try:
-            if os.path.exists(self.data_file):
-                with open(self.data_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            return {}
+            with open(self.data_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
         except Exception as e:
+            # Não devolver {} aqui: a próxima gravação apagaria todas as edições
             logger.error(f"Erro ao carregar dados editados: {str(e)}")
-            return {}
+            raise
 
     def _save_data(self, data: Dict[str, Any]) -> bool:
         """Salva dados no arquivo JSON"""
+        tmp_file = f"{self.data_file}.tmp"
         try:
-            with open(self.data_file, 'w', encoding='utf-8') as f:
+            # Grava em arquivo temporário e troca de forma atômica,
+            # para uma falha no meio da escrita não truncar o arquivo
+            with open(tmp_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_file, self.data_file)
             return True
         except Exception as e:
             logger.error(f"Erro ao salvar dados editados: {str(e)}")
@@ -67,6 +74,7 @@ class MunicipioEditadoService:
                         codigo_ibge=codigo_ibge,
                         competencia=competencia,
                         perda_recurso_mensal=value.get('perda_recurso_mensal', []),
+                        itens=value.get('itens'),
                         perda_vinculo_mensal=value.get('perda_vinculo_mensal'),
                         perda_qualidade_mensal=value.get('perda_qualidade_mensal'),
                         data_edicao=datetime.fromisoformat(
@@ -101,6 +109,7 @@ class MunicipioEditadoService:
                     codigo_ibge=codigo_ibge,
                     competencia=competencia,
                     perda_recurso_mensal=value.get('perda_recurso_mensal', []),
+                    itens=value.get('itens'),
                     perda_vinculo_mensal=value.get('perda_vinculo_mensal'),
                     perda_qualidade_mensal=value.get('perda_qualidade_mensal'),
                     data_edicao=datetime.fromisoformat(
@@ -155,12 +164,15 @@ class MunicipioEditadoService:
                 'perda_qualidade_mensal': municipio_data.perda_qualidade_mensal,
                 'data_edicao': now.isoformat()
             }
+            if municipio_data.itens is not None:
+                data[key]['itens'] = [i.model_dump() for i in municipio_data.itens]
 
             if self._save_data(data):
                 return MunicipioEditado(
                     codigo_ibge=municipio_data.codigo_ibge,
                     competencia=municipio_data.competencia,
                     perda_recurso_mensal=municipio_data.perda_recurso_mensal,
+                    itens=municipio_data.itens,
                     perda_vinculo_mensal=municipio_data.perda_vinculo_mensal,
                     perda_qualidade_mensal=municipio_data.perda_qualidade_mensal,
                     data_edicao=now
@@ -203,12 +215,18 @@ class MunicipioEditadoService:
                 'perda_recurso_mensal': update_data.perda_recurso_mensal,
                 'data_edicao': now.isoformat()
             })
+            # Itens antigos descreveriam valores que mudaram: substitui ou remove
+            if update_data.itens is not None:
+                data[key]['itens'] = [i.model_dump() for i in update_data.itens]
+            else:
+                data[key].pop('itens', None)
 
             if self._save_data(data):
                 return MunicipioEditado(
                     codigo_ibge=codigo_ibge,
                     competencia=competencia,
                     perda_recurso_mensal=update_data.perda_recurso_mensal,
+                    itens=update_data.itens,
                     data_edicao=now
                 )
 
@@ -280,12 +298,15 @@ class MunicipioEditadoService:
                 'perda_qualidade_mensal': municipio_data.perda_qualidade_mensal,
                 'data_edicao': now.isoformat()
             }
+            if municipio_data.itens is not None:
+                data[key]['itens'] = [i.model_dump() for i in municipio_data.itens]
 
             if self._save_data(data):
                 return MunicipioEditado(
                     codigo_ibge=municipio_data.codigo_ibge,
                     competencia=municipio_data.competencia,
                     perda_recurso_mensal=municipio_data.perda_recurso_mensal,
+                    itens=municipio_data.itens,
                     perda_vinculo_mensal=municipio_data.perda_vinculo_mensal,
                     perda_qualidade_mensal=municipio_data.perda_qualidade_mensal,
                     data_edicao=now

@@ -9,7 +9,7 @@
  * - Cálculos reativos + auto-save com debounce.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Table, Typography, Space, Tag, Card, Row, Col, Statistic, Divider, Button, Tooltip } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -18,6 +18,7 @@ import type { DadosProcessados } from '../../types';
 import useAutoSave from '../../hooks/useAutoSave';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import CurrencyInput from '../inputs/CurrencyInput';
+import PreenchimentoAutomatico from './PreenchimentoAutomatico';
 import { sugestoesPorComponente, basePorComponente } from '../../utils/siaps';
 import { formatCurrencyBRL as formatCurrency } from '../../utils/formatCurrency';
 
@@ -35,8 +36,9 @@ const FinancialTable: React.FC = () => {
     autopreencherSiaps,
   } = useMunicipioStore();
   const updatePerca = useUpdatePerdaRecurso();
-  const { triggerSave, status, isSaving, isSaved, isError } = useAutoSave(2000);
+  const { triggerSave, status, isSaving, isSaved, isError } = useAutoSave();
   const isMobile = useIsMobile();
+  const [preenchimentoAberto, setPreenchimentoAberto] = useState(false);
 
   const pagamento = dadosFinanciamento?.pagamentos?.[0];
   const recursos = useMemo(() => dadosProcessados.map((d) => d.recurso), [dadosProcessados]);
@@ -391,14 +393,29 @@ const FinancialTable: React.FC = () => {
           {isError && <Tag color="error">Erro ao salvar</Tag>}
           {!isSaving && !isSaved && !isError && <Tag>Pronto</Tag>}
         </Space>
-        {!isMobile && (
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {dadosProcessados.length} registros
-          </Text>
-        )}
+        <Space size="small">
+          <Button
+            size="small"
+            icon={<ThunderboltOutlined />}
+            onClick={() => setPreenchimentoAberto(true)}
+            disabled={!dadosProcessados.length}
+          >
+            Preencher automaticamente
+          </Button>
+          {!isMobile && (
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              {dadosProcessados.length} registros
+            </Text>
+          )}
+        </Space>
       </Space>
 
       {siapsBar}
+      <PreenchimentoAutomatico
+        open={preenchimentoAberto}
+        onClose={() => setPreenchimentoAberto(false)}
+        onAplicado={() => triggerSave()}
+      />
 
       {isMobile ? (
         <MobileCardView />

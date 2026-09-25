@@ -2,9 +2,9 @@
  * Componente de perfil do usuário
  */
 import { useState } from 'react';
-import { Card, Form, Input, Button, App, Tabs, Modal, Typography, Space, Divider } from 'antd';
-import { UserOutlined, MailOutlined, LockOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { Card, Form, Input, Button, App, Tabs, Typography, Space, Divider } from 'antd';
+import { UserOutlined, MailOutlined, LockOutlined } from '@ant-design/icons';
+import { mensagemDeErro } from '../../utils/mensagemDeErro';
 import { useAuthStore } from '../../stores/authStore';
 import { authService, type UserUpdate, type PasswordChange } from '../../services/authService';
 
@@ -13,8 +13,7 @@ const { TabPane } = Tabs;
 
 export const UserProfile = () => {
   const { message } = App.useApp();
-  const navigate = useNavigate();
-  const { user, updateUser, logout } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [loadingPassword, setLoadingPassword] = useState(false);
   const [profileForm] = Form.useForm();
@@ -27,9 +26,9 @@ export const UserProfile = () => {
       const updatedUser = await authService.updateProfile(values);
       updateUser(updatedUser);
       message.success('Perfil atualizado com sucesso!');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao atualizar perfil:', error);
-      message.error(error.response?.data?.detail || 'Erro ao atualizar perfil');
+      message.error(mensagemDeErro(error, 'Erro ao atualizar perfil'));
     } finally {
       setLoadingProfile(false);
     }
@@ -42,34 +41,12 @@ export const UserProfile = () => {
       await authService.changePassword(values);
       message.success('Senha alterada com sucesso!');
       passwordForm.resetFields();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao alterar senha:', error);
-      message.error(error.response?.data?.detail || 'Erro ao alterar senha');
+      message.error(mensagemDeErro(error, 'Erro ao alterar senha'));
     } finally {
       setLoadingPassword(false);
     }
-  };
-
-  // Desativar conta
-  const handleDeleteAccount = () => {
-    Modal.confirm({
-      title: 'Desativar Conta',
-      icon: <ExclamationCircleOutlined />,
-      content: 'Tem certeza que deseja desativar sua conta? Esta ação não pode ser desfeita.',
-      okText: 'Sim, desativar',
-      okType: 'danger',
-      cancelText: 'Cancelar',
-      onOk: async () => {
-        try {
-          await authService.deleteAccount();
-          message.success('Conta desativada com sucesso');
-          logout();
-          navigate('/login');
-        } catch (error: any) {
-          message.error(error.response?.data?.detail || 'Erro ao desativar conta');
-        }
-      }
-    });
   };
 
   if (!user) {
@@ -230,23 +207,6 @@ export const UserProfile = () => {
                   </Button>
                 </Form.Item>
               </Form>
-
-              <Divider />
-
-              <div>
-                <Title level={4} type="danger">Zona de Perigo</Title>
-                <Text type="secondary">
-                  Desativar sua conta irá remover o acesso ao sistema. Esta ação não pode ser desfeita.
-                </Text>
-                <div style={{ marginTop: '16px' }}>
-                  <Button
-                    danger
-                    onClick={handleDeleteAccount}
-                  >
-                    Desativar Conta
-                  </Button>
-                </div>
-              </div>
             </Space>
           </TabPane>
         </Tabs>

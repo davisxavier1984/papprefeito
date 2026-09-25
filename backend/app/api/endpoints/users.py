@@ -164,6 +164,17 @@ async def update_user(
     - **email**: Novo email (opcional)
     - **is_active**: Status ativo/inativo (opcional)
     """
+    # Impede que o admin remova o próprio acesso
+    if user_id == current_user.id and (
+        user_data.is_superuser is False
+        or user_data.is_active is False
+        or user_data.is_authorized is False
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Você não pode remover o próprio acesso"
+        )
+
     try:
         # Verifica se o usuário existe
         user = await user_service.get_user_by_id(user_id)

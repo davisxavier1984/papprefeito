@@ -16,9 +16,17 @@ import type {
   CompetenciaInfo,
   ApiError,
   RelatorioPDFRequest,
+  LoteRequest,
+  LoteStatus,
+  SugestaoResposta,
+  ParecidosResposta,
+  AcertoResposta,
+  ValorReferencia,
+  ValorReferenciaCreate,
   SiapsClassificacaoResponse,
   SiapsGapResponse
 } from '../types';
+import { authService } from './authService';
 
 // Configuração base da API
 const DEFAULT_API_BASE_URL = 'http://localhost:8000/api';
@@ -59,11 +67,22 @@ class ApiClient {
     // Interceptor para tratar erros globalmente
     this.client.interceptors.response.use(
       (response: AxiosResponse) => response,
-      (error) => {
-        // Sessão inválida/expirada: desloga para redirecionar ao login
-        if (error.response?.status === 401) {
-          useAuthStore.getState().logout();
+      async (error) => {
+        const originalRequest = error.config;
+
+        // Token expirado: renova uma vez e refaz a requisição
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+          originalRequest._retry = true;
+          try {
+            const newAccessToken = await authService.refreshAccessToken();
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return this.client(originalRequest);
+          } catch {
+            useAuthStore.getState().logout();
+            window.location.href = '/login';
+          }
         }
+
         const apiError: ApiError = {
           success: false,
           message: error.response?.data?.detail || error.message || 'Erro na comunicação com a API',
@@ -217,6 +236,71 @@ class ApiClient {
       { responseType: 'blob' }
     );
     return response.data;
+  }
+
+  // ================================
+  // RELATÓRIOS EM LOTE
+  // ================================
+
+  /**
+   * Inicia a geração em segundo plano
+   */
+  async criarLote(payload: LoteRequest): Promise<LoteStatus> {
+    const response = await this.client.post<LoteStatus>('/relatorios/lote', payload);
+    return response.data;
+  }
+
+  async statusLote(id: string): Promise<LoteStatus> {
+    const response = await this.client.get<LoteStatus>(`/relatorios/lote/${id}`);
+    return response.data;
+  }
+
+  async baixarLote(id: string): Promise<Blob> {
+    const response = await this.client.get<Blob>(`/relatorios/lote/${id}/download`, {
+      responseType: 'blob',
+      timeout: 120000,
+    });
+    return response.data;
+  }
+
+  // ================================
+  // PREENCHIMENTO AUTOMÁTICO
+  // ================================
+
+  /**
+   * Calcula o que o município poderia ter, por plano. Não grava nada.
+   */
+  async getSugestaoPreenchimento(codigoIbge: string, competencia: string): Promise<SugestaoResposta> {
+    const response = await this.client.get<SugestaoResposta>(
+      `/preenchimento/${codigoIbge}/${competencia}/sugestao`
+    );
+    return response.data;
+  }
+
+  async getParecidos(codigoIbge: string, competencia: string): Promise<ParecidosResposta> {
+    const response = await this.client.get<ParecidosResposta>(
+      `/preenchimento/${codigoIbge}/${competencia}/parecidos`
+    );
+    return response.data;
+  }
+
+  async getAcerto(desde: string): Promise<AcertoResposta> {
+    const response = await this.client.get<AcertoResposta>('/preenchimento/acerto', { params: { desde } });
+    return response.data;
+  }
+
+  async listarValoresReferencia(): Promise<ValorReferencia[]> {
+    const response = await this.client.get<ValorReferencia[]>('/preenchimento/valores-referencia');
+    return response.data;
+  }
+
+  async cadastrarValorReferencia(payload: ValorReferenciaCreate): Promise<ValorReferencia> {
+    const response = await this.client.post<ValorReferencia>('/preenchimento/valores-referencia', payload);
+    return response.data;
+  }
+
+  async removerValorReferencia(id: number): Promise<void> {
+    await this.client.delete(`/preenchimento/valores-referencia/${id}`);
   }
 
   /**

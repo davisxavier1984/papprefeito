@@ -111,6 +111,19 @@ backend/test_output*.pdf
 # Pasta de testes temporários
 backend/temp/
 
+# Dados de runtime e artefatos locais (não versionar)
+*.db
+*.json.backup.*
+*.pid
+/*.pdf
+/data_cache_papprefeito.json
+/municipios_editados.json
+backend/data_cache_papprefeito.json
+backend/municipios_editados.json
+.claude/settings.local.json
+/apt
+/sudo
+/update
 # Estado de runtime gerado/escrito pela aplicação — não versionar
 # (evita churn de diffs e perda de dados em prod via git pull/checkout)
 # Padrões sem barra inicial casam tanto na raiz quanto em backend/

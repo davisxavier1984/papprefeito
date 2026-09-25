@@ -1,0 +1,20 @@
+[Unit]
+Description=papprefeito API (FastAPI/uvicorn -> 127.0.0.1:8000)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=davi
+Group=davi
+# WorkingDirectory é obrigatório: config.py lê ".env" e o SQLite usa caminho
+# relativo (sqlite+aiosqlite:///papprefeito.db).
+WorkingDirectory=/home/davi/python/MG/papprefeito-dev/backend
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/davi/python/MG/papprefeito-dev/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

@@ -12,11 +12,13 @@ import ptBR from 'antd/locale/pt_BR';
 import { useIsDark } from './stores/themeStore';
 import AppLayout from './components/Layout/AppLayout';
 import Dashboard from './pages/Dashboard';
+import RelatoriosLote from './pages/RelatoriosLote';
 import { LoginForm } from './components/Auth/LoginForm';
-import { RegisterForm } from './components/Auth/RegisterForm';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { UserProfile } from './components/Auth/UserProfile';
 import { UserManagement } from './pages/Admin/UserManagement';
+import ValoresReferencia from './pages/Admin/ValoresReferencia';
+import AcertoAutomatico from './pages/Admin/AcertoAutomatico';
 import './App.css';
 
 // Configurar React Query Client
@@ -128,7 +130,6 @@ const App: React.FC = () => {
           <Routes>
             {/* Rotas públicas de autenticação */}
             <Route path="/login" element={<LoginForm />} />
-            <Route path="/register" element={<RegisterForm />} />
 
             {/* Rotas protegidas */}
             <Route
@@ -137,6 +138,17 @@ const App: React.FC = () => {
                 <ProtectedRoute>
                   <AppLayout>
                     <Dashboard />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/relatorios-lote"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <RelatoriosLote />
                   </AppLayout>
                 </ProtectedRoute>
               }
@@ -160,6 +172,28 @@ const App: React.FC = () => {
                 <ProtectedRoute requireSuperuser>
                   <AppLayout>
                     <UserManagement />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/valores-referencia"
+              element={
+                <ProtectedRoute requireSuperuser>
+                  <AppLayout>
+                    <ValoresReferencia />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/acerto-automatico"
+              element={
+                <ProtectedRoute requireSuperuser>
+                  <AppLayout>
+                    <AcertoAutomatico />
                   </AppLayout>
                 </ProtectedRoute>
               }

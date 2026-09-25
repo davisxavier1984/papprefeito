@@ -11,7 +11,8 @@ import uvicorn
 
 from app.api.router import api_router
 from app.core.config import settings
-from app.core.database import init_db
+from app.core.database import async_session, init_db
+from app.services.valores_referencia import ValoresReferenciaService
 from app.utils.logger import logger
 
 
@@ -32,6 +33,9 @@ DEFAULT_CORS_ORIGINS = {
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    # Valores de referência iniciais (só grava chaves que ainda não existem)
+    async with async_session() as session:
+        await ValoresReferenciaService(session).semear_padrao()
     yield
 
 
@@ -78,7 +82,7 @@ async def health_check():
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
     """Handler geral para exceções não tratadas (não vaza detalhes internos)."""
-    logger.error(f"Erro não tratado em {request.method} {request.url.path}: {exc}")
+    logger.exception(f"Erro não tratado em {request.method} {request.url.path}: {exc}")
     return JSONResponse(
         status_code=500,
         content={"detail": "Erro interno do servidor"}

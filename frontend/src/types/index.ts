@@ -192,10 +192,20 @@ export interface DadosFinanciamento {
 }
 
 // Tipos para dados editados
+/** Perda de um plano orçamentário, com a origem do valor (story 3.2) */
+export interface ItemPerda {
+  plano: string;
+  valor: number;
+  origem?: 'manual' | 'regra' | 'estimativa';
+  regra_id?: string | null;
+  valor_sugerido?: number | null;
+}
+
 export interface MunicipioEditado {
   codigo_ibge: string;
   competencia: string;
   perda_recurso_mensal: number[];
+  itens?: ItemPerda[] | null;
   /** Perda mensal do componente Vínculo e Acompanhamento (CVAT) por recurso. */
   perda_vinculo_mensal?: number[];
   /** Perda mensal do componente Qualidade por recurso. */
@@ -207,12 +217,14 @@ export interface MunicipioEditadoCreate {
   codigo_ibge: string;
   competencia: string;
   perda_recurso_mensal: number[];
+  itens?: ItemPerda[];
   perda_vinculo_mensal?: number[];
   perda_qualidade_mensal?: number[];
 }
 
 export interface MunicipioEditadoUpdate {
   perda_recurso_mensal: number[];
+  itens?: ItemPerda[];
 }
 
 // Tipos para dados processados (frontend)
@@ -447,6 +459,8 @@ export interface AppState {
   // Dados processados para cards de programas
   dadosProgramas: DetalhamentoPrograma[];
 
+  // Posições da tabela preenchidas pelo cálculo automático (story 3.3)
+  sugestoesAplicadas: Record<number, SugestaoAplicada>;
   // SIAPS — lacuna financeira derivada da classificação das equipes
   siapsGap: SiapsGapResponse | null;
   siapsModo: SiapsModo;
@@ -460,6 +474,7 @@ export interface AppActions {
   setSelectedCompetencia: (competencia: string) => void;
   setDadosFinanciamento: (dados: DadosFinanciamento | null) => void;
   setDadosEditados: (dados: MunicipioEditado | null) => void;
+  setSugestoesAplicadas: (sugestoes: Record<number, SugestaoAplicada>) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   updateDadosProcessados: (dados: DadosProcessados[]) => void;
@@ -484,3 +499,144 @@ export type AppStore = AppState & AppActions;
 // Tipos utilitários
 export type Nullable<T> = T | null;
 export type Optional<T> = T | undefined;
+
+// ================================
+// Relatórios em lote (stories 3.4 e 3.5)
+// ================================
+
+export type TipoRelatorio = 'prefeito' | 'detalhado';
+
+export interface MunicipioLote {
+  codigo_ibge: string;
+  nome: string;
+  uf: string;
+}
+
+export interface LoteRequest {
+  competencia: string;
+  tipos: TipoRelatorio[];
+  municipios: MunicipioLote[];
+  sem_perdas: 'ignorar' | 'zero' | 'regras';
+}
+
+export interface LoteStatus {
+  id: string;
+  status: 'processando' | 'concluido' | 'erro';
+  competencia: string;
+  tipos: TipoRelatorio[];
+  total: number;
+  processados: number;
+  arquivos: number;
+  calculados: number;
+  erros: string[];
+  criado_em: string;
+  concluido_em?: string | null;
+}
+
+// ================================
+// Preenchimento automático (story 3.3)
+// ================================
+
+export interface ComponenteSugestao {
+  id: string;
+  nome: string;
+  quantidade: number;
+  valor_unitario: number;
+  incluido: boolean;
+  quantidade_editavel: boolean;
+  detalhe?: string | null;
+}
+
+export interface PlanoSugestao {
+  indice: number;
+  plano: string;
+  tipo: 'esf' | 'acs' | 'sb' | 'emulti' | 'outro';
+  regra_id?: string | null;
+  aplicavel: boolean;
+  componentes: ComponenteSugestao[];
+  total_sugerido: number;
+  observacao?: string | null;
+}
+
+export interface SugestaoResposta {
+  codigo_ibge: string;
+  competencia: string;
+  planos: PlanoSugestao[];
+  vigencia_mais_antiga?: string | null;
+  aviso?: string | null;
+}
+
+/** Sugestão aplicada numa posição da tabela: permite saber se o valor ainda é o calculado */
+export interface SugestaoAplicada {
+  regra_id: string;
+  valor_sugerido: number;
+  valor_aplicado: number;
+}
+
+// ================================
+// Municípios parecidos e acerto do automático (story 3.7)
+// ================================
+
+export interface ExemploParecido {
+  codigo_ibge: string;
+  competencia: string;
+  municipio: string;
+  uf: string;
+  valor: number;
+  distancia: number;
+}
+
+export interface PlanoParecidos {
+  indice: number;
+  plano: string;
+  mediana?: number | null;
+  exemplos: ExemploParecido[];
+}
+
+export interface ParecidosResposta {
+  codigo_ibge: string;
+  competencia: string;
+  planos: PlanoParecidos[];
+}
+
+export interface MetricasPlano {
+  tipo: string;
+  plano: string;
+  registros: number;
+  exatos: number;
+  erro_mediano?: number | null;
+  com_valor: number;
+  dentro_25: number;
+  zero_certo: number;
+  razao_soma?: number | null;
+  alerta: boolean;
+}
+
+export interface PreenchidosPlano {
+  plano: string;
+  registros: number;
+  preenchidos: number;
+}
+
+export interface AcertoResposta {
+  desde: string;
+  planos: MetricasPlano[];
+  manuais: PreenchidosPlano[];
+  sem_resposta: number;
+}
+
+export interface ValorReferencia {
+  id: number;
+  chave: string;
+  descricao: string;
+  vigente_desde: string;
+  valor: number;
+  fonte?: string | null;
+}
+
+export interface ValorReferenciaCreate {
+  chave: string;
+  vigente_desde: string;
+  valor: number;
+  fonte?: string;
+}

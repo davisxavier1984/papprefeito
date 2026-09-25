@@ -3,8 +3,21 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Layout, Typography, Space, Button, Alert, Drawer } from 'antd';
-import { SearchOutlined, ReloadOutlined, FilterOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { Layout, Typography, Space, Button, Alert, Drawer, Menu, Divider } from 'antd';
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  FilterOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  HomeOutlined,
+  FileZipOutlined,
+  TableOutlined,
+  TeamOutlined,
+  LineChartOutlined
+} from '@ant-design/icons';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../stores/authStore';
 import UFSelector from '../Selectors/UFSelector';
 import MunicipioSelector from '../Selectors/MunicipioSelector';
 import CompetenciaInput from '../Selectors/CompetenciaInput';
@@ -38,8 +51,32 @@ const Sidebar: React.FC<SidebarProps> = ({
   const { consultar } = useConsultarDados();
   const [isResizing, setIsResizing] = useState(false);
 
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isSuperuser = useAuthStore((state) => !!state.user?.is_superuser);
+
+  // Navegação sempre visível, sem precisar consultar um município antes
+  const menuItems = [
+    { key: '/dashboard', icon: <HomeOutlined />, label: 'Início' },
+    { key: '/relatorios-lote', icon: <FileZipOutlined />, label: 'Relatórios em lote' },
+    ...(isSuperuser
+      ? [
+          { key: '/admin/valores-referencia', icon: <TableOutlined />, label: 'Valores de referência' },
+          { key: '/admin/acerto-automatico', icon: <LineChartOutlined />, label: 'Acerto do automático' },
+          { key: '/admin/users', icon: <TeamOutlined />, label: 'Gestão de Usuários' },
+        ]
+      : []),
+  ];
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    if (isMobile) onDrawerClose?.();
+  };
+
   const handleConsultar = () => {
     consultar();
+    // O resultado da consulta aparece no Dashboard
+    if (location.pathname !== '/dashboard') handleNavigate('/dashboard');
   };
 
   const handleReset = () => {
@@ -79,6 +116,21 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const sidebarContent = (
     <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Menu
+        mode="inline"
+        inlineCollapsed={collapsed}
+        selectedKeys={[location.pathname]}
+        items={menuItems}
+        onClick={({ key }) => handleNavigate(key)}
+        style={{ borderInlineEnd: 'none', background: 'transparent' }}
+      />
+
+      {!collapsed && (
+        <Divider orientation="left" plain style={{ margin: '4px 0' }}>
+          Consulta de município
+        </Divider>
+      )}
+
       <div style={{ display: collapsed ? 'none' : 'block' }}>
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <UFSelector />

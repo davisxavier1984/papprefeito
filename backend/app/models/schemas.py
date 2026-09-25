@@ -1,7 +1,7 @@
 """
 Modelos Pydantic para validação de dados
 """
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 from pydantic import BaseModel, Field, validator
 from pydantic import AliasChoices, ConfigDict
 from datetime import datetime
@@ -81,10 +81,33 @@ class DadosFinanciamento(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
     model_config = ConfigDict(extra='ignore', populate_by_name=True)
 
+class ItemPerda(BaseModel):
+    """Perda de um plano orçamentário, com a origem do valor"""
+    plano: str = Field(..., description="dsPlanoOrcamentario do Ministério")
+    valor: float = Field(..., description="Perda mensal informada")
+    origem: Literal['manual', 'regra', 'estimativa'] = Field('manual', description="De onde veio o valor")
+    regra_id: Optional[str] = Field(None, description="Regra ou estimativa que gerou a sugestão")
+    valor_sugerido: Optional[float] = Field(None, description="Valor sugerido pelo sistema, quando houver")
+
+
+def _validar_itens(itens, perdas):
+    """Os itens descrevem o array posicional: mesmo tamanho e mesmos valores."""
+    if itens is None:
+        return itens
+    if len(itens) != len(perdas):
+        raise ValueError('itens deve ter o mesmo tamanho de perda_recurso_mensal')
+    for item, valor in zip(itens, perdas):
+        if abs(item.valor - valor) > 0.005:
+            raise ValueError('itens[].valor deve ser igual ao valor correspondente de perda_recurso_mensal')
+    return itens
+
+
 class MunicipioEditado(BaseModel):
     """Modelo para dados editados de município"""
     codigo_ibge: str = Field(..., description="Código IBGE do município")
     competencia: str = Field(..., description="Competência")
+    perda_recurso_mensal: List[float] = Field(default_factory=list, description="Lista de perdas mensais por recurso")
+    itens: Optional[List[ItemPerda]] = Field(None, description="Perdas por plano (mesma ordem de perda_recurso_mensal)")
     perda_recurso_mensal: List[float] = Field(default_factory=list, description="Lista de perdas mensais por recurso (total por linha)")
     perda_vinculo_mensal: Optional[List[float]] = Field(default=None, description="Perda mensal do componente Vínculo e Acompanhamento (CVAT) por recurso")
     perda_qualidade_mensal: Optional[List[float]] = Field(default=None, description="Perda mensal do componente Qualidade por recurso")
@@ -95,12 +118,34 @@ class MunicipioEditadoCreate(BaseModel):
     codigo_ibge: str
     competencia: str
     perda_recurso_mensal: List[float]
+    itens: Optional[List[ItemPerda]] = None
+
+    @validator('itens')
+    def itens_coerentes(cls, v, values):
+        return _validar_itens(v, values.get('perda_recurso_mensal', []))
     perda_vinculo_mensal: Optional[List[float]] = None
     perda_qualidade_mensal: Optional[List[float]] = None
 
 class MunicipioEditadoUpdate(BaseModel):
     """Modelo para atualização de dados editados"""
     perda_recurso_mensal: List[float]
+    itens: Optional[List[ItemPerda]] = None
+
+    @validator('itens')
+    def itens_coerentes(cls, v, values):
+        return _validar_itens(v, values.get('perda_recurso_mensal', []))
+
+
+class HistoricoPerda(BaseModel):
+    """Registro append-only de cada gravação de perdas"""
+    id: int
+    codigo_ibge: str
+    competencia: str
+    usuario_id: Optional[str] = None
+    operacao: str
+    perda_recurso_mensal: List[float]
+    itens: Optional[List[ItemPerda]] = None
+    created_at: datetime
 
 class DadosProcessados(BaseModel):
     """Modelo para dados processados com cálculos"""
@@ -364,6 +409,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Schema para criação de usuário"""
     password: str = Field(..., min_length=8, description="Senha do usuário (mínimo 8 caracteres)")
+    is_superuser: bool = Field(default=False, description="Se o usuário é administrador")
 
     @validator('password')
     def validate_password(cls, v):
@@ -473,6 +519,201 @@ class UserListResponse(BaseModel):
     users: List[User] = Field(..., description="Lista de usuários")
 
 
+# === Relatórios em lote (stories 3.4 e 3.5) ===
+
+class MunicipioLote(BaseModel):
+    """Município selecionado para o lote"""
+    codigo_ibge: str = Field(..., min_length=6, max_length=7)
+    nome: str
+    uf: str = Field(..., min_length=2, max_length=2)
+
+
+class LoteConferenciaRequest(BaseModel):
+    """Pedido de conferência antes de gerar o lote"""
+    competencia: str = Field(..., min_length=6, max_length=6)
+    municipios: List[MunicipioLote] = Field(..., min_length=1, max_length=300)
+
+
+class LoteConferenciaItem(BaseModel):
+    """Situação das perdas salvas de um município na competência"""
+    codigo_ibge: str
+    nome: str
+    uf: str
+    tem_perdas: bool
+    total_perda_mensal: float = 0.0
+    origens: Dict[str, int] = Field(default_factory=dict, description="Quantidade de valores por origem (manual/regra/estimativa)")
+    data_edicao: Optional[datetime] = None
+
+
+class LoteRequest(BaseModel):
+    """Pedido de geração de relatórios em lote"""
+    competencia: str = Field(..., min_length=6, max_length=6)
+    tipos: List[Literal['prefeito', 'detalhado']] = Field(..., min_length=1, max_length=2)
+    municipios: List[MunicipioLote] = Field(..., min_length=1, max_length=300)
+    sem_perdas: Literal['ignorar', 'zero', 'regras'] = Field(
+        'regras',
+        description="Municípios sem perdas salvas: ignorar, gerar com perda zero, ou calcular pelas regras "
+                    "do preenchimento automático (salvando com origem 'regra')",
+    )
+
+    @validator('competencia')
+    def competencia_valida(cls, v: str) -> str:
+        if not v.isdigit() or not (1 <= int(v[4:]) <= 12):
+            raise ValueError('Competência deve estar no formato AAAAMM')
+        return v
+
+
+class LoteStatus(BaseModel):
+    """Andamento de um lote"""
+    id: str
+    status: Literal['processando', 'concluido', 'erro']
+    competencia: str
+    tipos: List[str]
+    total: int
+    processados: int
+    arquivos: int
+    calculados: int = Field(0, description="Municípios cujos valores foram calculados automaticamente neste lote")
+    erros: List[str] = Field(default_factory=list, description="Falhas reais (também no erros.txt do ZIP)")
+    criado_em: datetime
+    concluido_em: Optional[datetime] = None
+
+
+# === Preenchimento automático (story 3.3) ===
+
+class ComponenteSugestao(BaseModel):
+    """Parte do cálculo de um plano: quantidade × valor unitário"""
+    id: str
+    nome: str
+    quantidade: float
+    valor_unitario: float
+    incluido: bool = True
+    quantidade_editavel: bool = False
+    detalhe: Optional[str] = None
+
+
+class PlanoSugestao(BaseModel):
+    """Sugestão de perda de um plano (posição na tabela)"""
+    indice: int
+    plano: str
+    tipo: Literal['esf', 'acs', 'sb', 'emulti', 'outro']
+    regra_id: Optional[str] = None
+    aplicavel: bool = Field(..., description="False quando não há regra: o valor atual é mantido")
+    componentes: List[ComponenteSugestao] = Field(default_factory=list)
+    total_sugerido: float = 0.0
+    observacao: Optional[str] = None
+
+
+class SugestaoResposta(BaseModel):
+    codigo_ibge: str
+    competencia: str
+    planos: List[PlanoSugestao]
+    vigencia_mais_antiga: Optional[str] = Field(None, description="Vigência mais antiga entre os valores usados (AAAAMM)")
+    aviso: Optional[str] = None
+
+
+class ValorReferencia(BaseModel):
+    id: int
+    chave: str
+    descricao: str
+    vigente_desde: str
+    valor: float
+    fonte: Optional[str] = None
+
+
+class ValorReferenciaCreate(BaseModel):
+    chave: str
+    vigente_desde: str = Field(..., min_length=6, max_length=6)
+    valor: float = Field(..., ge=0)
+    fonte: Optional[str] = None
+
+    @validator('vigente_desde')
+    def vigencia_valida(cls, v: str) -> str:
+        if not v.isdigit() or not (1 <= int(v[4:]) <= 12):
+            raise ValueError('Vigência deve estar no formato AAAAMM')
+        return v
+
+
+# === Estimativa eMulti (story 3.6) ===
+
+class ProfissionalElegivel(BaseModel):
+    """Categoria da Portaria 635/2023 encontrada no CNES do município"""
+    categoria: str
+    cbo: str
+    pessoas: int
+    composicao_fixa: bool
+
+
+class EstimativaEmulti(BaseModel):
+    """Estimativa de eMulti de um município a partir dos profissionais elegíveis do CNES"""
+    codigo_ibge: str
+    competencia: str
+    equipes_aps: int = Field(..., description="eSF + eAP credenciadas (Ministério)")
+    equipes_aps_cnes: int = Field(..., description="eSF + eAP ativas no CNES")
+    atuais: Dict[str, int] = Field(..., description="eMulti pagas por modalidade")
+    teto: Dict[str, int] = Field(..., description="Teto do Ministério por modalidade")
+    custeio_atual: float
+    profissionais_elegiveis: int
+    nutricionistas_psicologos: int
+    profissionais: List[ProfissionalElegivel]
+    divisor: int
+    equipes_estimadas: int
+    combinacao: Dict[str, int] = Field(..., description="Combinação sugerida (total de equipes por modalidade)")
+    custeio_modalidade: Dict[str, float]
+    qualidade_pct: float
+    perda_estimada: float = Field(..., description="Custeio da combinação − custeio atual (sem qualidade)")
+    indice_plano: Optional[int] = Field(None, description="Posição do plano eMulti na tabela")
+    plano: Optional[str] = None
+    aviso: Optional[str] = None
+
+
+# === Municípios parecidos e acerto do automático (story 3.7) ===
+
+class ExemploParecido(BaseModel):
+    codigo_ibge: str
+    competencia: str
+    municipio: str
+    uf: str
+    valor: float
+    distancia: float
+
+
+class PlanoParecidos(BaseModel):
+    indice: int = Field(..., description="Posição do plano na tabela")
+    plano: str
+    mediana: Optional[float] = None
+    exemplos: List[ExemploParecido] = Field(default_factory=list)
+
+
+class ParecidosResposta(BaseModel):
+    codigo_ibge: str
+    competencia: str
+    planos: List[PlanoParecidos]
+
+
+class MetricasPlano(BaseModel):
+    tipo: str
+    plano: str
+    registros: int
+    exatos: int
+    erro_mediano: Optional[float] = None
+    com_valor: int
+    dentro_25: int
+    zero_certo: int
+    razao_soma: Optional[float] = None
+    alerta: bool
+
+
+class PreenchidosPlano(BaseModel):
+    plano: str
+    registros: int
+    preenchidos: int
+
+
+class AcertoResposta(BaseModel):
+    desde: str
+    planos: List[MetricasPlano]
+    manuais: List[PreenchidosPlano]
+    sem_resposta: int = Field(..., description="Registros sem resposta do Ministério guardada")
 # --- SIAPS (classificação das equipes + lacuna financeira) -------------------
 
 class SiapsRegistro(BaseModel):

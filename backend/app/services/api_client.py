@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 
 from app.core.config import settings
 from app.models.schemas import DadosFinanciamento, FinanciamentoParams
+from app.services.respostas_ministerio import gravar_resposta
 from app.utils.logger import logger
 
 
@@ -124,6 +125,9 @@ class SaudeAPIClient:
                     logger.info(f"Cache salvo em {abs_path}")
                 except Exception as e:
                     logger.warning(f"Falha ao salvar cache local: {str(e)}")
+
+                # Guarda a resposta para o painel de acerto e os municípios parecidos
+                await gravar_resposta(codigo_ibge[:6], competencia, dados)
 
                 # Retornar JSON bruto da API externa (completo)
                 return dados

@@ -10,8 +10,10 @@ import { ProgramasCards } from '../components/Programas/ProgramasCards';
 import { AnaliseBox } from '../components/Programas/AnaliseBox';
 import SiapsClassificacaoCard from '../components/SIAPS/SiapsClassificacaoCard';
 import { useHasDados, useMunicipioInfo, useMunicipioStore } from '../stores/municipioStore';
-import { DownloadOutlined } from '@ant-design/icons';
+import { DownloadOutlined, FileZipOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/api';
+import { descarregarAutosave } from '../hooks/useAutoSave';
 
 const { Title, Text } = Typography;
 
@@ -20,6 +22,7 @@ const Dashboard: React.FC = () => {
   const hasDados = useHasDados();
   const municipioInfo = useMunicipioInfo();
   const { resumoFinanceiro, dadosProgramas, isLoading } = useMunicipioStore();
+  const navigate = useNavigate();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingDetailed, setIsGeneratingDetailed] = useState(false);
 
@@ -31,6 +34,8 @@ const Dashboard: React.FC = () => {
 
     try {
       setIsGenerating(true);
+      // O PDF lê as perdas gravadas no servidor: grava antes a edição que está no debounce
+      await descarregarAutosave();
       const blob = await apiClient.gerarRelatorioPDF({
         codigo_ibge: municipioInfo.codigo,
         competencia: municipioInfo.competencia,
@@ -67,6 +72,8 @@ const Dashboard: React.FC = () => {
 
     try {
       setIsGeneratingDetailed(true);
+      // O PDF lê as perdas gravadas no servidor: grava antes a edição que está no debounce
+      await descarregarAutosave();
       const blob = await apiClient.gerarRelatorioDetalhadoPDF({
         codigo_ibge: municipioInfo.codigo,
         competencia: municipioInfo.competencia,
@@ -241,6 +248,9 @@ const Dashboard: React.FC = () => {
             gap: '12px'
           }}
         >
+          <Button icon={<FileZipOutlined />} onClick={() => navigate('/relatorios-lote')}>
+            Vários municípios
+          </Button>
           <Button
             icon={<DownloadOutlined />}
             onClick={handleGerarPDF}

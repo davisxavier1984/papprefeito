@@ -21,12 +21,6 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface RegisterRequest {
-  email: string;
-  nome: string;
-  password: string;
-}
-
 export interface Token {
   access_token: string;
   refresh_token: string;
@@ -120,14 +114,6 @@ class AuthService {
         return Promise.reject(error);
       }
     );
-  }
-
-  /**
-   * Registra um novo usuário
-   */
-  async register(data: RegisterRequest): Promise<User> {
-    const response = await this.client.post<User>('/register', data);
-    return response.data;
   }
 
   /**
@@ -225,14 +211,6 @@ class AuthService {
       // Limpa os dados locais
       useAuthStore.getState().logout();
     }
-  }
-
-  /**
-   * Desativa a conta do usuário
-   */
-  async deleteAccount(): Promise<ApiResponse<null>> {
-    const response = await this.client.delete<ApiResponse<null>>('/me');
-    return response.data;
   }
 
   /**

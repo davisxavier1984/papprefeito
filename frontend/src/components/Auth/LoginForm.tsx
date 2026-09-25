@@ -4,7 +4,8 @@
 import { useState } from 'react';
 import { Form, Input, Button, Card, Alert, Typography } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { mensagemDeErro } from '../../utils/mensagemDeErro';
 import { authService, type LoginRequest } from '../../services/authService';
 import { useAuthStore } from '../../stores/authStore';
 import logo from '../../assets/logo.png';
@@ -31,9 +32,9 @@ export const LoginForm = () => {
 
       // Redireciona para o dashboard
       navigate('/dashboard');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Erro ao fazer login:', err);
-      setError(err.response?.data?.detail || 'Erro ao fazer login. Verifique suas credenciais.');
+      setError(mensagemDeErro(err, 'Erro ao fazer login. Verifique suas credenciais.'));
     } finally {
       setLoading(false);
     }
@@ -159,10 +160,7 @@ export const LoginForm = () => {
 
           <div style={{ textAlign: 'center' }}>
             <Text type="secondary" style={{ fontSize: '14px' }}>
-              Não tem uma conta?{' '}
-              <Link to="/register" style={{ color: '#0ea5e9', fontWeight: '600' }}>
-                Registre-se aqui
-              </Link>
+              Não tem acesso? Peça ao administrador para criar sua conta.
             </Text>
           </div>
         </Form>

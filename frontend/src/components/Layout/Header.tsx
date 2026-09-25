@@ -10,7 +10,10 @@ import {
   LogoutOutlined,
   SettingOutlined,
   TeamOutlined,
-  DashboardOutlined
+  HomeOutlined,
+  FileZipOutlined,
+  TableOutlined,
+  LineChartOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMunicipioInfo } from '../../stores/municipioStore';
@@ -37,9 +40,15 @@ const Header: React.FC = () => {
   const userMenuItems = [
     {
       key: 'dashboard',
-      icon: <DashboardOutlined />,
-      label: 'Dashboard',
+      icon: <HomeOutlined />,
+      label: 'Início',
       onClick: () => navigate('/dashboard')
+    },
+    {
+      key: 'relatorios-lote',
+      icon: <FileZipOutlined />,
+      label: 'Relatórios em lote',
+      onClick: () => navigate('/relatorios-lote')
     },
     {
       key: 'profile',
@@ -57,6 +66,18 @@ const Header: React.FC = () => {
             icon: <TeamOutlined />,
             label: 'Gestão de Usuários',
             onClick: () => navigate('/admin/users')
+          },
+          {
+            key: 'valores-referencia',
+            icon: <TableOutlined />,
+            label: 'Valores de referência',
+            onClick: () => navigate('/admin/valores-referencia')
+          },
+          {
+            key: 'acerto-automatico',
+            icon: <LineChartOutlined />,
+            label: 'Acerto do automático',
+            onClick: () => navigate('/admin/acerto-automatico')
           }
         ]
       : []),

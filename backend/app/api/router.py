@@ -3,7 +3,7 @@ Router principal da API que inclui todos os endpoints
 """
 from fastapi import APIRouter, Depends
 
-from app.api.endpoints import municipios, financiamento, municipios_editados, relatorios, edicoes, auth, users, siaps
+from app.api.endpoints import municipios, financiamento, municipios_editados, relatorios, edicoes, auth, users, preenchimento, siaps
 from app.core.dependencies import get_current_authorized_user
 
 # Router principal
@@ -38,6 +38,13 @@ api_router.include_router(
     relatorios.router,
     prefix="/relatorios",
     tags=["Relatórios"],
+    dependencies=_auth_required,
+)
+
+api_router.include_router(
+    preenchimento.router,
+    prefix="/preenchimento",
+    tags=["Preenchimento automático"],
     dependencies=_auth_required,
 )
 
