@@ -1,7 +1,7 @@
 /**
  * Relatórios em lote (stories 3.4 e 3.5)
  * Seleciona vários municípios e gera os relatórios PAP Prefeito e/ou Detalhado num único ZIP.
- * Para cada município, o backend usa os valores revisados no Dashboard; se não houver para a
+ * Para cada município, o backend usa os valores revisados na tela Início; se não houver para a
  * competência, calcula automaticamente (regras da story 3.3) e salva.
  */
 
@@ -138,9 +138,9 @@ const RelatoriosLote: React.FC = () => {
       <div>
         <Title level={3} style={{ marginBottom: 4 }}>Relatórios em lote</Title>
         <Text type="secondary">
-          Selecione os municípios e o tipo de relatório. Os valores usados são os revisados no Dashboard; quando o
+          Selecione os municípios e o tipo de relatório. Os valores usados são os revisados na tela Início; quando o
           município ainda não tiver valores na competência, eles são calculados automaticamente e ficam disponíveis
-          para revisão no Dashboard.
+          para revisão na tela Início.
         </Text>
       </div>
 
@@ -184,7 +184,7 @@ const RelatoriosLote: React.FC = () => {
               />
               <Text>
                 {lote.processados} de {lote.total} municípios · {lote.arquivos} relatório(s) gerado(s)
-                {lote.calculados > 0 && ` · ${lote.calculados} com valores calculados agora (revise no Dashboard, se quiser)`}
+                {lote.calculados > 0 && ` · ${lote.calculados} com valores calculados agora (revise na tela Início, se quiser)`}
               </Text>
               {lote.status === 'concluido' && lote.arquivos > 0 && (
                 <Button icon={<CheckCircleOutlined />} onClick={baixarNovamente}>

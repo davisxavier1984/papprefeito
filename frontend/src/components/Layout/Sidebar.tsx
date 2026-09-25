@@ -10,7 +10,7 @@ import {
   FilterOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  DashboardOutlined,
+  HomeOutlined,
   FileZipOutlined,
   TableOutlined,
   TeamOutlined,
@@ -57,7 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   // Navegação sempre visível, sem precisar consultar um município antes
   const menuItems = [
-    { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+    { key: '/dashboard', icon: <HomeOutlined />, label: 'Início' },
     { key: '/relatorios-lote', icon: <FileZipOutlined />, label: 'Relatórios em lote' },
     ...(isSuperuser
       ? [

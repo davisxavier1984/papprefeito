@@ -10,7 +10,7 @@ import {
   LogoutOutlined,
   SettingOutlined,
   TeamOutlined,
-  DashboardOutlined,
+  HomeOutlined,
   FileZipOutlined,
   TableOutlined,
   LineChartOutlined
@@ -37,8 +37,8 @@ const Header: React.FC = () => {
   const userMenuItems = [
     {
       key: 'dashboard',
-      icon: <DashboardOutlined />,
-      label: 'Dashboard',
+      icon: <HomeOutlined />,
+      label: 'Início',
       onClick: () => navigate('/dashboard')
     },
     {
