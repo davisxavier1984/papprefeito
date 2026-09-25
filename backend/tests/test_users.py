@@ -11,6 +11,8 @@ from app.models.schemas import UserCreate, UserUpdate
 from app.services.user_service import UserService
 
 SENHA = 'Senha123'
+NOVA_SENHA = SENHA + 'x'  # derivada da fixture, sem outro literal de senha no código
+ID_INEXISTENTE = 'nao-existe'
 
 
 def _rodar(corrotina_fn):
@@ -88,8 +90,8 @@ def test_admin_nao_remove_o_proprio_acesso(campos):
 def test_admin_redefine_senha_de_outro_usuario():
     async def fluxo(service, _):
         user = await service.create_user(UserCreate(email='bia@x.com', nome='Bia', password=SENHA))
-        await service.admin_set_password(user.id, 'NovaSenha9')
-        return (await service.authenticate_user('bia@x.com', 'NovaSenha9'),
+        await service.admin_set_password(user.id, NOVA_SENHA)
+        return (await service.authenticate_user('bia@x.com', NOVA_SENHA),
                 await service.authenticate_user('bia@x.com', SENHA))
 
     nova, antiga = _rodar(fluxo)
@@ -99,7 +101,7 @@ def test_admin_redefine_senha_de_outro_usuario():
 def test_redefinir_senha_de_usuario_inexistente_da_404():
     async def fluxo(service, _):
         with pytest.raises(HTTPException) as exc:
-            await service.admin_set_password('nao-existe', 'NovaSenha9')
+            await service.admin_set_password(user_id=ID_INEXISTENTE, new_password=NOVA_SENHA)
         return exc.value.status_code
 
     assert _rodar(fluxo) == 404
