@@ -1,5 +1,7 @@
 # Gestão de Usuários - Frontend
 
+> **Atualização (set/2026):** o cadastro público (`/register`) foi removido: só o administrador cria usuários, e eles já saem liberados para entrar. Não há mais "Nível de autorização" nem aprovação de pendentes; a situação é só Ativo/Inativo (ativar um usuário antigo pendente também o libera). O perfil é Usuário ou Administrador.
+
 ## Visão Geral
 
 Sistema completo de gestão de usuários para administradores (superusuários) do sistema PAP Prefeito.

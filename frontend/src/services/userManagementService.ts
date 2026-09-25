@@ -22,7 +22,6 @@ export interface UpdateUserRequest {
   nome?: string;
   email?: string;
   is_active?: boolean;
-  is_authorized?: boolean;
   is_superuser?: boolean;
 }
 
@@ -143,14 +142,12 @@ class UserManagementService {
     const response = await this.client.put<User>(`/${userId}`, { is_active: true });
     return response.data;
   }
-
-  /**
-   * Deleta permanentemente um usuário (apenas superusuário)
-   */
-  async deleteUser(userId: string): Promise<void> {
-    await this.client.delete(`/${userId}`);
-  }
 }
+
+/**
+ * Usuário antigo que ficou "pendente" (cadastro público removido) conta como inativo
+ */
+export const isAtivo = (user: User): boolean => user.is_active && user.is_authorized;
 
 // Instância singleton
 export const userManagementService = new UserManagementService();

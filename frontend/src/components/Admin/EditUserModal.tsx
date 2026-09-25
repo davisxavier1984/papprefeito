@@ -2,8 +2,9 @@
  * Modal para edição de usuário existente
  */
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Switch, App } from 'antd';
-import { UserOutlined, MailOutlined, SafetyOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, Switch, Radio, App } from 'antd';
+import { UserOutlined, MailOutlined } from '@ant-design/icons';
+import { useAuthStore } from '../../stores/authStore';
 import type { User } from '../../services/authService';
 import type { UpdateUserRequest } from '../../services/userManagementService';
 
@@ -23,6 +24,8 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const currentUserId = useAuthStore((state) => state.user?.id);
+  const isSelf = !!user && user.id === currentUserId;
 
   // Preencher o formulário quando o usuário for selecionado
   useEffect(() => {
@@ -30,8 +33,8 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
       form.setFieldsValue({
         nome: user.nome,
         email: user.email,
-        is_active: user.is_active,
-        is_authorized: user.is_authorized,
+        // Usuário antigo que ficou "pendente" aparece como inativo
+        is_active: user.is_active && user.is_authorized,
         is_superuser: user.is_superuser
       });
     }
@@ -97,28 +100,23 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
         </Form.Item>
 
         <Form.Item
-          name="is_authorized"
-          label="Usuário autorizado"
+          name="is_active"
+          label="Situação"
           valuePropName="checked"
-          tooltip="Novo usuários precisam ser autorizados pelo administrador para acessar o sistema"
+          tooltip={isSelf ? 'Você não pode desativar a própria conta' : 'Usuários inativos não conseguem entrar no sistema'}
         >
-          <Switch checkedChildren="Autorizado" unCheckedChildren="Pendente" />
-        </Form.Item>
-
-        <Form.Item name="is_active" label="Usuário ativo" valuePropName="checked">
-          <Switch checkedChildren="Ativo" unCheckedChildren="Inativo" />
+          <Switch checkedChildren="Ativo" unCheckedChildren="Inativo" disabled={isSelf} />
         </Form.Item>
 
         <Form.Item
           name="is_superuser"
-          label="Superusuário"
-          valuePropName="checked"
-          tooltip="Superusuários têm acesso total ao sistema, incluindo gestão de outros usuários"
+          label="Perfil"
+          tooltip={isSelf ? 'Você não pode remover o próprio perfil de administrador' : 'Administradores também gerenciam os usuários do sistema'}
         >
-          <Switch
-            checkedChildren={<SafetyOutlined />}
-            unCheckedChildren={<UserOutlined />}
-          />
+          <Radio.Group optionType="button" buttonStyle="solid" disabled={isSelf}>
+            <Radio value={false}>Usuário</Radio>
+            <Radio value={true}>Administrador</Radio>
+          </Radio.Group>
         </Form.Item>
       </Form>
     </Modal>

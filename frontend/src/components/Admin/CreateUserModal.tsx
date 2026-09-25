@@ -2,8 +2,8 @@
  * Modal para criação de novo usuário
  */
 import React, { useState } from 'react';
-import { Modal, Form, Input, Switch, Select, App } from 'antd';
-import { UserOutlined, MailOutlined, LockOutlined, SafetyOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, Radio, Alert, App } from 'antd';
+import { UserOutlined, MailOutlined, LockOutlined } from '@ant-design/icons';
 import type { CreateUserRequest } from '../../services/userManagementService';
 
 interface CreateUserModalProps {
@@ -76,8 +76,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ open, onClose,
         form={form}
         layout="vertical"
         initialValues={{
-          is_superuser: false,
-          authorization: 'municipal'
+          is_superuser: false
         }}
       >
         <Form.Item
@@ -116,28 +115,17 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ open, onClose,
         </Form.Item>
 
         <Form.Item
-          name="authorization"
-          label="Nível de autorização"
-          rules={[{ required: true, message: 'Por favor, selecione o nível de autorização' }]}
+          name="is_superuser"
+          label="Perfil"
+          tooltip="Administradores também gerenciam os usuários do sistema"
         >
-          <Select size="large" placeholder="Selecione o nível">
-            <Select.Option value="municipal">Municipal</Select.Option>
-            <Select.Option value="estadual">Estadual</Select.Option>
-            <Select.Option value="federal">Federal</Select.Option>
-          </Select>
+          <Radio.Group optionType="button" buttonStyle="solid">
+            <Radio value={false}>Usuário</Radio>
+            <Radio value={true}>Administrador</Radio>
+          </Radio.Group>
         </Form.Item>
 
-        <Form.Item
-          name="is_superuser"
-          label="Superusuário"
-          valuePropName="checked"
-          tooltip="Superusuários têm acesso total ao sistema, incluindo gestão de outros usuários"
-        >
-          <Switch
-            checkedChildren={<SafetyOutlined />}
-            unCheckedChildren={<UserOutlined />}
-          />
-        </Form.Item>
+        <Alert type="info" showIcon message="O usuário já poderá entrar com este email e senha." />
       </Form>
     </Modal>
   );

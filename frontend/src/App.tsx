@@ -12,7 +12,6 @@ import AppLayout from './components/Layout/AppLayout';
 import Dashboard from './pages/Dashboard';
 import RelatoriosLote from './pages/RelatoriosLote';
 import { LoginForm } from './components/Auth/LoginForm';
-import { RegisterForm } from './components/Auth/RegisterForm';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { UserProfile } from './components/Auth/UserProfile';
 import { UserManagement } from './pages/Admin/UserManagement';
@@ -115,7 +114,6 @@ const App: React.FC = () => {
           <Routes>
             {/* Rotas públicas de autenticação */}
             <Route path="/login" element={<LoginForm />} />
-            <Route path="/register" element={<RegisterForm />} />
 
             {/* Rotas protegidas */}
             <Route

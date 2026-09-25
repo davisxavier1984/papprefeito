@@ -404,6 +404,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Schema para criação de usuário"""
     password: str = Field(..., min_length=8, description="Senha do usuário (mínimo 8 caracteres)")
+    is_superuser: bool = Field(default=False, description="Se o usuário é administrador")
 
     @validator('password')
     def validate_password(cls, v):

@@ -9,7 +9,6 @@ from app.models.schemas import (
     Token,
     LoginRequest,
     RefreshTokenRequest,
-    UserCreate,
     User,
     UserUpdate,
     UserPasswordChange,
@@ -30,38 +29,6 @@ from app.utils.logger import logger
 
 router = APIRouter()
 security = HTTPBearer()
-
-
-@router.post(
-    "/register",
-    response_model=User,
-    status_code=status.HTTP_201_CREATED,
-    summary="Registrar novo usuário",
-    description="Cria uma nova conta de usuário no sistema"
-)
-async def register(
-    user_data: UserCreate,
-    user_service: UserService = Depends(get_user_service)
-):
-    """
-    Registra um novo usuário.
-
-    - **email**: Email do usuário (único)
-    - **nome**: Nome completo
-    - **password**: Senha (mínimo 8 caracteres, deve conter maiúscula, minúscula e número)
-    """
-    try:
-        user = await user_service.create_user(user_data)
-        logger.info(f"Novo usuário registrado: {user.email}")
-        return user
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Erro ao registrar usuário: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro ao registrar usuário"
-        )
 
 
 @router.post(
@@ -285,40 +252,6 @@ async def change_password(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro ao alterar senha"
-        )
-
-
-@router.delete(
-    "/me",
-    response_model=ResponseBase,
-    summary="Desativar conta",
-    description="Desativa a conta do usuário autenticado"
-)
-async def delete_current_user(
-    current_user: User = Depends(get_current_active_user),
-    user_service: UserService = Depends(get_user_service)
-):
-    """
-    Desativa a conta do usuário autenticado.
-
-    Requer autenticação.
-
-    A conta será marcada como inativa e não poderá mais fazer login.
-    """
-    try:
-        await user_service.delete_user(current_user.id)
-        logger.info(f"Conta desativada: {current_user.email}")
-        return ResponseBase(
-            success=True,
-            message="Conta desativada com sucesso"
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Erro ao desativar conta: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro ao desativar conta"
         )
 
 

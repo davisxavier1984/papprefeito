@@ -2,6 +2,8 @@
 
 Este documento explica como usar o sistema de autorização de usuários implementado no PAP Prefeito.
 
+> **Atualização (set/2026):** o cadastro público (`/register`) foi removido: só o administrador cria usuários, e eles já saem liberados para entrar. Não há mais "Nível de autorização" nem aprovação de pendentes; a situação é só Ativo/Inativo (ativar um usuário antigo pendente também o libera). O perfil é Usuário ou Administrador.
+
 ## 📋 Visão Geral
 
 O sistema de autorização controla quais usuários podem acessar a aplicação. Apenas usuários autorizados podem fazer login e usar o sistema.

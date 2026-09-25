@@ -53,8 +53,8 @@ class UserService:
             nome=user_data.nome,
             hashed_password=hashed_password,
             is_active=True,
-            is_authorized=False,
-            is_superuser=False,
+            is_authorized=True,  # só o admin cria usuários; não há aprovação
+            is_superuser=user_data.is_superuser,
             created_at=now,
             updated_at=now,
         )
@@ -90,6 +90,9 @@ class UserService:
             row.email = user_data.email.lower()
         if user_data.is_active is not None:
             row.is_active = user_data.is_active
+            if user_data.is_active:
+                # Libera usuários antigos que ficaram pendentes do cadastro público
+                row.is_authorized = True
         if user_data.is_authorized is not None:
             row.is_authorized = user_data.is_authorized
         if user_data.is_superuser is not None:
