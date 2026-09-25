@@ -6,6 +6,7 @@ import { Table, Tag, Button, Space, Tooltip, Popconfirm, Card, Typography } from
 import type { ColumnsType } from 'antd/es/table';
 import {
   EditOutlined,
+  KeyOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   CrownOutlined,
@@ -23,6 +24,7 @@ interface UserTableProps {
   users: User[];
   loading: boolean;
   onEdit: (user: User) => void;
+  onResetPassword: (user: User) => void;
   onToggleActive: (userId: string, isActive: boolean) => void;
 }
 
@@ -30,6 +32,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   users,
   loading,
   onEdit,
+  onResetPassword,
   onToggleActive
 }) => {
   const currentUserId = useAuthStore((state) => state.user?.id);
@@ -44,6 +47,14 @@ export const UserTable: React.FC<UserTableProps> = ({
           icon={<EditOutlined />}
           size="small"
           onClick={() => onEdit(record)}
+        />
+      </Tooltip>
+
+      <Tooltip title="Redefinir senha">
+        <Button
+          icon={<KeyOutlined />}
+          size="small"
+          onClick={() => onResetPassword(record)}
         />
       </Tooltip>
 
@@ -141,7 +152,7 @@ export const UserTable: React.FC<UserTableProps> = ({
       title: 'Ações',
       key: 'actions',
       fixed: 'right' as const,
-      width: 110,
+      width: 150,
       render: (_: unknown, record: User) => renderActions(record)
     }
   ];

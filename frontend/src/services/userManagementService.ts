@@ -128,6 +128,13 @@ class UserManagementService {
   }
 
   /**
+   * Redefine a senha de um usuário (apenas superusuário)
+   */
+  async resetPassword(userId: string, newPassword: string): Promise<void> {
+    await this.client.put(`/${userId}/password`, { new_password: newPassword });
+  }
+
+  /**
    * Desativa um usuário (soft delete)
    */
   async deactivateUser(userId: string): Promise<User> {

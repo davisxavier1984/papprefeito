@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Modal, Form, Input, Radio, Alert, App } from 'antd';
 import { UserOutlined, MailOutlined, LockOutlined } from '@ant-design/icons';
 import type { CreateUserRequest } from '../../services/userManagementService';
+import { validarSenha, REGRAS_SENHA } from '../../utils/senha';
 
 interface CreateUserModalProps {
   open: boolean;
@@ -39,26 +40,6 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ open, onClose,
   const handleCancel = () => {
     form.resetFields();
     onClose();
-  };
-
-  // Validação de força de senha
-  const validatePassword = (_: unknown, value: string) => {
-    if (!value) {
-      return Promise.reject(new Error('Por favor, insira uma senha'));
-    }
-    if (value.length < 8) {
-      return Promise.reject(new Error('A senha deve ter no mínimo 8 caracteres'));
-    }
-    if (!/[A-Z]/.test(value)) {
-      return Promise.reject(new Error('A senha deve conter pelo menos uma letra maiúscula'));
-    }
-    if (!/[a-z]/.test(value)) {
-      return Promise.reject(new Error('A senha deve conter pelo menos uma letra minúscula'));
-    }
-    if (!/[0-9]/.test(value)) {
-      return Promise.reject(new Error('A senha deve conter pelo menos um número'));
-    }
-    return Promise.resolve();
   };
 
   return (
@@ -104,8 +85,8 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ open, onClose,
         <Form.Item
           name="password"
           label="Senha"
-          rules={[{ validator: validatePassword }]}
-          help="Mínimo 8 caracteres, com letras maiúsculas, minúsculas e números"
+          rules={[{ validator: validarSenha }]}
+          help={REGRAS_SENHA}
         >
           <Input.Password
             prefix={<LockOutlined />}

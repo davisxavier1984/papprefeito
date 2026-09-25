@@ -406,6 +406,19 @@ class UserBase(BaseModel):
         return v.lower()
 
 
+def validar_forca_senha(v: str) -> str:
+    """Regra única de senha: 8+ caracteres, com maiúscula, minúscula e número."""
+    if len(v) < 8:
+        raise ValueError('Senha deve ter no mínimo 8 caracteres')
+    if not any(c.isupper() for c in v):
+        raise ValueError('Senha deve conter ao menos uma letra maiúscula')
+    if not any(c.islower() for c in v):
+        raise ValueError('Senha deve conter ao menos uma letra minúscula')
+    if not any(c.isdigit() for c in v):
+        raise ValueError('Senha deve conter ao menos um número')
+    return v
+
+
 class UserCreate(UserBase):
     """Schema para criação de usuário"""
     password: str = Field(..., min_length=8, description="Senha do usuário (mínimo 8 caracteres)")
@@ -413,15 +426,7 @@ class UserCreate(UserBase):
 
     @validator('password')
     def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError('Senha deve ter no mínimo 8 caracteres')
-        if not any(c.isupper() for c in v):
-            raise ValueError('Senha deve conter ao menos uma letra maiúscula')
-        if not any(c.islower() for c in v):
-            raise ValueError('Senha deve conter ao menos uma letra minúscula')
-        if not any(c.isdigit() for c in v):
-            raise ValueError('Senha deve conter ao menos um número')
-        return v
+        return validar_forca_senha(v)
 
 
 class UserUpdate(BaseModel):
@@ -458,15 +463,16 @@ class UserPasswordChange(BaseModel):
 
     @validator('new_password')
     def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError('Senha deve ter no mínimo 8 caracteres')
-        if not any(c.isupper() for c in v):
-            raise ValueError('Senha deve conter ao menos uma letra maiúscula')
-        if not any(c.islower() for c in v):
-            raise ValueError('Senha deve conter ao menos uma letra minúscula')
-        if not any(c.isdigit() for c in v):
-            raise ValueError('Senha deve conter ao menos um número')
-        return v
+        return validar_forca_senha(v)
+
+
+class AdminPasswordReset(BaseModel):
+    """Schema para o admin redefinir a senha de um usuário (sem senha atual)"""
+    new_password: str = Field(..., min_length=8, description="Nova senha")
+
+    @validator('new_password')
+    def validate_password(cls, v):
+        return validar_forca_senha(v)
 
 
 class User(UserBase):

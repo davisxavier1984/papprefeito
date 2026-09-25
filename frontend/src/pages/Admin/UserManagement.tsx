@@ -27,6 +27,7 @@ import {
 import { UserTable } from '../../components/Admin/UserTable';
 import { CreateUserModal } from '../../components/Admin/CreateUserModal';
 import { EditUserModal } from '../../components/Admin/EditUserModal';
+import { ResetPasswordModal } from '../../components/Admin/ResetPasswordModal';
 import { userManagementService, isAtivo } from '../../services/userManagementService';
 import { mensagemDeErro } from '../../utils/mensagemDeErro';
 import type { User } from '../../services/authService';
@@ -43,6 +44,7 @@ export const UserManagement: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [senhaUser, setSenhaUser] = useState<User | null>(null);
 
   // Carrega todos os usuários; filtros e contagens são feitos na tela
   const loadUsers = useCallback(async () => {
@@ -99,6 +101,15 @@ export const UserManagement: React.FC = () => {
       setSelectedUser(null);
     } catch (error) {
       throw new Error(mensagemDeErro(error, 'Verifique os dados e tente novamente.'));
+    }
+  };
+
+  // Redefinir senha
+  const handleResetPassword = async (userId: string, password: string) => {
+    try {
+      await userManagementService.resetPassword(userId, password);
+    } catch (error) {
+      throw new Error(mensagemDeErro(error, 'Verifique a senha e tente novamente.'));
     }
   };
 
@@ -228,6 +239,7 @@ export const UserManagement: React.FC = () => {
             users={filteredUsers}
             loading={loading}
             onEdit={handleEditUser}
+            onResetPassword={setSenhaUser}
             onToggleActive={handleToggleActive}
           />
         )}
@@ -248,6 +260,13 @@ export const UserManagement: React.FC = () => {
           setSelectedUser(null);
         }}
         onSubmit={handleUpdateUser}
+      />
+
+      <ResetPasswordModal
+        open={senhaUser !== null}
+        user={senhaUser}
+        onClose={() => setSenhaUser(null)}
+        onSubmit={handleResetPassword}
       />
     </div>
   );

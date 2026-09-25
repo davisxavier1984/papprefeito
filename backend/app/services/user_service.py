@@ -138,6 +138,22 @@ class UserService:
         logger.info(f"Senha atualizada com sucesso para usuário: {user_id}")
         return True
 
+    async def admin_set_password(self, user_id: str, new_password: str) -> None:
+        """Define a senha de um usuário sem exigir a atual (uso exclusivo do admin)."""
+        result = await self.session.execute(
+            select(UserDB).where(UserDB.id == user_id)
+        )
+        row = result.scalar_one_or_none()
+        if not row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuário não encontrado"
+            )
+
+        row.hashed_password = get_password_hash(new_password)
+        row.updated_at = datetime.utcnow()
+        await self.session.commit()
+
     async def authenticate_user(self, email: str, password: str) -> Optional[User]:
         result = await self.session.execute(
             select(UserDB).where(UserDB.email == email.lower())
